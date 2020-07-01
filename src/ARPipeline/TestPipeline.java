@@ -5,6 +5,7 @@ public class TestPipeline extends ARPipeline{
 	protected Thread mainThread = new Thread() {
 		@Override
 		public void run() {
+			((OpenGLFrameBuffer)outputFrameBuffer).initOpenGL();
 			mainloop();
 		}
 	};
