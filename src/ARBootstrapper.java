@@ -7,22 +7,23 @@ import entities.Entity;
 import renderEngine.Renderer;
 import shaders.StaticShader;
 
-public class ARSetup {
+public class ARBootstrapper {
 	
-	String SAMPLE_PATH = "E:/Primary/Files/College/Research/ar-system-03/src/samples/";
+	String SAMPLE_PATH = "src/samples/";
 	String filename = SAMPLE_PATH + "roomFloor01_270.avi";
 	
-	public ARSetup() {
+	public ARBootstrapper() {
 		
 	}
-	
 	
 	public void start() {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
 		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, true);
+		SingletonPoseBuffer spb = new SingletonPoseBuffer();
 		OpenGLFrameBuffer oglfb = new OpenGLFrameBuffer();
-		ARPipeline pipeline = new TestPipeline(ofb, oglfb);
+		ARPipeline pipeline = new TestPipeline(ofb, spb, oglfb);
+		
 		pipeline.start();
 
 		println("Done.");
@@ -30,5 +31,10 @@ public class ARSetup {
 	
 	public static void println(Object obj) {
 		System.out.println(obj);
+	}
+	
+	public static void main(String [] args) {
+		ARBootstrapper arBootstrapper = new ARBootstrapper();
+		arBootstrapper.start();
 	}
 }
