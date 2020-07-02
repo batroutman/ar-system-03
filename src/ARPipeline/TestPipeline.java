@@ -2,6 +2,8 @@ package ARPipeline;
 
 public class TestPipeline extends ARPipeline{
 	
+	float rotAngle = 0;
+	
 	protected Thread mainThread = new Thread() {
 		@Override
 		public void run() {
@@ -48,12 +50,30 @@ public class TestPipeline extends ARPipeline{
 		Frame currentFrame = this.inputFrameBuffer.getCurrentFrame();
 		boolean keepGoing = true;
 		while (keepGoing) {
+			
+			// artificially slow down pipeline to prevent OpenGL from breaking (investigate this bug)
 			try {
 				Thread.sleep(5);
-			} catch (InterruptedException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			this.outputFrameBuffer.pushFrame(currentFrame);
+
+			// rotate cube as demo that pose can be modified and displayed
+			rotAngle += 0.0005f;
+			Pose pose = new Pose();
+			pose.setR11((float)Math.cos(rotAngle));
+			pose.setR22((float)Math.cos(rotAngle));
+			pose.setR12(-(float)Math.sin(rotAngle));
+			pose.setR21((float)Math.sin(rotAngle));
+			
+			synchronized (this.outputPoseBuffer) {
+				this.outputPoseBuffer.pushPose(pose);
+			}
+			
+			// for demo, just push the unaltered frame along to the output buffer
+			synchronized (this.outputFrameBuffer) {
+				this.outputFrameBuffer.pushFrame(currentFrame);
+			}
 			
 			if (currentFrame == null) {
 				keepGoing = false;

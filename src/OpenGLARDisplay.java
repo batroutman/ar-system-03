@@ -136,7 +136,7 @@ public class OpenGLARDisplay {
 		// construct model for cube
 		RawModel model = this.loader.loadToVAO(vertices,textureCoords,indices);
 		TexturedModel staticModel = new TexturedModel(model,new ModelTexture(this.loader.loadTexture("sample_texture")));
-		Entity entity = new Entity(staticModel, new Vector3f(0,0,-5),0,45,0,0.5f);
+		Entity entity = new Entity(staticModel, new Vector3f(0,0,-10),0,45,0,0.5f);
 		this.entities.add(entity);
 		
 		// create camera
@@ -170,7 +170,6 @@ public class OpenGLARDisplay {
 	}
 	
 	public void updateDisplay() {
-		this.camera.move();
 		this.renderer.prepare();
 		this.renderer.render(this.camera, this.entities, this.cameraShader, this.bgEntity, this.bgShader);
 		DisplayManager.updateDisplay();
@@ -201,12 +200,18 @@ public class OpenGLARDisplay {
 	}
 	
 	public void setCameraPose(Pose pose) {
-		
+		this.camera.setMatrix(pose);
 	}
 	
 	public void detectChanges() {
-		Pose pose = this.poseBuffer.getCurrentPose();
-		Frame frame = this.frameBuffer.getCurrentFrame();
+		Pose pose;
+		Frame frame;
+		synchronized (this.poseBuffer) {
+			pose = this.poseBuffer.getCurrentPose();
+		}
+		synchronized (this.frameBuffer) {
+			frame = this.frameBuffer.getCurrentFrame();
+		}
 		if (pose != null) {
 			this.setCameraPose(pose);
 		}
