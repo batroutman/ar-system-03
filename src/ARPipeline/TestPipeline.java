@@ -5,7 +5,6 @@ public class TestPipeline extends ARPipeline{
 	protected Thread mainThread = new Thread() {
 		@Override
 		public void run() {
-			((OpenGLFrameBuffer)outputFrameBuffer).initOpenGL();
 			mainloop();
 		}
 	};
@@ -52,7 +51,6 @@ public class TestPipeline extends ARPipeline{
 			try {
 				Thread.sleep(5);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			this.outputFrameBuffer.pushFrame(currentFrame);

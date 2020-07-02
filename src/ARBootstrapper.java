@@ -21,10 +21,12 @@ public class ARBootstrapper {
 		
 		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, true);
 		SingletonPoseBuffer spb = new SingletonPoseBuffer();
-		OpenGLFrameBuffer oglfb = new OpenGLFrameBuffer();
-		ARPipeline pipeline = new TestPipeline(ofb, spb, oglfb);
+		SingletonFrameBuffer sfb = new SingletonFrameBuffer();
+		ARPipeline pipeline = new TestPipeline(ofb, spb, sfb);
+		OpenGLARDisplay ARDisplay = new OpenGLARDisplay(sfb, spb);
 		
 		pipeline.start();
+		ARDisplay.displayLoop();
 
 		println("Done.");
 	}

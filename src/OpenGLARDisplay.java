@@ -135,7 +135,7 @@ public class OpenGLARDisplay {
 				
 		// construct model for cube
 		RawModel model = this.loader.loadToVAO(vertices,textureCoords,indices);
-		TexturedModel staticModel = new TexturedModel(model,new ModelTexture(this.loader.loadTexture("image")));
+		TexturedModel staticModel = new TexturedModel(model,new ModelTexture(this.loader.loadTexture("sample_texture")));
 		Entity entity = new Entity(staticModel, new Vector3f(0,0,-5),0,45,0,0.5f);
 		this.entities.add(entity);
 		
@@ -165,7 +165,7 @@ public class OpenGLARDisplay {
 		// set up backround models
 		this.bgShader = new StaticShader(true);
 		RawModel bgModel = this.loader.loadToVAO(bgVertices, bgTextureCoords, bgIndices);
-		TexturedModel bgStaticModel = new TexturedModel(bgModel, new ModelTexture(this.loader.loadTexture("image")));
+		TexturedModel bgStaticModel = new TexturedModel(bgModel, new ModelTexture(this.loader.loadTexture("sample_texture")));
 		this.bgEntity = new Entity(bgStaticModel, new Vector3f(0,0,-10), 0, 0, 0, 2000);
 	}
 	
