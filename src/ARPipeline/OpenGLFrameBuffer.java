@@ -163,39 +163,39 @@ public class OpenGLFrameBuffer implements FrameBuffer {
 	@Override
 	public void pushFrame(Frame frame) {
 		
-		if (frame == null) {
-			while(!Display.isCloseRequested()) {
-				this.updateDisplay();
-			}
-			this.cameraShader.cleanUp();
-			this.loader.cleanUp();
-			DisplayManager.closeDisplay();
-		} else {
-			// convert Frame to texture
-			byte [] bytes = new byte [frame.getY().length * 3];
-			for (int i = 0; i < bytes.length; i++) {
-				bytes[i] = frame.getY()[i / 3];
-			}
-			ByteBuffer pixels = ByteBuffer.allocateDirect(bytes.length);
-			pixels.put(bytes);
-			pixels.flip();
-			
-			// delete old texture and create new texture
-			GL11.glDeleteTextures(this.bgEntity.getModel().getTexture().getID());
-			int textureID = GL11.glGenTextures();
-			GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureID);
-		    GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-		    GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-		    GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGB, frame.getWidth(), frame.getHeight(), 0, GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, pixels);
-			GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
-			
-			// set bgEntity texture to new texture
-			this.bgEntity.getModel().getTexture().setID(textureID) ;
-			
-			// update display (call renderer and stuff)
-			this.updateDisplay();
-		}
+//		if (frame == null) {
+//			while(!Display.isCloseRequested()) {
+//				this.updateDisplay();
+//			}
+//			this.cameraShader.cleanUp();
+//			this.loader.cleanUp();
+//			DisplayManager.closeDisplay();
+//		} else {
+//			// convert Frame to texture
+//			byte [] bytes = new byte [frame.getY().length * 3];
+//			for (int i = 0; i < bytes.length; i++) {
+//				bytes[i] = frame.getY()[i / 3];
+//			}
+//			ByteBuffer pixels = ByteBuffer.allocateDirect(bytes.length);
+//			pixels.put(bytes);
+//			pixels.flip();
+//			
+//			// delete old texture and create new texture
+//			GL11.glDeleteTextures(this.bgEntity.getModel().getTexture().getID());
+//			int textureID = GL11.glGenTextures();
+//			GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureID);
+//		    GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+//		    GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+//		    GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+//			GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGB, frame.getWidth(), frame.getHeight(), 0, GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, pixels);
+//			GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
+//			
+//			// set bgEntity texture to new texture
+//			this.bgEntity.getModel().getTexture().setID(textureID) ;
+//			
+//			// update display (call renderer and stuff)
+//			this.updateDisplay();
+//		}
 
 	}
 

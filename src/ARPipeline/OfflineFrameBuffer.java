@@ -52,29 +52,28 @@ public class OfflineFrameBuffer implements FrameBuffer {
 	}
 	
 	// convert the given Mat to Frame
-	public static Frame matToFrame(Mat mat, boolean YOnly) {
+	public static Frame matToFrame(Mat mat, boolean greyOnly) {
 		
 		int numRows = mat.rows();
 		int numCols = mat.cols();
-		byte [] y = new byte[numRows * numCols];
-		byte [] u = new byte[numRows * numCols];
-		byte [] v = new byte[numRows * numCols];
+		byte [] grey = new byte[numRows * numCols];
+		byte [] r = new byte[numRows * numCols];
+		byte [] g = new byte[numRows * numCols];
+		byte [] b = new byte[numRows * numCols];
 		
-		// go through each pixel and solve YUV values
 		for(int row = 0; row < numRows; row++) {
 			for(int col = 0; col < numCols; col++) {
 				
 				double B = mat.get(row, col)[0];
 				double G = mat.get(row, col)[1];
 				double R = mat.get(row, col)[2];
-				byte Y = (byte)Math.floor(0.299 * R + 0.587 * G + 0.114 * B);
-				byte U = (byte)Math.floor(0.492 * (B - Y));
-				byte V = (byte)Math.floor(0.877 * (R - Y));
+				double GREY = ((R + G + B) / 3);
 				
-				y[row * numCols + col] = Y;
-				if(!YOnly) {
-					u[row * numCols + col] = U;
-					v[row * numCols + col] = V;
+				grey[row * numCols + col] = (byte)GREY;
+				if(!greyOnly) {
+					r[row * numCols + col] = (byte)R;
+					g[row * numCols + col] = (byte)G;
+					b[row * numCols + col] = (byte)B;
 				}
 				
 			}
@@ -82,10 +81,10 @@ public class OfflineFrameBuffer implements FrameBuffer {
 		
 		Frame frame;
 		
-		if(YOnly) {
-			frame = new Frame(y, numCols, numRows);
+		if(greyOnly) {
+			frame = new Frame(grey, numCols, numRows);
 		} else {
-			frame = new Frame(y, u, v, numCols, numRows);
+			frame = new Frame(r, g, b, numCols, numRows);
 		}
 		
 		return frame;

@@ -19,7 +19,7 @@ public class ARBootstrapper {
 	public void start() {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 		
-		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, true);
+		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, false);
 		SingletonPoseBuffer spb = new SingletonPoseBuffer();
 		SingletonFrameBuffer sfb = new SingletonFrameBuffer();
 		ARPipeline pipeline = new TestPipeline(ofb, spb, sfb);

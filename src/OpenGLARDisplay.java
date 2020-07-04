@@ -132,12 +132,32 @@ public class OpenGLARDisplay {
 				23,21,22
 
 		};
-				
-		// construct model for cube
-		RawModel model = this.loader.loadToVAO(vertices,textureCoords,indices);
-		TexturedModel staticModel = new TexturedModel(model,new ModelTexture(this.loader.loadTexture("sample_texture")));
-		Entity entity = new Entity(staticModel, new Vector3f(0,0,-10),0,45,0,0.5f);
-		this.entities.add(entity);
+		
+		int numRows = 10;
+		int numCols = 10;
+		int spacing = 1;
+		
+		// floor
+		for (int i = 0; i < numRows; i++) {
+			for (int j = 0; j < numCols; j++) {
+				// construct model for cube
+				RawModel tModel = this.loader.loadToVAO(vertices,textureCoords,indices);
+				TexturedModel tStaticModel = new TexturedModel(tModel,new ModelTexture(this.loader.loadTexture("sample_texture_128")));
+				Entity tEntity = new Entity(tStaticModel, new Vector3f((j - numCols / 2) * spacing, numRows / 2, ((i - numRows / 2) - 0) * spacing),0,0,0,0.3f);
+				this.entities.add(tEntity);
+			}
+		}
+		
+		// wall
+		for (int i = 0; i < numRows; i++) {
+			for (int j = 0; j < numCols; j++) {
+				// construct model for cube
+				RawModel tModel = this.loader.loadToVAO(vertices,textureCoords,indices);
+				TexturedModel tStaticModel = new TexturedModel(tModel,new ModelTexture(this.loader.loadTexture("sample_texture_128")));
+				Entity tEntity = new Entity(tStaticModel, new Vector3f((j - numCols / 2) * spacing, ((i - numRows / 2) - 0) * spacing, -(numRows / 2)),0,0,0,0.3f);
+				this.entities.add(tEntity);
+			}
+		}
 		
 		// create camera
 		this.camera = new Camera();
@@ -162,7 +182,7 @@ public class OpenGLARDisplay {
 				1, 0
 		};
 		
-		// set up backround models
+		// set up background models
 		this.bgShader = new StaticShader(true);
 		RawModel bgModel = this.loader.loadToVAO(bgVertices, bgTextureCoords, bgIndices);
 		TexturedModel bgStaticModel = new TexturedModel(bgModel, new ModelTexture(this.loader.loadTexture("sample_texture")));
@@ -177,10 +197,22 @@ public class OpenGLARDisplay {
 	
 	public void setFrameToTexture(Frame frame) {
 		// convert Frame to texture
-		byte [] bytes = new byte [frame.getY().length * 3];
-		for (int i = 0; i < bytes.length; i++) {
-			bytes[i] = frame.getY()[i / 3];
+		byte [] bytes = new byte [frame.getGrey().length * 3];
+		if (frame.getR() != null) {
+			for (int i = 0; i < bytes.length / 3; i++) {
+				byte R = frame.getR()[i];
+				byte G = frame.getG()[i];
+				byte B = frame.getB()[i];
+				bytes[i * 3] = R;
+				bytes[i * 3 + 1] = G;
+				bytes[i * 3 + 2] = B;
+			}
+		} else {
+			for (int i = 0; i < bytes.length; i++) {
+				bytes[i] = frame.getGrey()[i / 3];
+			}
 		}
+		
 		ByteBuffer pixels = ByteBuffer.allocateDirect(bytes.length);
 		pixels.put(bytes);
 		pixels.flip();

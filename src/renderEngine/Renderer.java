@@ -40,6 +40,7 @@ public class Renderer {
 	}
 
 	public void render(Camera camera, ArrayList<Entity> entities, StaticShader cameraShader, Entity background, StaticShader bgShader) {
+		
 		GL11.glDisable(GL11.GL_DEPTH_TEST);
 		GL11.glDepthFunc(GL11.GL_NEVER);
 		bgShader.start();

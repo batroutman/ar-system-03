@@ -11,46 +11,57 @@ public class Frame {
     // expected height of the image
     private int height;
 
-    // byte array of Y channel of image (YUV)
-    private byte [] y;
+    // byte array of R channel of image (RGB)
+    private byte [] r;
 
-    // byte array of U channel of image (YUV)
-    private byte [] u;
+    // byte array of G channel of image (RGB)
+    private byte [] g;
 
-    // byte array of V channel of image (YUV)
-    private byte [] v;
+    // byte array of B channel of image (RGB)
+    private byte [] b;
+    
+    // byte array of Greyscale channel (average of RGB)
+    private byte [] grey;
 
     public Frame() {
         this.time = System.nanoTime();
     }
 
-    public Frame(byte [] y) {
+    public Frame(byte [] grey) {
         this.time = System.nanoTime();
-        this.y = y;
+        this.grey = grey;
     }
 
-    public Frame(byte [] y, int width, int height) {
+    public Frame(byte [] grey, int width, int height) {
         this.time = System.nanoTime();
-        this.y = y;
+        this.grey = grey;
         this.width = width;
         this.height = height;
     }
 
     
-    public Frame(byte [] y, byte [] u, byte [] v) {
+    public Frame(byte [] r, byte [] g, byte [] b) {
         this.time = System.nanoTime();
-        this.y = y;
-        this.u = u;
-        this.v = v;
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.grey = new byte[r.length];
+        for (int i = 0; i < r.length; i++) {
+        	this.grey[i] = (byte)((r[i] + g[i] + b[i]) / 3);
+        }
     }
     
-    public Frame(byte [] y, byte [] u, byte [] v, int width, int height) {
+    public Frame(byte [] r, byte [] g, byte [] b, int width, int height) {
         this.time = System.nanoTime();
-        this.y = y;
-        this.u = u;
-        this.v = v;
         this.width = width;
         this.height = height;
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.grey = new byte[r.length];
+        for (int i = 0; i < r.length; i++) {
+        	this.grey[i] = (byte)((r[i] + g[i] + b[i]) / 3);
+        }
     }
     
     public int getWidth() {
@@ -77,27 +88,35 @@ public class Frame {
         this.time = time;
     }
 
-    public byte[] getY() {
-        return y;
+    public byte[] getR() {
+        return r;
     }
 
-    public void setY(byte[] y) {
-        this.y = y;
+    public void setR(byte[] r) {
+        this.r = r;
     }
 
-    public byte[] getU() {
-        return u;
+    public byte[] getG() {
+        return g;
     }
 
-    public void setU(byte[] u) {
-        this.u = u;
+    public void setG(byte[] g) {
+        this.g = g;
     }
 
-    public byte[] getV() {
-        return v;
+    public byte[] getB() {
+        return b;
     }
 
-    public void setV(byte[] v) {
-        this.v = v;
+    public void setB(byte[] b) {
+        this.b = b;
+    }
+    
+    public byte[] getGrey() {
+        return grey;
+    }
+
+    public void setGrey(byte[] grey) {
+        this.grey = grey;
     }
 }
