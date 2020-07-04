@@ -2,6 +2,9 @@ package ARPipeline;
 
 import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
+
+import java.util.Arrays;
+
 import org.opencv.core.Mat;
 
 public class TestPipeline extends ARPipeline{
@@ -76,11 +79,17 @@ public class TestPipeline extends ARPipeline{
 			
 			// find ORB features
 			if (currentFrame != null) {
-				ORB orb = ORB.create();
+				int patchSize = 5;
+				ORB orb = ORB.create(1000);
+				orb.setPatchSize(patchSize);
+				orb.setNLevels(3);
 				MatOfKeyPoint keypoints = new MatOfKeyPoint();
 				Mat image = ARUtils.frameToMat(currentFrame);
 				orb.detect(image, keypoints);
-				ARUtils.boxHighlight(currentFrame, keypoints);
+				Integer [] octaves = { 1 };
+				ARUtils.pruneOctaves(keypoints, Arrays.asList(octaves));
+				ARUtils.nonMaximumSuppression(keypoints, patchSize);
+				ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 			}
 			
 			// for demo, just push the unaltered frame along to the output buffer
