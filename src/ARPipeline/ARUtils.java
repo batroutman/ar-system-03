@@ -1,7 +1,6 @@
 package ARPipeline;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.opencv.core.CvType;
@@ -111,7 +110,7 @@ public class ARUtils {
 			interestPoints.add(keypointList.get(i));
 			
 			for (int j = i + 1; j < keypointList.size(); j++) {
-				if (getDistance(keypointList.get(j).pt, keypointList.get(i).pt) < patchSize * Math.pow(2, keypointList.get(j).octave)) {
+				if (keypointList.get(i).octave == keypointList.get(j).octave && getDistance(keypointList.get(j).pt, keypointList.get(i).pt) < patchSize * Math.pow(2, keypointList.get(j).octave)) {
 					interestPoints.add(keypointList.get(j));
 				}
 			}

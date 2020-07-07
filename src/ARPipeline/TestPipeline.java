@@ -3,8 +3,6 @@ package ARPipeline;
 import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
 
-import java.util.Arrays;
-
 import org.opencv.core.Mat;
 
 public class TestPipeline extends ARPipeline{
@@ -53,18 +51,33 @@ public class TestPipeline extends ARPipeline{
 		this.mainThread.interrupt();
 	}
 	
+	Mat oldDesc = new Mat();
+	
 	protected void mainloop() {
 		Frame currentFrame = this.inputFrameBuffer.getCurrentFrame();
 		boolean keepGoing = true;
 		while (keepGoing) {
 			
-			// artificially slow down pipeline to prevent OpenGL from breaking (investigate this bug)
-			try {
-				Thread.sleep(1);
-			} catch (Exception e) {
-				e.printStackTrace();
+			if (currentFrame == null) {
+				keepGoing = false;
+				
+				System.out.println(oldDesc.row(0).rows());
+				
+				continue;
 			}
-
+			
+			// find ORB features
+			int patchSize = 5;
+			ORB orb = ORB.create(100);
+			orb.setPatchSize(patchSize);
+			orb.setNLevels(1);
+			MatOfKeyPoint keypoints = new MatOfKeyPoint();
+			Mat descriptors = new Mat();
+			Mat image = ARUtils.frameToMat(currentFrame);
+			orb.detectAndCompute(image, new Mat(), keypoints, descriptors);
+			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
+			oldDesc = descriptors;
+			
 			// rotate cube as demo that pose can be modified and displayed
 			rotAngle += 0.002f;
 			Pose pose = new Pose();
@@ -77,31 +90,15 @@ public class TestPipeline extends ARPipeline{
 				this.outputPoseBuffer.pushPose(pose);
 			}
 			
-			// find ORB features
-			if (currentFrame != null) {
-				int patchSize = 5;
-				ORB orb = ORB.create(1000);
-				orb.setPatchSize(patchSize);
-				orb.setNLevels(3);
-				MatOfKeyPoint keypoints = new MatOfKeyPoint();
-				Mat image = ARUtils.frameToMat(currentFrame);
-				orb.detect(image, keypoints);
-				Integer [] octaves = { 1 };
-				ARUtils.pruneOctaves(keypoints, Arrays.asList(octaves));
-				ARUtils.nonMaximumSuppression(keypoints, patchSize);
-				ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
-			}
-			
 			// for demo, just push the unaltered frame along to the output buffer
 			synchronized (this.outputFrameBuffer) {
 				this.outputFrameBuffer.pushFrame(currentFrame);
 			}
+
+			currentFrame = this.inputFrameBuffer.getCurrentFrame();
 			
-			if (currentFrame == null) {
-				keepGoing = false;
-			} else {
-				currentFrame = this.inputFrameBuffer.getCurrentFrame();
-			}
+			
+			
 		}
 	}
 	
