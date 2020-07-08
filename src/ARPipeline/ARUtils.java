@@ -168,4 +168,49 @@ public class ARUtils {
 		}
 		keypoints.fromList(keypointList);
 	}
+	
+	public static Double min(ArrayList<Double> list) {
+		Double min = list.get(0);
+		for (int i = 1; i < list.size(); i++) {
+			if (min > list.get(i)) {
+				min = list.get(i);
+			}
+		}
+		return min;
+	}
+	
+	public static Double max(ArrayList<Double> list) {
+		Double max = list.get(0);
+		for (int i = 1; i < list.size(); i++) {
+			if (max < list.get(i)) {
+				max = list.get(i);
+			}
+		}
+		return max;
+	}
+	
+	public static Double sum(ArrayList<Double> list) {
+		Double sum = 0.0;
+		for (int i = 0; i < list.size(); i++) {
+			sum += list.get(i);
+		}
+		return sum;
+	}
+	
+	public static Double mean(ArrayList<Double> list) {
+		return sum(list) / list.size();
+	}
+	
+	public static Double variance(ArrayList<Double> list) {
+		Double avg = mean(list);
+		Double variance = 0.0;
+		for (int i = 0; i < list.size(); i++) {
+			variance += Math.pow(list.get(i) - avg, 2);
+		}
+		return variance / avg;
+	}
+	
+	public static Double stdDev(ArrayList<Double> list) {
+		return Math.sqrt(variance(list));
+	}
 }

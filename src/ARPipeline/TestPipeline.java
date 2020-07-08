@@ -3,6 +3,8 @@ package ARPipeline;
 import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
 
+import java.util.ArrayList;
+
 import org.opencv.core.Mat;
 
 public class TestPipeline extends ARPipeline{
@@ -61,7 +63,7 @@ public class TestPipeline extends ARPipeline{
 			if (currentFrame == null) {
 				keepGoing = false;
 				
-				System.out.println(oldDesc.row(0).rows());
+				getStats(oldDesc);
 				
 				continue;
 			}
@@ -69,6 +71,7 @@ public class TestPipeline extends ARPipeline{
 			// find ORB features
 			int patchSize = 5;
 			ORB orb = ORB.create(100);
+			orb.setScoreType(ORB.FAST_SCORE);
 			orb.setPatchSize(patchSize);
 			orb.setNLevels(1);
 			MatOfKeyPoint keypoints = new MatOfKeyPoint();
@@ -99,6 +102,20 @@ public class TestPipeline extends ARPipeline{
 			
 			
 			
+		}
+	}
+	
+	public void getStats(Mat desc) {
+		for (int i = 0; i < desc.cols(); i++) {
+			ArrayList<Double> column = new ArrayList<Double>();
+			for (int j = 0; j < desc.rows(); j++) {
+				column.add(desc.get(j, i)[0]);
+			}
+			System.out.println("====  " + i + "  ===============================");
+			System.out.println("Min    : " + ARUtils.min(column));
+			System.out.println("Max    : " + ARUtils.max(column));
+			System.out.println("Average: " + ARUtils.mean(column));
+			System.out.println("Std Dev: " + ARUtils.stdDev(column));
 		}
 	}
 	
