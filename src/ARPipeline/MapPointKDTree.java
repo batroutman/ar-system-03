@@ -2,56 +2,61 @@ package ARPipeline;
 
 import java.util.ArrayList;
 
+import org.opencv.core.Mat;
+
 public class MapPointKDTree {
 
 	protected MapPointKDTree parent = null;
 	protected MapPointKDTree left = null;
 	protected MapPointKDTree right = null;
 	protected int index = 0;
-	protected int depth = 0;
 	protected double splitVal = 128;
-	protected ArrayList<MapPoint> payload = null;
+	protected MapPoint payload = null;
 	
 	protected MapPointKDTree() {
 		
 	}
 	
-	public MapPointKDTree(int depth) {
+	public MapPointKDTree(MapPoint mp) {
 		this.index = 0;
-		this.depth = depth;
-		this.parent = null;
-		if (depth > 0) {
-			this.left = new MapPointKDTree(this, depth - 1, index + 1);
-			this.right = new MapPointKDTree(this, depth - 1, index + 1);
-		} else {
-			this.payload = new ArrayList<MapPoint>();
-		}
+		this.payload = mp;
 	}
 	
-	protected MapPointKDTree(MapPointKDTree parent, int depth, int index) {
-		this.index = index;
-		this.depth = depth;
+	public MapPointKDTree(MapPointKDTree parent, MapPoint mp, int index) {
+		this.index = index % mp.descriptor.rows();
 		this.parent = parent;
-		if (depth > 0) {
-			this.left = new MapPointKDTree(this, depth - 1, index + 1);
-			this.right = new MapPointKDTree(this, depth - 1, index + 1);
-		} else {
-			this.payload = new ArrayList<MapPoint>();
-		}
+		this.payload = mp;
 	}
 	
 	public void insert(MapPoint mp) {
-		if (this.depth > 0) {
-			double elementValue = mp.descriptor.get(0, this.index)[0];
-			if (elementValue < this.splitVal) {
+		double elementVal = mp.descriptor.get(0, this.index)[0];
+		if (elementVal < this.splitVal) {
+			if (this.left != null) {
 				this.left.insert(mp);
 			} else {
-				this.right.insert(mp);
+				this.left = new MapPointKDTree(this, mp, this.index + 1);
 			}
 		} else {
-			this.payload.add(mp);
+			if (this.right != null) {
+				this.right.insert(mp);
+			} else {
+				this.right = new MapPointKDTree(this, mp, this.index + 1);
+			}
 		}
 	}
+
+
+	
+	
+	public static Double descriptorDistance(Mat desc1, Mat desc2) {
+		Double sum = 0.0;
+		for (int i = 0; i < desc1.cols(); i++) {
+			sum += Math.pow(desc1.get(0, i)[0] - desc2.get(0,  i)[0], 2);
+		}
+		return Math.sqrt(sum);
+	}
+	
+	
 	
 	
 }

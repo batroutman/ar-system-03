@@ -213,4 +213,6 @@ public class ARUtils {
 	public static Double stdDev(ArrayList<Double> list) {
 		return Math.sqrt(variance(list));
 	}
+	
+	
 }
