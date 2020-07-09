@@ -10,7 +10,6 @@ public class MapPointKDTree {
 	protected MapPointKDTree left = null;
 	protected MapPointKDTree right = null;
 	protected int index = 0;
-	protected double splitVal = 128;
 	protected MapPoint payload = null;
 	
 	protected MapPointKDTree() {
@@ -30,7 +29,8 @@ public class MapPointKDTree {
 	
 	public void insert(MapPoint mp) {
 		double elementVal = mp.descriptor.get(0, this.index)[0];
-		if (elementVal < this.splitVal) {
+		double payloadVal = this.payload.descriptor.get(0, this.index)[0];
+		if (elementVal < payloadVal) {
 			if (this.left != null) {
 				this.left.insert(mp);
 			} else {
