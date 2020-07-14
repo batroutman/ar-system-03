@@ -9,6 +9,9 @@ public class MapPoint {
 	protected Double y = null;
 	protected Double z = null;
 	
+	// observed projected coordinates
+	protected Double u = null;
+	protected Double v = null;
 	
 	// initial descriptor
 	protected Mat descriptor = null;
@@ -25,6 +28,11 @@ public class MapPoint {
 		this.x = x;
 		this.y = y;
 		this.z = z;
+	}
+	
+	public void setUV(Double u, Double v) {
+		this.u = u;
+		this.v = v;
 	}
 
 	public Double getX() {
@@ -57,6 +65,22 @@ public class MapPoint {
 
 	public void setDescriptor(Mat descriptor) {
 		this.descriptor = descriptor;
+	}
+
+	public Double getU() {
+		return u;
+	}
+
+	public void setU(Double u) {
+		this.u = u;
+	}
+
+	public Double getV() {
+		return v;
+	}
+
+	public void setV(Double v) {
+		this.v = v;
 	}
 	
 }

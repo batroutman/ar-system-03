@@ -81,6 +81,17 @@ public class TestPipeline extends ARPipeline{
 			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 			oldDesc = descriptors;
 			
+			// what do I want to do?
+			// find correspondences between descriptors and mappoints in used in current keyframe
+			//		a. if I have 0 keyframes, generate one and set pose to origin. continue.
+			//		b. otherwise, if I have at least 40(?) correspondences, then simply compute 5-point sfm with them. continue
+			//			i. else (I don't have at least 40(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
+			//			ii. else (<10 correspondences), check other keyframes for keyframe with most correspondences. If >= 10 correspondences, set as current keyframe and use the correspondences for sfm. if < 40, generate new keyframe.
+			// 			iii. else, tracking lost (handle this later)
+			
+			
+			
+			
 			// rotate cube as demo that pose can be modified and displayed
 			rotAngle += 0.002f;
 			Pose pose = new Pose();
