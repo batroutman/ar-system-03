@@ -4,10 +4,18 @@ import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 
 public class TestPipeline extends ARPipeline{
+	
+	double TOLERANCE = 100.0;
+	double SEARCH_RADIUS = 20.0;
+	
+	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
+	KeyFrame currentKeyFrame = null;
 	
 	float rotAngle = 0;
 	
@@ -53,8 +61,59 @@ public class TestPipeline extends ARPipeline{
 		this.mainThread.interrupt();
 	}
 	
-	Mat oldDesc = new Mat();
+	public static KeyFrame generateKeyFrame(Mat descriptors, MatOfKeyPoint keypoints) {
+		
+		KeyFrame keyframe = new KeyFrame();
+		Pose pose = new Pose();
+		pose.setOrigin();
+		keyframe.setPose(pose);
+		
+		List<KeyPoint> keypointList = keypoints.toList();
+		MapPoint firstMp = new MapPoint(descriptors.row(0));
+		// may have issues here. negative y? offset?
+		firstMp.setUV(keypointList.get(0).pt.x, keypointList.get(0).pt.y);
+		MapPointKDTree tree = new MapPointKDTree(firstMp);
+		
+		for (int i = 1; i < keypointList.size(); i++) {
+			MapPoint mp = new MapPoint(descriptors.row(i));
+			mp.setUV(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
+			tree.insert(mp);
+		}
+		
+		System.out.println("depth: " + tree.depth());
+		
+		keyframe.setDescriptors(tree);
+		return keyframe;
+		
+	}
 	
+	public ArrayList<Correspondence> getCorrespondences(KeyFrame keyframe, Mat descriptors, MatOfKeyPoint keypoints, double tolerance) {
+		
+		ArrayList<Correspondence> correspondences = new ArrayList<Correspondence>();
+		List<KeyPoint> keypointList = keypoints.toList();
+		
+		for (int rowIndex = 0; rowIndex < descriptors.rows(); rowIndex++) {
+			Mat row = descriptors.row(rowIndex);
+			MapPoint nearest = keyframe.getDescriptors().nearest(row);
+			if (ARUtils.descriptorDistance(row, nearest.getDescriptor()) <= tolerance) {
+				Correspondence c = new Correspondence();
+				c.setDescriptor1(nearest.getDescriptor());
+				c.setU1(nearest.getU());
+				c.setV1(nearest.getV());
+				c.setDescriptor2(row);
+				c.setU2(keypointList.get(rowIndex).pt.x);
+				c.setV2(keypointList.get(rowIndex).pt.y);
+				
+				correspondences.add(c);
+			}
+		}
+		
+		return correspondences;
+		
+	}
+	
+	Mat oldDesc = new Mat();
+	int count  = 0;
 	protected void mainloop() {
 		Frame currentFrame = this.inputFrameBuffer.getCurrentFrame();
 		boolean keepGoing = true;
@@ -84,12 +143,30 @@ public class TestPipeline extends ARPipeline{
 			// what do I want to do?
 			// find correspondences between descriptors and mappoints in used in current keyframe
 			//		a. if I have 0 keyframes, generate one and set pose to origin. continue.
-			//		b. otherwise, if I have at least 40(?) correspondences, then simply compute 5-point sfm with them. continue
+					if (this.keyframes.size() == 0) {
+						this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
+						this.keyframes.add(this.currentKeyFrame);
+						
+						System.out.println(this.keyframes.size());
+					}
+			//		b. otherwise, 
+					else {
+						// calculate correspondences
+						ArrayList<Correspondence> correspondences = this.getCorrespondences(this.currentKeyFrame, descriptors, keypoints, TOLERANCE);
+						System.out.println("Num of Correspondences: " + correspondences.size());
+						byte [] red = { (byte)255, 0, 0 };
+						for(Correspondence c:correspondences) {
+							ARUtils.boxHighlight(currentFrame, (int)c.getU2(), (int)c.getV2(), red, 8);
+						}
+						
+			// 			if I have at least 40(?) correspondences, then simply compute 5-point sfm with them. continue
 			//			i. else (I don't have at least 40(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
 			//			ii. else (<10 correspondences), check other keyframes for keyframe with most correspondences. If >= 10 correspondences, set as current keyframe and use the correspondences for sfm. if < 40, generate new keyframe.
 			// 			iii. else, tracking lost (handle this later)
+					}	
+
 			
-			
+					count++;
 			
 			
 			// rotate cube as demo that pose can be modified and displayed

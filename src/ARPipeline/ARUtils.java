@@ -59,11 +59,19 @@ public class ARUtils {
 	}
 	
 	public static void boxHighlight(Frame frame, KeyPoint keypoint, byte [][] RGB, int boxSize) {
-		int thickness = 1;
-		int offset = boxSize / 2;
+
 		int x = (int)keypoint.pt.x;
 		int y = (int)keypoint.pt.y;
 		byte [] color = getRGB(RGB, keypoint.octave);
+		boxHighlight(frame, x, y, color, boxSize);
+
+	}
+	
+	public static void boxHighlight(Frame frame, int x, int y, byte [] RGB, int boxSize) {
+		
+		int thickness = 1;
+		int offset = boxSize / 2;
+		byte [] color = RGB;
 		
 		// for every pixel in the box area around the point
 		for (int row = 0; row < boxSize; row++) {
@@ -92,6 +100,7 @@ public class ARUtils {
 				}
 			}
 		}
+		
 	}
 	
 	public static byte[] getRGB(byte [][] RGB, int octave) {
@@ -214,5 +223,11 @@ public class ARUtils {
 		return Math.sqrt(variance(list));
 	}
 	
-	
+	public static Double descriptorDistance(Mat desc1, Mat desc2) {
+		Double sum = 0.0;
+		for (int i = 0; i < desc1.cols(); i++) {
+			sum += Math.pow(desc1.get(0, i)[0] - desc2.get(0,  i)[0], 2);
+		}
+		return Math.sqrt(sum);
+	}
 }

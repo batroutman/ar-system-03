@@ -2,14 +2,14 @@ package ARPipeline;
 
 public class Pose {
 	
-	double timestamp;
+	long timestamp;
 
 	float r00; float r01; float r02; float tx;
 	float r10; float r11; float r12; float ty;
 	float r20; float r21; float r22; float tz;
 	
 	public Pose() {
-		timestamp = 0;
+		timestamp = System.nanoTime();
 		r00 = 1;
 		r01 = 0;
 		r02 = 0;
@@ -24,7 +24,7 @@ public class Pose {
 		tz = 0;
 	}
 	
-	public void setMatrix(float r00, float r01, float r02, float r10, float r11, float r12, float r20, float r21, float r22, float tx, float ty, float tz, double timestamp) {
+	public void setMatrix(float r00, float r01, float r02, float r10, float r11, float r12, float r20, float r21, float r22, float tx, float ty, float tz, long timestamp) {
 		this.timestamp = timestamp;
 		this.r00 = r00;
 		this.r01 = r01;
@@ -40,11 +40,15 @@ public class Pose {
 		this.tz = tz;
 	}
 	
-	public double getTimestamp() {
+	public void setOrigin() {
+		this.setMatrix(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, System.nanoTime());
+	}
+	
+	public long getTimestamp() {
 		return timestamp;
 	}
 
-	public void setTimestamp(double timestamp) {
+	public void setTimestamp(long timestamp) {
 		this.timestamp = timestamp;
 	}
 
