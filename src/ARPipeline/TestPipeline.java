@@ -11,11 +11,12 @@ import org.opencv.core.Mat;
 
 public class TestPipeline extends ARPipeline{
 	
-	double TOLERANCE = 100.0;
-	double SEARCH_RADIUS = 20.0;
+	double TOLERANCE = 220.0;
+	double SEARCH_BOX_WIDTH = 60.0;
 	
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
+	ArrayList<Correspondence> lastCorrespondences = null;
 	
 	float rotAngle = 0;
 	
@@ -92,21 +93,54 @@ public class TestPipeline extends ARPipeline{
 		ArrayList<Correspondence> correspondences = new ArrayList<Correspondence>();
 		List<KeyPoint> keypointList = keypoints.toList();
 		
-		for (int rowIndex = 0; rowIndex < descriptors.rows(); rowIndex++) {
-			Mat row = descriptors.row(rowIndex);
-			MapPoint nearest = keyframe.getDescriptors().nearest(row);
-			if (ARUtils.descriptorDistance(row, nearest.getDescriptor()) <= tolerance) {
-				Correspondence c = new Correspondence();
-				c.setDescriptor1(nearest.getDescriptor());
-				c.setU1(nearest.getU());
-				c.setV1(nearest.getV());
-				c.setDescriptor2(row);
-				c.setU2(keypointList.get(rowIndex).pt.x);
-				c.setV2(keypointList.get(rowIndex).pt.y);
-				
-				correspondences.add(c);
+		// if we don't have any correspondences for the last frame, try to get correspondences directly from keyframe
+		if (this.lastCorrespondences == null) {
+			for (int rowIndex = 0; rowIndex < descriptors.rows(); rowIndex++) {
+				Mat row = descriptors.row(rowIndex);
+				MapPoint nearest = keyframe.getDescriptors().nearest(row);
+				if (ARUtils.descriptorDistance(row, nearest.getDescriptor()) <= tolerance) {
+					Correspondence c = new Correspondence();
+					c.setMapPoint(nearest);
+					c.setLastFrameDescriptor(row);
+					c.setLastFrameU(keypointList.get(rowIndex).pt.x);
+					c.setLastFrameV(keypointList.get(rowIndex).pt.y);
+					correspondences.add(c);
+				}
 			}
 		}
+		// if we do have correspondences for the last frame, attempt to match correspondences based on position
+		else {
+			for (Correspondence lastC:this.lastCorrespondences) {
+				MapPoint bestMP = null;
+				Double bestDist = null;
+				Mat bestDescriptor = null;
+				Double bestU = null;
+				Double bestV = null;
+				for (int pointIndex = 0; pointIndex < keypointList.size(); pointIndex++) {
+					if (Math.abs(lastC.lastFrameU - keypointList.get(pointIndex).pt.x) > SEARCH_BOX_WIDTH || Math.abs(lastC.lastFrameV - keypointList.get(pointIndex).pt.y) > SEARCH_BOX_WIDTH) continue;
+					Mat row = descriptors.row(pointIndex);
+					MapPoint candidateMP = lastC.getMapPoint();
+					double dist = ARUtils.descriptorDistance(row, candidateMP.getDescriptor());
+					if (dist <= tolerance && (bestDist == null || dist < bestDist)) {
+						bestMP = candidateMP;
+						bestDist = dist;
+						bestDescriptor = row;
+						bestU = keypointList.get(pointIndex).pt.x;
+						bestV = keypointList.get(pointIndex).pt.y;
+					}
+				}
+				if (bestMP != null) {
+					Correspondence c = new Correspondence();
+//					bestMP.setDescriptor(bestDescriptor);
+					c.setMapPoint(bestMP);
+					c.setLastFrameDescriptor(bestDescriptor);
+					c.setLastFrameU(bestU);
+					c.setLastFrameV(bestV);
+					correspondences.add(c);
+				}
+			}
+		}
+		
 		
 		return correspondences;
 		
@@ -153,14 +187,27 @@ public class TestPipeline extends ARPipeline{
 					else {
 						// calculate correspondences
 						ArrayList<Correspondence> correspondences = this.getCorrespondences(this.currentKeyFrame, descriptors, keypoints, TOLERANCE);
+						this.lastCorrespondences = correspondences;
 						System.out.println("Num of Correspondences: " + correspondences.size());
 						byte [] red = { (byte)255, 0, 0 };
 						for(Correspondence c:correspondences) {
-							ARUtils.boxHighlight(currentFrame, (int)c.getU2(), (int)c.getV2(), red, 8);
+							ARUtils.boxHighlight(currentFrame, (int)c.getLastFrameU(), (int)c.getLastFrameV(), red, 8);
 						}
 						
-			// 			if I have at least 40(?) correspondences, then simply compute 5-point sfm with them. continue
-			//			i. else (I don't have at least 40(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
+			// 			if I have at least 30(?) correspondences, then simply compute 5-point sfm with them. continue
+						if (correspondences.size() >= 30) {
+							// 5-point sfm
+						}
+			//			i. else (I don't have at least 30(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
+						else if (correspondences.size() < 30 && correspondences.size() >= 10) {
+							
+							this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
+							this.keyframes.add(this.currentKeyFrame);
+							this.lastCorrespondences = null;
+							
+							// 5-point sfm (with current correspondences)
+							
+						}
 			//			ii. else (<10 correspondences), check other keyframes for keyframe with most correspondences. If >= 10 correspondences, set as current keyframe and use the correspondences for sfm. if < 40, generate new keyframe.
 			// 			iii. else, tracking lost (handle this later)
 					}	
