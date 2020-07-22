@@ -1,13 +1,16 @@
 package ARPipeline;
 
+import org.opencv.features2d.FlannBasedMatcher;
 import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.opencv.core.CvType;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDMatch;
 
 public class TestPipeline extends ARPipeline{
 	
@@ -19,6 +22,7 @@ public class TestPipeline extends ARPipeline{
 	ArrayList<Correspondence> lastCorrespondences = null;
 	
 	float rotAngle = 0;
+	Pose pose = new Pose();
 	
 	protected Thread mainThread = new Thread() {
 		@Override
@@ -68,6 +72,7 @@ public class TestPipeline extends ARPipeline{
 		Pose pose = new Pose();
 		pose.setOrigin();
 		keyframe.setPose(pose);
+		keyframe.setDescriptorsMat(descriptors);
 		
 		List<KeyPoint> keypointList = keypoints.toList();
 		MapPoint firstMp = new MapPoint(descriptors.row(0));
@@ -171,6 +176,7 @@ public class TestPipeline extends ARPipeline{
 			Mat descriptors = new Mat();
 			Mat image = ARUtils.frameToMat(currentFrame);
 			orb.detectAndCompute(image, new Mat(), keypoints, descriptors);
+			descriptors.convertTo(descriptors, CvType.CV_32F);
 			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 			oldDesc = descriptors;
 			
@@ -180,45 +186,31 @@ public class TestPipeline extends ARPipeline{
 					if (this.keyframes.size() == 0) {
 						this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
 						this.keyframes.add(this.currentKeyFrame);
-						
-						System.out.println(this.keyframes.size());
 					}
 			//		b. otherwise, 
 					else {
 						// calculate correspondences
-						ArrayList<Correspondence> correspondences = this.getCorrespondences(this.currentKeyFrame, descriptors, keypoints, TOLERANCE);
-						this.lastCorrespondences = correspondences;
-						System.out.println("Num of Correspondences: " + correspondences.size());
-						byte [] red = { (byte)255, 0, 0 };
-						for(Correspondence c:correspondences) {
-							ARUtils.boxHighlight(currentFrame, (int)c.getLastFrameU(), (int)c.getLastFrameV(), red, 8);
-						}
+						FlannBasedMatcher flann = FlannBasedMatcher.create();
+						ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
+						flann.knnMatch(descriptors, this.currentKeyFrame.getDescriptorsMat(), matches, 1);
+						System.out.println("matches.get(0).toList(): " + matches.get(0).toList().get(0).queryIdx + ", " + matches.get(0).toList().get(0).trainIdx + ", " + matches.get(0).toList().get(0).distance);
+						System.out.println("matches.size(): " + matches.size());
 						
 			// 			if I have at least 30(?) correspondences, then simply compute 5-point sfm with them. continue
-						if (correspondences.size() >= 30) {
+
 							// 5-point sfm
-						}
+
 			//			i. else (I don't have at least 30(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
-						else if (correspondences.size() < 30 && correspondences.size() >= 10) {
-							
-							this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
-							this.keyframes.add(this.currentKeyFrame);
-							this.lastCorrespondences = null;
-							
+
 							// 5-point sfm (with current correspondences)
-							
-						}
+
 			//			ii. else (<10 correspondences), check other keyframes for keyframe with most correspondences. If >= 10 correspondences, set as current keyframe and use the correspondences for sfm. if < 40, generate new keyframe.
 			// 			iii. else, tracking lost (handle this later)
-					}	
-
-			
-					count++;
+					}
 			
 			
 			// rotate cube as demo that pose can be modified and displayed
 			rotAngle += 0.002f;
-			Pose pose = new Pose();
 			pose.setR11((float)Math.cos(rotAngle));
 			pose.setR22((float)Math.cos(rotAngle));
 			pose.setR12(-(float)Math.sin(rotAngle));

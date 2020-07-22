@@ -1,9 +1,13 @@
 package ARPipeline;
 
+import org.opencv.core.Mat;
+
 public class KeyFrame {
 
 	protected MapPointKDTree descriptors = null;
 	protected Pose pose = null;
+	
+	protected Mat descriptorsMat = null;
 	
 	public KeyFrame() {
 		
@@ -27,6 +31,14 @@ public class KeyFrame {
 
 	public void setPose(Pose pose) {
 		this.pose = pose;
+	}
+
+	public Mat getDescriptorsMat() {
+		return descriptorsMat;
+	}
+
+	public void setDescriptorsMat(Mat descriptorsMat) {
+		this.descriptorsMat = descriptorsMat;
 	}
 	
 }
