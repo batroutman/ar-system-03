@@ -1,28 +1,21 @@
 package ARPipeline;
 
+import java.util.ArrayList;
+
 import org.opencv.core.Mat;
 
 public class KeyFrame {
 
-	protected MapPointKDTree descriptors = null;
 	protected Pose pose = null;
-	
-	protected Mat descriptorsMat = null;
+	protected Mat descriptors = null;
+	protected ArrayList<MapPoint> mapPoints = null;
 	
 	public KeyFrame() {
 		
 	}
 	
-	public KeyFrame(MapPointKDTree descriptors) {
-		this.descriptors = descriptors;
-	}
-
-	public MapPointKDTree getDescriptors() {
-		return descriptors;
-	}
-
-	public void setDescriptors(MapPointKDTree descriptors) {
-		this.descriptors = descriptors;
+	public KeyFrame(ArrayList<MapPoint> mapPoints) {
+		this.mapPoints = mapPoints;
 	}
 
 	public Pose getPose() {
@@ -33,12 +26,20 @@ public class KeyFrame {
 		this.pose = pose;
 	}
 
-	public Mat getDescriptorsMat() {
-		return descriptorsMat;
+	public Mat getDescriptors() {
+		return descriptors;
 	}
 
-	public void setDescriptorsMat(Mat descriptorsMat) {
-		this.descriptorsMat = descriptorsMat;
+	public void setDescriptors(Mat descriptors) {
+		this.descriptors = descriptors;
+	}
+
+	public ArrayList<MapPoint> getMapPoints() {
+		return mapPoints;
+	}
+
+	public void setMapPoints(ArrayList<MapPoint> mapPoints) {
+		this.mapPoints = mapPoints;
 	}
 	
 }

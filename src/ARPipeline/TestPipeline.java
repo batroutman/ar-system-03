@@ -1,21 +1,33 @@
 package ARPipeline;
 
+import org.opencv.core.Core;
+
 import org.opencv.features2d.FlannBasedMatcher;
 import org.opencv.features2d.ORB;
 import org.opencv.core.MatOfKeyPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
+import org.opencv.core.DMatch;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDMatch;
 
 public class TestPipeline extends ARPipeline{
 	
-	double TOLERANCE = 220.0;
+	double TOLERANCE = 150.0;
 	double SEARCH_BOX_WIDTH = 60.0;
+	
+	double FOCAL_LENGTH = 342.857;
+	double CX = 240;
+	double CY = 135;
+	
+	Mat K = Mat.zeros(3, 3, CvType.CV_32F);
 	
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
@@ -33,30 +45,47 @@ public class TestPipeline extends ARPipeline{
 
 	public TestPipeline(){
 		super();
+		this.init();
 	}
 
 	public TestPipeline(FrameBuffer inputFrameBuffer) {
 		super();
+		this.init();
 		this.setInputFrameBuffer(inputFrameBuffer);
 	}
 
 	public TestPipeline(FrameBuffer inputFrameBuffer, PoseBuffer outputPoseBuffer) {
 		super();
+		this.init();
 		this.setInputFrameBuffer(inputFrameBuffer);
 		this.setOutputPoseBuffer(outputPoseBuffer);
 	}
 	
 	public TestPipeline(FrameBuffer inputFrameBuffer, FrameBuffer outputFrameBuffer) {
 		super();
+		this.init();
 		this.setInputFrameBuffer(inputFrameBuffer);
 		this.setOutputFrameBuffer(outputFrameBuffer);
 	}
 
 	public TestPipeline(FrameBuffer inputFrameBuffer, PoseBuffer outputPoseBuffer, FrameBuffer outputFrameBuffer) {
 		super();
+		this.init();
 		this.setInputFrameBuffer(inputFrameBuffer);
 		this.setOutputPoseBuffer(outputPoseBuffer);
 		this.setOutputFrameBuffer(outputFrameBuffer);
+	}
+	
+	public void init() {
+		K.put(0, 0, this.FOCAL_LENGTH);
+		K.put(0,  1, 0.0);
+		K.put(0,  2, this.CX);
+		K.put(1, 0, 0.0);
+		K.put(1, 1, this.FOCAL_LENGTH);
+		K.put(1, 2, this.CY);
+		K.put(2,  0, 0.0);
+		K.put(2,  1, 0.0);
+		K.put(2,  2, 1.0);
 	}
 
 	public void start() {
@@ -72,84 +101,30 @@ public class TestPipeline extends ARPipeline{
 		Pose pose = new Pose();
 		pose.setOrigin();
 		keyframe.setPose(pose);
-		keyframe.setDescriptorsMat(descriptors);
+		keyframe.setDescriptors(descriptors);
 		
+		ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
 		List<KeyPoint> keypointList = keypoints.toList();
-		MapPoint firstMp = new MapPoint(descriptors.row(0));
 		// may have issues here. negative y? offset?
-		firstMp.setUV(keypointList.get(0).pt.x, keypointList.get(0).pt.y);
-		MapPointKDTree tree = new MapPointKDTree(firstMp);
-		
-		for (int i = 1; i < keypointList.size(); i++) {
+
+		for (int i = 0; i < keypointList.size(); i++) {
 			MapPoint mp = new MapPoint(descriptors.row(i));
 			mp.setUV(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
-			tree.insert(mp);
+			mapPoints.add(mp);
 		}
 		
-		System.out.println("depth: " + tree.depth());
-		
-		keyframe.setDescriptors(tree);
+		keyframe.setMapPoints(mapPoints);
 		return keyframe;
 		
 	}
 	
-	public ArrayList<Correspondence> getCorrespondences(KeyFrame keyframe, Mat descriptors, MatOfKeyPoint keypoints, double tolerance) {
-		
-		ArrayList<Correspondence> correspondences = new ArrayList<Correspondence>();
-		List<KeyPoint> keypointList = keypoints.toList();
-		
-		// if we don't have any correspondences for the last frame, try to get correspondences directly from keyframe
-		if (this.lastCorrespondences == null) {
-			for (int rowIndex = 0; rowIndex < descriptors.rows(); rowIndex++) {
-				Mat row = descriptors.row(rowIndex);
-				MapPoint nearest = keyframe.getDescriptors().nearest(row);
-				if (ARUtils.descriptorDistance(row, nearest.getDescriptor()) <= tolerance) {
-					Correspondence c = new Correspondence();
-					c.setMapPoint(nearest);
-					c.setLastFrameDescriptor(row);
-					c.setLastFrameU(keypointList.get(rowIndex).pt.x);
-					c.setLastFrameV(keypointList.get(rowIndex).pt.y);
-					correspondences.add(c);
-				}
-			}
-		}
-		// if we do have correspondences for the last frame, attempt to match correspondences based on position
-		else {
-			for (Correspondence lastC:this.lastCorrespondences) {
-				MapPoint bestMP = null;
-				Double bestDist = null;
-				Mat bestDescriptor = null;
-				Double bestU = null;
-				Double bestV = null;
-				for (int pointIndex = 0; pointIndex < keypointList.size(); pointIndex++) {
-					if (Math.abs(lastC.lastFrameU - keypointList.get(pointIndex).pt.x) > SEARCH_BOX_WIDTH || Math.abs(lastC.lastFrameV - keypointList.get(pointIndex).pt.y) > SEARCH_BOX_WIDTH) continue;
-					Mat row = descriptors.row(pointIndex);
-					MapPoint candidateMP = lastC.getMapPoint();
-					double dist = ARUtils.descriptorDistance(row, candidateMP.getDescriptor());
-					if (dist <= tolerance && (bestDist == null || dist < bestDist)) {
-						bestMP = candidateMP;
-						bestDist = dist;
-						bestDescriptor = row;
-						bestU = keypointList.get(pointIndex).pt.x;
-						bestV = keypointList.get(pointIndex).pt.y;
-					}
-				}
-				if (bestMP != null) {
-					Correspondence c = new Correspondence();
-//					bestMP.setDescriptor(bestDescriptor);
-					c.setMapPoint(bestMP);
-					c.setLastFrameDescriptor(bestDescriptor);
-					c.setLastFrameU(bestU);
-					c.setLastFrameV(bestV);
-					correspondences.add(c);
-				}
-			}
-		}
-		
-		
-		return correspondences;
-		
+	public void updatePose(Mat R1, Mat R2, Mat t) {
+		System.out.println("t: " + t.get(0, 0)[0] + ", " + t.get(1, 0)[0] + ", " + t.get(2, 0)[0]);
+		this.pose.setTx(this.pose.getTx() + t.get(0, 0)[0] != t.get(0, 0)[0] ? 0 : t.get(0, 0)[0]);
+		this.pose.setTy(this.pose.getTy() + t.get(1, 0)[0] != t.get(1, 0)[0] ? 0 : t.get(1, 0)[0]);
+		this.pose.setTz(this.pose.getTz() + t.get(2, 0)[0] != t.get(2, 0)[0] ? 0 : t.get(2, 0)[0]);
 	}
+	
 	
 	Mat oldDesc = new Mat();
 	int count  = 0;
@@ -192,17 +167,68 @@ public class TestPipeline extends ARPipeline{
 						// calculate correspondences
 						FlannBasedMatcher flann = FlannBasedMatcher.create();
 						ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
-						flann.knnMatch(descriptors, this.currentKeyFrame.getDescriptorsMat(), matches, 1);
-						System.out.println("matches.get(0).toList(): " + matches.get(0).toList().get(0).queryIdx + ", " + matches.get(0).toList().get(0).trainIdx + ", " + matches.get(0).toList().get(0).distance);
-						System.out.println("matches.size(): " + matches.size());
+						flann.knnMatch(descriptors, this.currentKeyFrame.getDescriptors(), matches, 1);
+						// create list of correspondences that are within threshold
+						ArrayList<Point> queryPoints = new ArrayList<Point>();
+						ArrayList<Point> keyframePoints = new ArrayList<Point>();
+						for (MatOfDMatch matOfDMatch : matches) {
+							
+							DMatch match = matOfDMatch.toList().get(0);
+							if (match.distance > TOLERANCE) {
+								continue;
+							}
+							
+							Point queryKeyPoint = keypoints.toList().get(match.queryIdx).pt;
+							
+							MapPoint keyframeMapPoint = this.currentKeyFrame.getMapPoints().get(match.trainIdx);
+							Point keyframePoint = new Point(keyframeMapPoint.u, keyframeMapPoint.v);
+							queryPoints.add(queryKeyPoint);
+							keyframePoints.add(keyframePoint);
+							
+						}
 						
-			// 			if I have at least 30(?) correspondences, then simply compute 5-point sfm with them. continue
+						
+			// 			if I have at least 50(?) correspondences, then simply compute fundamental matrix -> essential matrix -> [ R t ]
+						System.out.println("Num correspondences: " + queryPoints.size());
+						if (queryPoints.size() >= 45) {
+							MatOfPoint2f newImagePoints = new MatOfPoint2f();
+							newImagePoints.fromList(queryPoints);
+							MatOfPoint2f previousImagePoints = new MatOfPoint2f();
+							previousImagePoints.fromList(keyframePoints);
+							Mat fundamentalMatrix = Calib3d.findFundamentalMat(previousImagePoints, newImagePoints, Calib3d.FM_RANSAC, 3, 0.8, 100);
+							System.out.println("Fundamental Matrix (branch 1):");
+							System.out.println("Num Keyframes: " + this.keyframes.size());
+							Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
+							Core.gemm(this.K, fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+							Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+							Mat R1 = Mat.zeros(3, 3, CvType.CV_32F);
+							Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
+							Mat t = Mat.zeros(3, 1, CvType.CV_32F);
+							Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
+							this.updatePose(R1, R2, t);
+						}
 
-							// 5-point sfm
-
-			//			i. else (I don't have at least 30(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for sfm. set current keyframe to new keyframe. continue.
-
-							// 5-point sfm (with current correspondences)
+			//			i. else (I don't have at least 50(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for fundamental matrix -> essential matrix -> [ R t ]. set current keyframe to new keyframe. continue.
+						else if (queryPoints.size() >= 10) {
+							this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
+							this.keyframes.add(this.currentKeyFrame);
+							
+							MatOfPoint2f newImagePoints = new MatOfPoint2f();
+							newImagePoints.fromList(queryPoints);
+							MatOfPoint2f previousImagePoints = new MatOfPoint2f();
+							previousImagePoints.fromList(keyframePoints);
+							Mat fundamentalMatrix = Calib3d.findFundamentalMat(previousImagePoints, newImagePoints, Calib3d.FM_RANSAC, 3, 0.8, 100);
+							System.out.println("Fundamental Matrix (branch 2):");
+							System.out.println("Num Keyframes: " + this.keyframes.size());
+							Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
+							Core.gemm(this.K, fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+							Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+							Mat R1 = Mat.zeros(3, 3, CvType.CV_32F);
+							Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
+							Mat t = Mat.zeros(3, 1, CvType.CV_32F);
+							Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
+							this.updatePose(R1, R2, t);
+						}
 
 			//			ii. else (<10 correspondences), check other keyframes for keyframe with most correspondences. If >= 10 correspondences, set as current keyframe and use the correspondences for sfm. if < 40, generate new keyframe.
 			// 			iii. else, tracking lost (handle this later)
@@ -210,11 +236,11 @@ public class TestPipeline extends ARPipeline{
 			
 			
 			// rotate cube as demo that pose can be modified and displayed
-			rotAngle += 0.002f;
-			pose.setR11((float)Math.cos(rotAngle));
-			pose.setR22((float)Math.cos(rotAngle));
-			pose.setR12(-(float)Math.sin(rotAngle));
-			pose.setR21((float)Math.sin(rotAngle));
+//			rotAngle += 0.002f;
+//			pose.setR11((float)Math.cos(rotAngle));
+//			pose.setR22((float)Math.cos(rotAngle));
+//			pose.setR12(-(float)Math.sin(rotAngle));
+//			pose.setR21((float)Math.sin(rotAngle));
 			
 			synchronized (this.outputPoseBuffer) {
 				this.outputPoseBuffer.pushPose(pose);

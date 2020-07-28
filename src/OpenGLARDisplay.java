@@ -137,7 +137,7 @@ public class OpenGLARDisplay {
 		int numCols = 10;
 		int spacing = 1;
 		
-		// floor
+		// ceiling
 		for (int i = 0; i < numRows; i++) {
 			for (int j = 0; j < numCols; j++) {
 				// construct model for cube

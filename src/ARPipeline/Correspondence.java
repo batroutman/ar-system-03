@@ -8,7 +8,6 @@ public class Correspondence {
 	
 	double lastFrameU;
 	double lastFrameV;
-	Mat lastFrameDescriptor = null;
 
 	public Correspondence() {
 		
@@ -38,12 +37,6 @@ public class Correspondence {
 		this.lastFrameV = lastFrameV;
 	}
 
-	public Mat getLastFrameDescriptor() {
-		return lastFrameDescriptor;
-	}
 
-	public void setLastFrameDescriptor(Mat lastFrameDescriptor) {
-		this.lastFrameDescriptor = lastFrameDescriptor;
-	}
 
 }

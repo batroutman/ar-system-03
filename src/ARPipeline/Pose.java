@@ -4,9 +4,9 @@ public class Pose {
 	
 	long timestamp;
 
-	float r00; float r01; float r02; float tx;
-	float r10; float r11; float r12; float ty;
-	float r20; float r21; float r22; float tz;
+	double r00; double r01; double r02; double tx;
+	double r10; double r11; double r12; double ty;
+	double r20; double r21; double r22; double tz;
 	
 	public Pose() {
 		timestamp = System.nanoTime();
@@ -24,7 +24,7 @@ public class Pose {
 		tz = 0;
 	}
 	
-	public void setMatrix(float r00, float r01, float r02, float r10, float r11, float r12, float r20, float r21, float r22, float tx, float ty, float tz, long timestamp) {
+	public void setMatrix(double r00, double r01, double r02, double r10, double r11, double r12, double r20, double r21, double r22, double tx, double ty, double tz, long timestamp) {
 		this.timestamp = timestamp;
 		this.r00 = r00;
 		this.r01 = r01;
@@ -52,99 +52,99 @@ public class Pose {
 		this.timestamp = timestamp;
 	}
 
-	public float getR00() {
+	public double getR00() {
 		return r00;
 	}
 
-	public void setR00(float r00) {
+	public void setR00(double r00) {
 		this.r00 = r00;
 	}
 
-	public float getR01() {
+	public double getR01() {
 		return r01;
 	}
 
-	public void setR01(float r01) {
+	public void setR01(double r01) {
 		this.r01 = r01;
 	}
 
-	public float getR02() {
+	public double getR02() {
 		return r02;
 	}
 
-	public void setR02(float r02) {
+	public void setR02(double r02) {
 		this.r02 = r02;
 	}
 
-	public float getTx() {
+	public double getTx() {
 		return tx;
 	}
 
-	public void setTx(float tx) {
+	public void setTx(double tx) {
 		this.tx = tx;
 	}
 
-	public float getR10() {
+	public double getR10() {
 		return r10;
 	}
 
-	public void setR10(float r10) {
+	public void setR10(double r10) {
 		this.r10 = r10;
 	}
 
-	public float getR11() {
+	public double getR11() {
 		return r11;
 	}
 
-	public void setR11(float r11) {
+	public void setR11(double r11) {
 		this.r11 = r11;
 	}
 
-	public float getR12() {
+	public double getR12() {
 		return r12;
 	}
 
-	public void setR12(float r12) {
+	public void setR12(double r12) {
 		this.r12 = r12;
 	}
 
-	public float getTy() {
+	public double getTy() {
 		return ty;
 	}
 
-	public void setTy(float ty) {
+	public void setTy(double ty) {
 		this.ty = ty;
 	}
 
-	public float getR20() {
+	public double getR20() {
 		return r20;
 	}
 
-	public void setR20(float r20) {
+	public void setR20(double r20) {
 		this.r20 = r20;
 	}
 
-	public float getR21() {
+	public double getR21() {
 		return r21;
 	}
 
-	public void setR21(float r21) {
+	public void setR21(double r21) {
 		this.r21 = r21;
 	}
 
-	public float getR22() {
+	public double getR22() {
 		return r22;
 	}
 
-	public void setR22(float r22) {
+	public void setR22(double r22) {
 		this.r22 = r22;
 	}
 
-	public float getTz() {
+	public double getTz() {
 		return tz;
 	}
 
-	public void setTz(float tz) {
+	public void setTz(double tz) {
 		this.tz = tz;
 	}
 	
