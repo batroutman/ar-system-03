@@ -23,10 +23,7 @@ public class TestPipeline extends ARPipeline{
 	double TOLERANCE = 150.0;
 	double SEARCH_BOX_WIDTH = 60.0;
 	
-	double FOCAL_LENGTH = 342.857;
-	double CX = 240;
-	double CY = 135;
-	
+
 	Mat K = Mat.zeros(3, 3, CvType.CV_32F);
 	
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
@@ -77,12 +74,12 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void init() {
-		K.put(0, 0, this.FOCAL_LENGTH);
-		K.put(0,  1, 0.0);
-		K.put(0,  2, this.CX);
+		K.put(0, 0, 527.0593);
+		K.put(0,  1, -0.9513);
+		K.put(0,  2, 240.0892);
 		K.put(1, 0, 0.0);
-		K.put(1, 1, this.FOCAL_LENGTH);
-		K.put(1, 2, this.CY);
+		K.put(1, 1, 488.0588);
+		K.put(1, 2, 168.4744);
 		K.put(2,  0, 0.0);
 		K.put(2,  1, 0.0);
 		K.put(2,  2, 1.0);
@@ -119,7 +116,7 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void updatePose(Mat R1, Mat R2, Mat t) {
-		System.out.println("t: " + t.get(0, 0)[0] + ", " + t.get(1, 0)[0] + ", " + t.get(2, 0)[0]);
+//		System.out.println("t: " + t.get(0, 0)[0] + ", " + t.get(1, 0)[0] + ", " + t.get(2, 0)[0]);
 		this.pose.setTx(this.pose.getTx() + t.get(0, 0)[0] != t.get(0, 0)[0] ? 0 : t.get(0, 0)[0]);
 		this.pose.setTy(this.pose.getTy() + t.get(1, 0)[0] != t.get(1, 0)[0] ? 0 : t.get(1, 0)[0]);
 		this.pose.setTz(this.pose.getTz() + t.get(2, 0)[0] != t.get(2, 0)[0] ? 0 : t.get(2, 0)[0]);
@@ -135,8 +132,6 @@ public class TestPipeline extends ARPipeline{
 			
 			if (currentFrame == null) {
 				keepGoing = false;
-				
-				getStats(oldDesc);
 				
 				continue;
 			}
@@ -189,15 +184,15 @@ public class TestPipeline extends ARPipeline{
 						
 						
 			// 			if I have at least 50(?) correspondences, then simply compute fundamental matrix -> essential matrix -> [ R t ]
-						System.out.println("Num correspondences: " + queryPoints.size());
+//						System.out.println("Num correspondences: " + queryPoints.size());
 						if (queryPoints.size() >= 45) {
 							MatOfPoint2f newImagePoints = new MatOfPoint2f();
 							newImagePoints.fromList(queryPoints);
 							MatOfPoint2f previousImagePoints = new MatOfPoint2f();
 							previousImagePoints.fromList(keyframePoints);
 							Mat fundamentalMatrix = Calib3d.findFundamentalMat(previousImagePoints, newImagePoints, Calib3d.FM_RANSAC, 3, 0.8, 100);
-							System.out.println("Fundamental Matrix (branch 1):");
-							System.out.println("Num Keyframes: " + this.keyframes.size());
+//							System.out.println("Fundamental Matrix (branch 1):");
+//							System.out.println("Num Keyframes: " + this.keyframes.size());
 							Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
 							Core.gemm(this.K, fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
 							Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
@@ -218,8 +213,8 @@ public class TestPipeline extends ARPipeline{
 							MatOfPoint2f previousImagePoints = new MatOfPoint2f();
 							previousImagePoints.fromList(keyframePoints);
 							Mat fundamentalMatrix = Calib3d.findFundamentalMat(previousImagePoints, newImagePoints, Calib3d.FM_RANSAC, 3, 0.8, 100);
-							System.out.println("Fundamental Matrix (branch 2):");
-							System.out.println("Num Keyframes: " + this.keyframes.size());
+//							System.out.println("Fundamental Matrix (branch 2):");
+//							System.out.println("Num Keyframes: " + this.keyframes.size());
 							Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
 							Core.gemm(this.K, fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
 							Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
