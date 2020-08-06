@@ -116,10 +116,22 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void updatePose(Mat R1, Mat R2, Mat t) {
-//		System.out.println("t: " + t.get(0, 0)[0] + ", " + t.get(1, 0)[0] + ", " + t.get(2, 0)[0]);
-		this.pose.setTx(this.pose.getTx() + t.get(0, 0)[0] != t.get(0, 0)[0] ? 0 : t.get(0, 0)[0]);
-		this.pose.setTy(this.pose.getTy() + t.get(1, 0)[0] != t.get(1, 0)[0] ? 0 : t.get(1, 0)[0]);
-		this.pose.setTz(this.pose.getTz() + t.get(2, 0)[0] != t.get(2, 0)[0] ? 0 : t.get(2, 0)[0]);
+		Mat updatedPose = Mat.zeros(4,  4, CvType.CV_32F);
+		Mat transform = Mat.eye(4,  4, CvType.CV_32F);
+		transform.put(0, 0, R1.get(0, 0));
+		transform.put(0, 1, R1.get(0, 1));
+		transform.put(0, 2, R1.get(0, 2));
+		transform.put(1, 0, R1.get(1, 0));
+		transform.put(1, 1, R1.get(1, 1));
+		transform.put(1, 2, R1.get(1, 2));
+		transform.put(2, 0, R1.get(2, 0));
+		transform.put(2, 1, R1.get(2, 1));
+		transform.put(2, 2, R1.get(2, 2));
+		transform.put(0, 3, t.get(0,0));
+		transform.put(1,  3, t.get(1, 0));
+		transform.put(2,  3, t.get(2, 0));
+		Core.gemm(transform, this.currentKeyFrame.getPose().getHomogeneous(), 1, Mat.zeros(4,  4, CvType.CV_32F), 0, updatedPose);
+		this.pose.setMatrix(updatedPose);
 	}
 	
 	
