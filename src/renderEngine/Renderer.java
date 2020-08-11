@@ -22,6 +22,7 @@ public class Renderer {
 	private static final float FOV = 70;
 	private static final float NEAR_PLANE = 0.1f;
 	private static final float FAR_PLANE = 1000;
+	private static final float fx = 527.0593f;
 	
 	private Matrix4f projectionMatrix;
 	
@@ -82,7 +83,8 @@ public class Renderer {
 	
 	private void createProjectionMatrix(){
 		float aspectRatio = (float) Display.getWidth() / (float) Display.getHeight();
-		float y_scale = (float) ((1f / Math.tan(Math.toRadians(FOV / 2f))) * aspectRatio);
+//		float y_scale = (float) ((1f / Math.tan(Math.toRadians(FOV / 2f))) * aspectRatio);
+		float y_scale = (float) ((1f / (Display.getWidth() / (2 * fx))) * aspectRatio);
 		float x_scale = y_scale / aspectRatio;
 		float frustum_length = FAR_PLANE - NEAR_PLANE;
 
@@ -95,36 +97,6 @@ public class Renderer {
 		projectionMatrix.m32 = -((2 * NEAR_PLANE * FAR_PLANE) / frustum_length);
 		projectionMatrix.m33 = 0;
 		
-
-				
-//		K.put(0, 0, 527.0593);
-//		K.put(0,  1, -0.9513);
-//		K.put(0,  2, 240.0892);
-//		K.put(1, 0, 0.0);
-//		K.put(1, 1, 488.0588);
-//		K.put(1, 2, 168.4744);
-//		K.put(2,  0, 0.0);
-//		K.put(2,  1, 0.0);
-//		K.put(2,  2, 1.0);
-		
-		projectionMatrix.m00 = 527.0593f;
-		projectionMatrix.m01 = -0.9513f;
-		projectionMatrix.m02 = 240.0892f;
-		projectionMatrix.m10 = 0.0f;
-		projectionMatrix.m11 = 488.0588f;
-		projectionMatrix.m12 = 168.4744f;
-		projectionMatrix.m20 = 0.0f;
-		projectionMatrix.m21 = 0.0f;
-		projectionMatrix.m22 = 1.0f;
-		
-		projectionMatrix.m03 = 0.0f;
-		projectionMatrix.m13 = 0.0f;
-		projectionMatrix.m23 = 0.0f;
-		
-		projectionMatrix.m30 = 0.0f;
-		projectionMatrix.m31 = 0.0f;
-		projectionMatrix.m32 = 0.0f;
-		projectionMatrix.m33 = 1.0f;
 	}
 
 }
