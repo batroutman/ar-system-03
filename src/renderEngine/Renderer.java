@@ -12,6 +12,7 @@ import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.util.vector.Matrix4f;
 
+import ARPipeline.CameraIntrinsics;
 import shaders.StaticShader;
 import toolbox.Maths;
 import entities.Camera;
@@ -22,7 +23,6 @@ public class Renderer {
 	private static final float FOV = 70;
 	private static final float NEAR_PLANE = 0.1f;
 	private static final float FAR_PLANE = 1000;
-	private static final float fx = 527.0593f;
 	
 	private Matrix4f projectionMatrix;
 	
@@ -84,7 +84,7 @@ public class Renderer {
 	private void createProjectionMatrix(){
 		float aspectRatio = (float) Display.getWidth() / (float) Display.getHeight();
 //		float y_scale = (float) ((1f / Math.tan(Math.toRadians(FOV / 2f))) * aspectRatio);
-		float y_scale = (float) ((1f / (Display.getWidth() / (2 * fx))) * aspectRatio);
+		float y_scale = (float) ((1f / (Display.getWidth() / (2 * CameraIntrinsics.fx))) * aspectRatio);
 		float x_scale = y_scale / aspectRatio;
 		float frustum_length = FAR_PLANE - NEAR_PLANE;
 

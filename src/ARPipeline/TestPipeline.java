@@ -74,12 +74,12 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void init() {
-		K.put(0, 0, 527.0593);
-		K.put(0,  1, -0.9513);
-		K.put(0,  2, 240.0892);
+		K.put(0, 0, CameraIntrinsics.fx);
+		K.put(0,  1, CameraIntrinsics.s);
+		K.put(0,  2, CameraIntrinsics.cx);
 		K.put(1, 0, 0.0);
-		K.put(1, 1, 488.0588);
-		K.put(1, 2, 168.4744);
+		K.put(1, 1, CameraIntrinsics.fy);
+		K.put(1, 2, CameraIntrinsics.cy);
 		K.put(2,  0, 0.0);
 		K.put(2,  1, 0.0);
 		K.put(2,  2, 1.0);
