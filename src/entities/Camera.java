@@ -22,9 +22,10 @@ public class Camera {
 	
 	public void move(){
 		if(Keyboard.isKeyDown(Keyboard.KEY_W)){
+			System.out.println("W PRESSED");
 			float magnitude = 0.1f;
-			position.z+=magnitude * Math.sin(Math.toRadians(yaw - 90));
-			position.x+=magnitude * Math.cos(Math.toRadians(yaw - 90));
+			tz+=magnitude * Math.sin(Math.toRadians(yaw - 90));
+			tx+=magnitude * Math.cos(Math.toRadians(yaw - 90));
 		}
 		if(Keyboard.isKeyDown(Keyboard.KEY_D)){
 			yaw+=0.5f;
@@ -33,9 +34,10 @@ public class Camera {
 			yaw-=0.5f;
 		}
 		if(Keyboard.isKeyDown(Keyboard.KEY_S)){
+			System.out.println("S PRESSED");
 			float magnitude = 0.1f;
-			position.z-=magnitude * Math.sin(Math.toRadians(yaw - 90));
-			position.x-=magnitude * Math.cos(Math.toRadians(yaw - 90));
+			tz-=magnitude * Math.sin(Math.toRadians(yaw - 90));
+			tx-=magnitude * Math.cos(Math.toRadians(yaw - 90));
 		}
 	}
 

@@ -31,6 +31,7 @@ public class TestPipeline extends ARPipeline{
 	ArrayList<Correspondence> lastCorrespondences = null;
 	
 	float rotAngle = 0;
+	float translation = 0;
 	Pose pose = new Pose();
 	
 	protected Thread mainThread = new Thread() {
@@ -119,20 +120,34 @@ public class TestPipeline extends ARPipeline{
 	public void updatePose(Mat R1, Mat R2, Mat t) {
 		Mat updatedPose = Mat.zeros(4,  4, CvType.CV_32F);
 		Mat transform = Mat.eye(4,  4, CvType.CV_32F);
-		transform.put(0, 0, R1.get(0, 0));
-		transform.put(0, 1, R1.get(0, 1));
-		transform.put(0, 2, R1.get(0, 2));
-		transform.put(1, 0, R1.get(1, 0));
-		transform.put(1, 1, R1.get(1, 1));
-		transform.put(1, 2, R1.get(1, 2));
-		transform.put(2, 0, R1.get(2, 0));
-		transform.put(2, 1, R1.get(2, 1));
-		transform.put(2, 2, R1.get(2, 2));
+		Mat eye = Mat.eye(3, 3, CvType.CV_32F);
+		transform.put(0, 0, eye.get(0, 0));
+		transform.put(0, 1, eye.get(0, 1));
+		transform.put(0, 2, eye.get(0, 2));
+		transform.put(1, 0, eye.get(1, 0));
+		transform.put(1, 1, eye.get(1, 1));
+		transform.put(1, 2, eye.get(1, 2));
+		transform.put(2, 0, eye.get(2, 0));
+		transform.put(2, 1, eye.get(2, 1));
+		transform.put(2, 2, eye.get(2, 2));
 		transform.put(0, 3, t.get(0,0));
 		transform.put(1,  3, t.get(1, 0));
 		transform.put(2,  3, t.get(2, 0));
 		Core.gemm(transform, this.currentKeyFrame.getPose().getHomogeneous(), 1, Mat.zeros(4,  4, CvType.CV_32F), 0, updatedPose);
-		System.out.println("updatedPose bottom right (should be 1): " + updatedPose.get(3,  3)[0]);
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				double matValue = updatedPose.get(i,  j)[0];
+				if (matValue != matValue) {
+					updatedPose.put(i,  j, 0f);
+				}
+			}
+		}
+		System.out.println("[");
+		System.out.println(updatedPose.get(0, 0)[0] + ", " + updatedPose.get(0, 1)[0] + ", " + updatedPose.get(0, 2)[0] + ", " + updatedPose.get(0, 3)[0]);
+		System.out.println(updatedPose.get(1, 0)[0] + ", " + updatedPose.get(1, 1)[0] + ", " + updatedPose.get(1, 2)[0] + ", " + updatedPose.get(1, 3)[0]);
+		System.out.println(updatedPose.get(2, 0)[0] + ", " + updatedPose.get(2, 1)[0] + ", " + updatedPose.get(2, 2)[0] + ", " + updatedPose.get(2, 3)[0]);
+		System.out.println(updatedPose.get(3, 0)[0] + ", " + updatedPose.get(3, 1)[0] + ", " + updatedPose.get(3, 2)[0] + ", " + updatedPose.get(3, 3)[0]);
+		System.out.println("]");
 		this.pose.setMatrix(updatedPose);
 	}
 	
@@ -198,6 +213,9 @@ public class TestPipeline extends ARPipeline{
 						Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
 						Mat t = Mat.zeros(3, 1, CvType.CV_32F);
 						Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
+						t.put(0, 0, 0);
+						t.put(1, 0, 0);
+						t.put(2, 0, ++translation / 100.0);
 //						this.updatePose(R1, R2, t);
 						
 
@@ -209,12 +227,12 @@ public class TestPipeline extends ARPipeline{
 			
 			
 			// rotate cube as demo that pose can be modified and displayed
-			rotAngle += 0.002f;
-			pose.setR11((float)Math.cos(rotAngle));
-			pose.setR22((float)Math.cos(rotAngle));
-			pose.setR12(-(float)Math.sin(rotAngle));
-			pose.setR21((float)Math.sin(rotAngle));
-			
+//			rotAngle += 0.002f;
+//			pose.setR11((float)Math.cos(rotAngle));
+//			pose.setR22((float)Math.cos(rotAngle));
+//			pose.setR12(-(float)Math.sin(rotAngle));
+//			pose.setR21((float)Math.sin(rotAngle));
+//			
 			synchronized (this.outputPoseBuffer) {
 				this.outputPoseBuffer.pushPose(pose);
 			}
@@ -225,8 +243,6 @@ public class TestPipeline extends ARPipeline{
 			}
 
 			currentFrame = this.inputFrameBuffer.getCurrentFrame();
-			
-			
 			
 		}
 	}
