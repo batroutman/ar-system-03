@@ -1,5 +1,6 @@
 package ARPipeline;
 
+import org.lwjgl.util.vector.Matrix4f;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
@@ -61,25 +62,43 @@ public class Pose {
 		this.tz = homogeneousMat.get(2,  3)[0];
 	}
 	
+	public void setMatrix(Matrix4f homogeneousMat) {
+		this.r00 = homogeneousMat.m00;
+		this.r01 = homogeneousMat.m01;
+		this.r02 = homogeneousMat.m02;
+		
+		this.r10 = homogeneousMat.m10;
+		this.r11 = homogeneousMat.m11;
+		this.r12 = homogeneousMat.m12;
+		
+		this.r20 = homogeneousMat.m20;
+		this.r21 = homogeneousMat.m21;
+		this.r22 = homogeneousMat.m22;
+		
+		this.tx = homogeneousMat.m30;
+		this.ty = homogeneousMat.m31;
+		this.tz = homogeneousMat.m32;
+	}
+	
 	public void setOrigin() {
 		this.setMatrix(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, System.nanoTime());
 	}
 	
-	public Mat getHomogeneous() {
-		Mat mat = Mat.zeros(4, 4, CvType.CV_32F);
-		mat.put(0,  0, this.r00);
-		mat.put(0,  1, this.r01);
-		mat.put(0,  2, this.r02);
-		mat.put(0,  3, this.tx);
-		mat.put(1,  0, this.r10);
-		mat.put(1,  1, this.r11);
-		mat.put(1,  2, this.r12);
-		mat.put(1,  3, this.ty);
-		mat.put(2,  0, this.r20);
-		mat.put(2,  1, this.r21);
-		mat.put(2,  2, this.r22);
-		mat.put(2,  3, this.tz);
-		mat.put(3,  3, 1.0f);
+	public Matrix4f getHomogeneous() {
+		Matrix4f mat = new Matrix4f();
+		mat.setIdentity();
+		mat.m00 = (float)r00;
+		mat.m01 = (float)r01;
+		mat.m02 = (float)r02;
+		mat.m10 = (float)r10;
+		mat.m11 = (float)r11;
+		mat.m12 = (float)r12;
+		mat.m20 = (float)r20;
+		mat.m21 = (float)r21;
+		mat.m22 = (float)r22;
+		mat.m30 = (float)tx;
+		mat.m31 = (float)ty;
+		mat.m32 = (float)tz;
 		return mat;
 	}
 	

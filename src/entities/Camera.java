@@ -20,22 +20,32 @@ public class Camera {
 	
 	public Camera(){}
 	
+	float rotAngle = 0;
+	
 	public void move(){
 		if(Keyboard.isKeyDown(Keyboard.KEY_W)){
 			System.out.println("W PRESSED");
-			float magnitude = 0.1f;
+			float magnitude = 0.001f;
 			tz+=magnitude * Math.sin(Math.toRadians(yaw - 90));
 			tx+=magnitude * Math.cos(Math.toRadians(yaw - 90));
 		}
 		if(Keyboard.isKeyDown(Keyboard.KEY_D)){
-			yaw+=0.5f;
+			rotAngle += 0.01f;
+			this.r11 = ((float)Math.cos(rotAngle));
+			this.r22 = ((float)Math.cos(rotAngle));
+			this.r12 = (-(float)Math.sin(rotAngle));
+			this.r21 = ((float)Math.sin(rotAngle));
 		}
 		if(Keyboard.isKeyDown(Keyboard.KEY_A)){
-			yaw-=0.5f;
+			rotAngle -= 0.01f;
+			this.r11 = ((float)Math.cos(rotAngle));
+			this.r22 = ((float)Math.cos(rotAngle));
+			this.r12 = (-(float)Math.sin(rotAngle));
+			this.r21 = ((float)Math.sin(rotAngle));
 		}
 		if(Keyboard.isKeyDown(Keyboard.KEY_S)){
 			System.out.println("S PRESSED");
-			float magnitude = 0.1f;
+			float magnitude = 0.001f;
 			tz-=magnitude * Math.sin(Math.toRadians(yaw - 90));
 			tx-=magnitude * Math.cos(Math.toRadians(yaw - 90));
 		}
@@ -85,9 +95,9 @@ public class Camera {
 		mat.m20 = r20;
 		mat.m21 = r21;
 		mat.m22 = r22;
-		mat.m03 = tx;
-		mat.m13 = ty;
-		mat.m23 = tz;
+		
+		Matrix4f.translate(new Vector3f(-tx, -ty, -tz), mat, mat);
+
 		return mat;
 	}
 	

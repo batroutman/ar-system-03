@@ -11,6 +11,8 @@ import org.opencv.core.Point;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector3f;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.DMatch;
@@ -118,36 +120,15 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void updatePose(Mat R1, Mat R2, Mat t) {
-		Mat updatedPose = Mat.zeros(4,  4, CvType.CV_32F);
-		Mat transform = Mat.eye(4,  4, CvType.CV_32F);
-		Mat eye = Mat.eye(3, 3, CvType.CV_32F);
-		transform.put(0, 0, eye.get(0, 0));
-		transform.put(0, 1, eye.get(0, 1));
-		transform.put(0, 2, eye.get(0, 2));
-		transform.put(1, 0, eye.get(1, 0));
-		transform.put(1, 1, eye.get(1, 1));
-		transform.put(1, 2, eye.get(1, 2));
-		transform.put(2, 0, eye.get(2, 0));
-		transform.put(2, 1, eye.get(2, 1));
-		transform.put(2, 2, eye.get(2, 2));
-		transform.put(0, 3, t.get(0,0));
-		transform.put(1,  3, t.get(1, 0));
-		transform.put(2,  3, t.get(2, 0));
-		Core.gemm(transform, this.currentKeyFrame.getPose().getHomogeneous(), 1, Mat.zeros(4,  4, CvType.CV_32F), 0, updatedPose);
-		for (int i = 0; i < 4; i++) {
-			for (int j = 0; j < 4; j++) {
-				double matValue = updatedPose.get(i,  j)[0];
-				if (matValue != matValue) {
-					updatedPose.put(i,  j, 0f);
-				}
-			}
+		
+		Matrix4f updatedPose = new Matrix4f();
+		updatedPose.setIdentity();
+		boolean noNaN = t.get(0, 0)[0] == t.get(0, 0)[0] && t.get(1, 0)[0] == t.get(1, 0)[0] && t.get(2, 0)[0] == t.get(2, 0)[0];
+		if (noNaN) {
+			updatedPose.translate(new Vector3f((float)t.get(0, 0)[0], (float)t.get(1, 0)[0], (float)t.get(2, 0)[0]));
 		}
-		System.out.println("[");
-		System.out.println(updatedPose.get(0, 0)[0] + ", " + updatedPose.get(0, 1)[0] + ", " + updatedPose.get(0, 2)[0] + ", " + updatedPose.get(0, 3)[0]);
-		System.out.println(updatedPose.get(1, 0)[0] + ", " + updatedPose.get(1, 1)[0] + ", " + updatedPose.get(1, 2)[0] + ", " + updatedPose.get(1, 3)[0]);
-		System.out.println(updatedPose.get(2, 0)[0] + ", " + updatedPose.get(2, 1)[0] + ", " + updatedPose.get(2, 2)[0] + ", " + updatedPose.get(2, 3)[0]);
-		System.out.println(updatedPose.get(3, 0)[0] + ", " + updatedPose.get(3, 1)[0] + ", " + updatedPose.get(3, 2)[0] + ", " + updatedPose.get(3, 3)[0]);
-		System.out.println("]");
+		Matrix4f.mul(updatedPose, this.pose.getHomogeneous(), updatedPose);
+		System.out.println(updatedPose.toString());
 		this.pose.setMatrix(updatedPose);
 	}
 	
@@ -197,8 +178,6 @@ public class TestPipeline extends ARPipeline{
 					else {
 						
 						// compute fundamental matrix -> essential matrix -> [ R t ]
-//						System.out.println("this.currentKeyFrame.getKeypoints() size " + this.currentKeyFrame.getKeypoints().size());
-//						System.out.println("matKeypoints size " + matKeypoints.size());
 						int min = Math.min(this.currentKeyFrame.getKeypoints().size(), listKeypoints.size());
 						MatOfPoint2f keyframeMat = new MatOfPoint2f();
 						MatOfPoint2f matKeypoints = new MatOfPoint2f();
@@ -213,10 +192,7 @@ public class TestPipeline extends ARPipeline{
 						Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
 						Mat t = Mat.zeros(3, 1, CvType.CV_32F);
 						Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
-						t.put(0, 0, 0);
-						t.put(1, 0, 0);
-						t.put(2, 0, ++translation / 100.0);
-//						this.updatePose(R1, R2, t);
+						this.updatePose(R1, R2, t);
 						
 
 			//			i. else (I don't have at least 50(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for fundamental matrix -> essential matrix -> [ R t ]. set current keyframe to new keyframe. continue.

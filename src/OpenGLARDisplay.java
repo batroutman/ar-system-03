@@ -161,7 +161,7 @@ public class OpenGLARDisplay {
 		
 		RawModel tModel = this.loader.loadToVAO(vertices,textureCoords,indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, -0.1f),0,0,0,0.01f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, -0.1f),0,0,0,0.1f);
 		this.entities.add(tEntity);
 		
 		
@@ -193,6 +193,7 @@ public class OpenGLARDisplay {
 		RawModel bgModel = this.loader.loadToVAO(bgVertices, bgTextureCoords, bgIndices);
 		TexturedModel bgStaticModel = new TexturedModel(bgModel, new ModelTexture(this.loader.loadTexture("sample_texture")));
 		this.bgEntity = new Entity(bgStaticModel, new Vector3f(0,0,-10), 0, 0, 0, 2000);
+
 	}
 	
 	public void updateDisplay() {
@@ -254,7 +255,7 @@ public class OpenGLARDisplay {
 		if (pose != null) {
 			this.setCameraPose(pose);
 			// DEBUG LINE
-			this.camera.move();
+//			this.camera.move();
 		}
 		if (frame != null) {
 			this.setFrameToTexture(frame);
