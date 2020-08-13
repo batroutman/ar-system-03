@@ -161,7 +161,7 @@ public class OpenGLARDisplay {
 		
 		RawModel tModel = this.loader.loadToVAO(vertices,textureCoords,indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, -0.1f),0,0,0,0.1f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, -20f),0,0,0,1f);
 		this.entities.add(tEntity);
 		
 		

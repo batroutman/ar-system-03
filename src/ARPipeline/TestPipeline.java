@@ -4,6 +4,10 @@ import org.opencv.core.Core;
 
 import org.opencv.features2d.FlannBasedMatcher;
 import org.opencv.features2d.ORB;
+
+import Jama.Matrix;
+import Jama.SingularValueDecomposition;
+
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
@@ -26,7 +30,7 @@ public class TestPipeline extends ARPipeline{
 	double SEARCH_BOX_WIDTH = 60.0;
 	
 
-	Mat K = Mat.zeros(3, 3, CvType.CV_32F);
+	Matrix K = new Matrix(3, 3);
 	
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
@@ -77,15 +81,15 @@ public class TestPipeline extends ARPipeline{
 	}
 	
 	public void init() {
-		K.put(0, 0, CameraIntrinsics.fx);
-		K.put(0,  1, CameraIntrinsics.s);
-		K.put(0,  2, CameraIntrinsics.cx);
-		K.put(1, 0, 0.0);
-		K.put(1, 1, CameraIntrinsics.fy);
-		K.put(1, 2, CameraIntrinsics.cy);
-		K.put(2,  0, 0.0);
-		K.put(2,  1, 0.0);
-		K.put(2,  2, 1.0);
+		K.set(0, 0, CameraIntrinsics.fx);
+		K.set(0,  1, CameraIntrinsics.s);
+		K.set(0,  2, CameraIntrinsics.cx);
+		K.set(1, 0, 0.0);
+		K.set(1, 1, CameraIntrinsics.fy);
+		K.set(1, 2, CameraIntrinsics.cy);
+		K.set(2,  0, 0.0);
+		K.set(2,  1, 0.0);
+		K.set(2,  2, 1.0);
 	}
 
 	public void start() {
@@ -119,16 +123,22 @@ public class TestPipeline extends ARPipeline{
 		
 	}
 	
-	public void updatePose(Mat R1, Mat R2, Mat t) {
+	public void updatePose(Matrix R, Matrix t) {
 		
 		Matrix4f updatedPose = new Matrix4f();
 		updatedPose.setIdentity();
-		boolean noNaN = t.get(0, 0)[0] == t.get(0, 0)[0] && t.get(1, 0)[0] == t.get(1, 0)[0] && t.get(2, 0)[0] == t.get(2, 0)[0];
-		if (noNaN) {
-			updatedPose.translate(new Vector3f((float)t.get(0, 0)[0], (float)t.get(1, 0)[0], (float)t.get(2, 0)[0]));
-		}
+		updatedPose.m00 = (float)R.get(0, 0);
+		updatedPose.m01 = (float)R.get(0, 1);
+		updatedPose.m02 = (float)R.get(0, 2);
+		updatedPose.m10 = (float)R.get(1, 0);
+		updatedPose.m11 = (float)R.get(1, 1);
+		updatedPose.m12 = (float)R.get(1, 2);
+		updatedPose.m20 = (float)R.get(2, 0);
+		updatedPose.m21 = (float)R.get(2, 1);
+		updatedPose.m22 = (float)R.get(2, 2);
+//		updatedPose.translate(new Vector3f((float)t.get(0, 0), (float)t.get(1, 0), (float)t.get(2, 0)));
+
 		Matrix4f.mul(updatedPose, this.pose.getHomogeneous(), updatedPose);
-		System.out.println(updatedPose.toString());
 		this.pose.setMatrix(updatedPose);
 	}
 	
@@ -185,14 +195,61 @@ public class TestPipeline extends ARPipeline{
 						matKeypoints.fromList(points.subList(0,  min));
 						Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 10, 0.8);
 
-						Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
-						Core.gemm(this.K, fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
-						Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
-						Mat R1 = Mat.zeros(3, 3, CvType.CV_32F);
-						Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
-						Mat t = Mat.zeros(3, 1, CvType.CV_32F);
-						Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
-						this.updatePose(R1, R2, t);
+//						Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
+//						Core.gemm(this.K.t(), fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+//						Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
+//						
+//						Mat R1 = Mat.zeros(3, 3, CvType.CV_32F);
+//						Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
+//						Mat t = Mat.zeros(3, 1, CvType.CV_32F);
+//						Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
+						
+						Matrix funMat = new Matrix(3, 3);
+						funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
+						funMat.set(0, 1, fundamentalMatrix.get(0, 1)[0]);
+						funMat.set(0, 2, fundamentalMatrix.get(0, 2)[0]);
+						funMat.set(1, 0, fundamentalMatrix.get(1, 0)[0]);
+						funMat.set(1, 1, fundamentalMatrix.get(1, 1)[0]);
+						funMat.set(1, 2, fundamentalMatrix.get(1, 2)[0]);
+						funMat.set(2, 0, fundamentalMatrix.get(2, 0)[0]);
+						funMat.set(2, 1, fundamentalMatrix.get(2, 1)[0]);
+						funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
+						
+						Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
+						
+						System.out.println("[");
+						System.out.println(fundamentalMatrix.get(0, 0)[0] + ", " + fundamentalMatrix.get(0, 1)[0] + ", " + fundamentalMatrix.get(0, 2)[0]);
+						System.out.println(fundamentalMatrix.get(1, 0)[0] + ", " + fundamentalMatrix.get(1, 1)[0] + ", " + fundamentalMatrix.get(1, 2)[0]);
+						System.out.println(fundamentalMatrix.get(2, 0)[0] + ", " + fundamentalMatrix.get(2, 1)[0] + ", " + fundamentalMatrix.get(2, 2)[0]);
+						System.out.println("]");
+						
+						System.out.println("[");
+						System.out.println(eMatrix.get(0, 0) + ", " + eMatrix.get(0, 1) + ", " + eMatrix.get(0, 2));
+						System.out.println(eMatrix.get(1, 0) + ", " + eMatrix.get(1, 1) + ", " + eMatrix.get(1, 2));
+						System.out.println(eMatrix.get(2, 0) + ", " + eMatrix.get(2, 1) + ", " + eMatrix.get(2, 2));
+						System.out.println("]");
+						
+						System.out.println("About to calculate SVD...");
+						SingularValueDecomposition svd = eMatrix.svd();
+						System.out.println("SVD Calculated.");
+						
+						Matrix W = new Matrix(3, 3);
+						W.set(0, 1, -1);
+						W.set(1, 0, 1);
+						W.set(2, 2, 1);
+						
+						Matrix Z = new Matrix(3, 3);
+						Z.set(0, 1, 1);
+						Z.set(1, 0, -1);
+						
+						Matrix mt = svd.getU().times(Z).times(svd.getU().transpose());
+						Matrix t = new Matrix(3, 1);
+						t.set(0, 0, mt.get(2, 1));
+						t.set(1, 0, mt.get(0, 2));
+						t.set(2, 0, mt.get(1, 0));
+						Matrix R = svd.getU().times(W.transpose()).times(svd.getV().transpose());
+						
+						this.updatePose(R, t);
 						
 
 			//			i. else (I don't have at least 50(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for fundamental matrix -> essential matrix -> [ R t ]. set current keyframe to new keyframe. continue.
