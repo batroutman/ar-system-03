@@ -9,8 +9,186 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.Point;
 
-public class ARUtils {
+import Jama.Matrix;
+import Jama.SingularValueDecomposition;
 
+public class ARUtils {
+	
+	public static Matrix triangulate(Matrix R, Matrix t, Matrix pose, Correspondence2D2D c) {
+
+		Matrix newPose = transformPose(R, t, pose);
+
+		// compute A matrix for Ax = 0
+		Matrix row0 = pose.getMatrix(2, 2, 0, 3).times(c.getV1()).minus(pose.getMatrix(1, 1, 0, 3));
+		Matrix row1 = pose.getMatrix(0, 0, 0, 3).minus(pose.getMatrix(2, 2, 0, 3).times(c.getU1()));
+		Matrix row2 = newPose.getMatrix(2,  2, 0, 3).times(c.getV2()).minus(newPose.getMatrix(1, 1, 0, 3));
+		Matrix row3 = newPose.getMatrix(0, 0, 0, 3).minus(newPose.getMatrix(2, 2, 0, 3).times(c.getU2()));
+		
+		Matrix A = new Matrix(4, 4);
+		A.set(0, 0, row0.get(0, 0));
+		A.set(0, 1, row0.get(0, 1));
+		A.set(0, 2, row0.get(0, 2));
+		A.set(0, 3, row0.get(0, 3));
+		A.set(1, 0, row1.get(0, 0));
+		A.set(1, 1, row1.get(0, 1));
+		A.set(1, 2, row1.get(0, 2));
+		A.set(1, 3, row1.get(0, 3));
+		A.set(2, 0, row2.get(0, 0));
+		A.set(2, 1, row2.get(0, 1));
+		A.set(2, 2, row2.get(0, 2));
+		A.set(2, 3, row2.get(0, 3));
+		A.set(3, 0, row3.get(0, 0));
+		A.set(3, 1, row3.get(0, 1));
+		A.set(3, 2, row3.get(0, 2));
+		A.set(3, 3, row3.get(0, 3));
+		
+		SingularValueDecomposition svd = A.svd();
+		Matrix X = svd.getV().getMatrix(0, 3, 3, 3);
+		X = X.times(1.0 / X.get(3,  0));
+		return X;
+	}
+	
+	public static Rt selectEssentialSolution(EssentialDecomposition decomp, Matrix pose, ArrayList<Correspondence2D2D> correspondences) {
+		Rt rt = new Rt();
+		rt.setR(decomp.getR1());
+		rt.setT(decomp.getT1());
+		
+		// pick a correspondence
+		Correspondence2D2D c = correspondences.get(0);
+		Matrix X11 = triangulate(decomp.getR1(), decomp.getT1(), pose, c);
+		Matrix X12 = triangulate(decomp.getR1(), decomp.getT2(), pose, c);
+		Matrix X21 = triangulate(decomp.getR2(), decomp.getT1(), pose, c);
+		Matrix X22 = triangulate(decomp.getR2(), decomp.getT2(), pose, c);
+		
+		Matrix b11 = transformPose(decomp.getR1(), decomp.getT1(), pose).times(X11);
+		Matrix b12 = transformPose(decomp.getR1(), decomp.getT2(), pose).times(X12);
+		Matrix b21 = transformPose(decomp.getR2(), decomp.getT1(), pose).times(X21);
+		Matrix b22 = transformPose(decomp.getR2(), decomp.getT2(), pose).times(X22);
+		
+		int numSet = 0;
+		
+		if (b11.get(2, 0) > 0) {
+			Matrix a11 = pose.times(X11);
+			if (a11.get(2, 0) > 0) {
+				rt.setR(decomp.getR1());
+				rt.setT(decomp.getT1());
+				numSet++;
+			}
+		}
+		
+		if (b12.get(2, 0) > 0) {
+			Matrix a12 = pose.times(X12);
+			if (a12.get(2, 0) > 0) {
+				rt.setR(decomp.getR1());
+				rt.setT(decomp.getT2());
+				numSet++;
+			}
+		}
+		
+		if (b21.get(2, 0) > 0) {
+			Matrix a21 = pose.times(X21);
+			if (a21.get(2, 0) > 0) {
+				rt.setR(decomp.getR2());
+				rt.setT(decomp.getT1());
+				numSet++;
+			}
+		}
+		
+		if (b22.get(2, 0) > 0) {
+			Matrix a22 = pose.times(X22);
+			if (a22.get(2, 0) > 0) {
+				rt.setR(decomp.getR2());
+				rt.setT(decomp.getT2());
+				numSet++;
+			}
+		}
+		
+//		System.out.println("numSet: " + numSet);
+		
+		return rt;
+	}
+	
+	public static Matrix transformPose(Matrix R, Matrix t, Matrix pose) {
+		// make homogeneous
+		Matrix homogeneousR = Matrix.identity(4, 4);
+		homogeneousR.set(0, 0, R.get(0, 0));
+		homogeneousR.set(0, 1, R.get(0, 1));
+		homogeneousR.set(0, 2, R.get(0, 2));
+		homogeneousR.set(1, 0, R.get(1, 0));
+		homogeneousR.set(1, 1, R.get(1, 1));
+		homogeneousR.set(1, 2, R.get(1, 2));
+		homogeneousR.set(2, 0, R.get(2, 0));
+		homogeneousR.set(2, 1, R.get(2, 1));
+		homogeneousR.set(2, 2, R.get(2, 2));
+		Matrix homogeneousT = Matrix.identity(4, 4);
+		homogeneousT.set(0, 3, t.get(0, 0));
+		homogeneousT.set(1, 3, t.get(1, 0));
+		homogeneousT.set(2, 3, t.get(2, 0));
+		
+		Matrix newPose = homogeneousT.times(homogeneousR).times(pose);
+		return newPose;
+	}
+	
+	public static ArrayList<Correspondence2D2D> getCorrespondences(Matrix fundamentalMatrix, List<Point> keyframePoints, List<Point> framePoints, Mat keyframeDesc, Mat frameDesc) {
+		ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
+		
+		double EPI_THRESH = 0.01;
+		double DESC_THRESH = 150;
+		
+		for (int i = 0; i < keyframePoints.size(); i++) {
+			for (int j = 0; j < framePoints.size(); j++) {
+				Matrix x2 = new Matrix(1, 3);
+				x2.set(0, 0, framePoints.get(j).x);
+				x2.set(0, 1, framePoints.get(j).y);
+				x2.set(0, 2, 1);
+				
+				Matrix x1 = new Matrix(3, 1);
+				x1.set(0, 0, keyframePoints.get(j).x);
+				x1.set(1, 0, keyframePoints.get(j).y);
+				x1.set(2, 0, 1);
+				
+				// if these points are close to the epipolar line...
+				double epiCalc = x2.times(fundamentalMatrix).times(x1).get(0, 0);
+				if (Math.abs(epiCalc) < EPI_THRESH) {
+					// ... check if their descriptors are sufficiently close
+					Double dist = ARUtils.descriptorDistance(keyframeDesc.row(i), frameDesc.row(j));
+					if (dist < DESC_THRESH) {
+						Correspondence2D2D c = new Correspondence2D2D(keyframePoints.get(j).x, keyframePoints.get(j).y, framePoints.get(j).x, framePoints.get(j).y);
+						c.setDescriptor1(keyframeDesc.row(i));
+						c.setDesctiptor2(frameDesc.row(j));
+						correspondences.add(c);
+					}
+				}
+			}
+		}
+		return correspondences;
+	}
+
+	public static EssentialDecomposition decomposeEssentialMat(Matrix essentialMatrix) {
+		EssentialDecomposition decomp = new EssentialDecomposition();
+		SingularValueDecomposition svd = essentialMatrix.svd();
+		
+		Matrix W = new Matrix(3, 3);
+		W.set(0, 1, -1);
+		W.set(1, 0, 1);
+		W.set(2, 2, 1);
+		
+		Matrix Z = new Matrix(3, 3);
+		Z.set(0, 1, 1);
+		Z.set(1, 0, -1);
+		
+		Matrix t1 = svd.getU().getMatrix(0, 2, 2, 2);
+		Matrix t2 = t1.times(-1);
+		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
+		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
+		
+		decomp.setR1(R1);
+		decomp.setR2(R2);
+		decomp.setT1(t1);
+		decomp.setT2(t2);
+		
+		return decomp;
+	}
 	
 	public static Mat frameToMat(Frame frame) {
 		Mat mat = new Mat(frame.getHeight(), frame.getWidth(), CvType.CV_8UC3);

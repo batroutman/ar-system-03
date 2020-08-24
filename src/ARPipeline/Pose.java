@@ -4,6 +4,8 @@ import org.lwjgl.util.vector.Matrix4f;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
+import Jama.Matrix;
+
 public class Pose {
 	
 	long timestamp;
@@ -84,7 +86,7 @@ public class Pose {
 		this.setMatrix(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, System.nanoTime());
 	}
 	
-	public Matrix4f getHomogeneous() {
+	public Matrix4f getHomogeneousMatrix4f() {
 		Matrix4f mat = new Matrix4f();
 		mat.setIdentity();
 		mat.m00 = (float)r00;
@@ -96,9 +98,26 @@ public class Pose {
 		mat.m20 = (float)r20;
 		mat.m21 = (float)r21;
 		mat.m22 = (float)r22;
-		mat.m30 = (float)tx;
-		mat.m31 = (float)ty;
-		mat.m32 = (float)tz;
+		mat.m03 = (float)tx;
+		mat.m13 = (float)ty;
+		mat.m23 = (float)tz;
+		return mat;
+	}
+	
+	public Matrix getHomogeneousMatrix() {
+		Matrix mat = Matrix.identity(4,  4);
+		mat.set(0, 0, r00);
+		mat.set(0, 1, r01);
+		mat.set(0, 2, r02);
+		mat.set(0, 3, tx);
+		mat.set(1, 0, r10);
+		mat.set(1, 1, r11);
+		mat.set(1, 2, r12);
+		mat.set(1, 3, ty);
+		mat.set(2, 0, r20);
+		mat.set(2, 1, r21);
+		mat.set(2, 2, r22);
+		mat.set(2, 3, tz);
 		return mat;
 	}
 	

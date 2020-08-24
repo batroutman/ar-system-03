@@ -136,11 +136,13 @@ public class TestPipeline extends ARPipeline{
 		updatedPose.m20 = (float)R.get(2, 0);
 		updatedPose.m21 = (float)R.get(2, 1);
 		updatedPose.m22 = (float)R.get(2, 2);
-//		updatedPose.translate(new Vector3f((float)t.get(0, 0), (float)t.get(1, 0), (float)t.get(2, 0)));
+		updatedPose.translate(new Vector3f((float)t.get(0, 0), (float)t.get(1, 0), (float)t.get(2, 0)));
 
-		Matrix4f.mul(updatedPose, this.pose.getHomogeneous(), updatedPose);
+	Matrix4f.mul(updatedPose, this.pose.getHomogeneousMatrix4f(), updatedPose);
 		this.pose.setMatrix(updatedPose);
 	}
+	
+	
 	
 	
 	Mat oldDesc = new Mat();
@@ -194,15 +196,6 @@ public class TestPipeline extends ARPipeline{
 						keyframeMat.fromList(this.currentKeyFrame.getKeypoints().subList(0, min));
 						matKeypoints.fromList(points.subList(0,  min));
 						Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 10, 0.8);
-
-//						Mat essentialMatrix = Mat.zeros(3, 3, CvType.CV_32F);
-//						Core.gemm(this.K.t(), fundamentalMatrix, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
-//						Core.gemm(essentialMatrix, this.K, 1, Mat.zeros(3, 3, CvType.CV_32F), 0, essentialMatrix);
-//						
-//						Mat R1 = Mat.zeros(3, 3, CvType.CV_32F);
-//						Mat R2 = Mat.zeros(3, 3, CvType.CV_32F);
-//						Mat t = Mat.zeros(3, 1, CvType.CV_32F);
-//						Calib3d.decomposeEssentialMat(essentialMatrix, R1, R2, t);
 						
 						Matrix funMat = new Matrix(3, 3);
 						funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
@@ -215,41 +208,14 @@ public class TestPipeline extends ARPipeline{
 						funMat.set(2, 1, fundamentalMatrix.get(2, 1)[0]);
 						funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
 						
+						// get correspondences
+						ArrayList<Correspondence2D2D> correspondences = ARUtils.getCorrespondences(funMat, this.currentKeyFrame.getKeypoints().subList(0, min), points.subList(0,  min), this.currentKeyFrame.getDescriptors(), descriptors);
+						
 						Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
+						EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
+						Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
 						
-						System.out.println("[");
-						System.out.println(fundamentalMatrix.get(0, 0)[0] + ", " + fundamentalMatrix.get(0, 1)[0] + ", " + fundamentalMatrix.get(0, 2)[0]);
-						System.out.println(fundamentalMatrix.get(1, 0)[0] + ", " + fundamentalMatrix.get(1, 1)[0] + ", " + fundamentalMatrix.get(1, 2)[0]);
-						System.out.println(fundamentalMatrix.get(2, 0)[0] + ", " + fundamentalMatrix.get(2, 1)[0] + ", " + fundamentalMatrix.get(2, 2)[0]);
-						System.out.println("]");
-						
-						System.out.println("[");
-						System.out.println(eMatrix.get(0, 0) + ", " + eMatrix.get(0, 1) + ", " + eMatrix.get(0, 2));
-						System.out.println(eMatrix.get(1, 0) + ", " + eMatrix.get(1, 1) + ", " + eMatrix.get(1, 2));
-						System.out.println(eMatrix.get(2, 0) + ", " + eMatrix.get(2, 1) + ", " + eMatrix.get(2, 2));
-						System.out.println("]");
-						
-						System.out.println("About to calculate SVD...");
-						SingularValueDecomposition svd = eMatrix.svd();
-						System.out.println("SVD Calculated.");
-						
-						Matrix W = new Matrix(3, 3);
-						W.set(0, 1, -1);
-						W.set(1, 0, 1);
-						W.set(2, 2, 1);
-						
-						Matrix Z = new Matrix(3, 3);
-						Z.set(0, 1, 1);
-						Z.set(1, 0, -1);
-						
-						Matrix mt = svd.getU().times(Z).times(svd.getU().transpose());
-						Matrix t = new Matrix(3, 1);
-						t.set(0, 0, mt.get(2, 1));
-						t.set(1, 0, mt.get(0, 2));
-						t.set(2, 0, mt.get(1, 0));
-						Matrix R = svd.getU().times(W.transpose()).times(svd.getV().transpose());
-						
-						this.updatePose(R, t);
+						this.updatePose(rt.getR(), rt.getT());
 						
 
 			//			i. else (I don't have at least 50(?) correspondences), but I have at least 10, then generate new keyframe and use the same correspondences for fundamental matrix -> essential matrix -> [ R t ]. set current keyframe to new keyframe. continue.
