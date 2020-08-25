@@ -138,7 +138,7 @@ public class TestPipeline extends ARPipeline{
 		updatedPose.m22 = (float)R.get(2, 2);
 		updatedPose.translate(new Vector3f((float)t.get(0, 0), (float)t.get(1, 0), (float)t.get(2, 0)));
 
-	Matrix4f.mul(updatedPose, this.pose.getHomogeneousMatrix4f(), updatedPose);
+		Matrix4f.mul(updatedPose, this.currentKeyFrame.getPose().getHomogeneousMatrix4f(), updatedPose);
 		this.pose.setMatrix(updatedPose);
 	}
 	
@@ -172,12 +172,6 @@ public class TestPipeline extends ARPipeline{
 			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 			oldDesc = descriptors;
 			
-			// convert keypoints to good format for fundamental mat
-			List<Point> points = new ArrayList<Point>();
-			List<KeyPoint> listKeypoints = keypoints.toList();
-			for (int i = 0; i < Math.min(100, listKeypoints.size()); i++) {
-				points.add(listKeypoints.get(i).pt);
-			}
 			
 			// what do I want to do?
 			// find correspondences between descriptors and mappoints in used in current keyframe
@@ -189,13 +183,38 @@ public class TestPipeline extends ARPipeline{
 			//		b. otherwise, 
 					else {
 						
+						double DIST_THRESH = 150;
+						FlannBasedMatcher flann = FlannBasedMatcher.create();
+						ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
+						flann.knnMatch(descriptors, this.currentKeyFrame.getDescriptors(), matches, 1);
+						ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
+						ArrayList<Point> matchedKeyframes = new ArrayList<Point>();
+						ArrayList<Point> matchedPoints = new ArrayList<Point>();
+						for (int i = 0; i < matches.size(); i++) {
+							DMatch match = matches.get(i).toList().get(0);
+							if (match.distance < DIST_THRESH) {
+								Correspondence2D2D c = new Correspondence2D2D();
+								c.setU1(this.currentKeyFrame.getKeypoints().get(match.trainIdx).x);
+								c.setV1(this.currentKeyFrame.getKeypoints().get(match.trainIdx).y);
+								c.setU2(keypoints.toList().get(match.queryIdx).pt.x);
+								c.setV2(keypoints.toList().get(match.queryIdx).pt.y);
+								c.setDescriptor1(this.currentKeyFrame.getDescriptors().row(match.trainIdx));
+								c.setDescriptor2(descriptors.row(match.queryIdx));
+								correspondences.add(c);
+								matchedKeyframes.add(this.currentKeyFrame.getKeypoints().get(match.trainIdx));
+								matchedPoints.add(keypoints.toList().get(match.queryIdx).pt);
+							}
+						}
+						
 						// compute fundamental matrix -> essential matrix -> [ R t ]
-						int min = Math.min(this.currentKeyFrame.getKeypoints().size(), listKeypoints.size());
 						MatOfPoint2f keyframeMat = new MatOfPoint2f();
 						MatOfPoint2f matKeypoints = new MatOfPoint2f();
-						keyframeMat.fromList(this.currentKeyFrame.getKeypoints().subList(0, min));
-						matKeypoints.fromList(points.subList(0,  min));
-						Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 10, 0.8);
+						keyframeMat.fromList(matchedKeyframes);
+						matKeypoints.fromList(matchedPoints);
+//						keyframeMat.fromList(this.currentKeyFrame.getKeypoints().subList(0, min));
+//						matKeypoints.fromList(points.subList(0,  min));
+//						Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 10, 0.8);
+						Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_8POINT);
 						
 						Matrix funMat = new Matrix(3, 3);
 						funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
@@ -207,14 +226,15 @@ public class TestPipeline extends ARPipeline{
 						funMat.set(2, 0, fundamentalMatrix.get(2, 0)[0]);
 						funMat.set(2, 1, fundamentalMatrix.get(2, 1)[0]);
 						funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
-						
-						// get correspondences
-						ArrayList<Correspondence2D2D> correspondences = ARUtils.getCorrespondences(funMat, this.currentKeyFrame.getKeypoints().subList(0, min), points.subList(0,  min), this.currentKeyFrame.getDescriptors(), descriptors);
-						
+						System.out.println("funMat");
+						funMat.print(5, 4);
 						Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
+						System.out.println("eMatrix");
+						eMatrix.print(5, 4);
 						EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
 						Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
-						
+						Matrix R = Matrix.identity(3, 3);
+						Matrix t = new Matrix(3, 1);
 						this.updatePose(rt.getR(), rt.getT());
 						
 
@@ -227,6 +247,15 @@ public class TestPipeline extends ARPipeline{
 			
 			// rotate cube as demo that pose can be modified and displayed
 //			rotAngle += 0.002f;
+//			translation += 0.006f;
+//			Matrix R = Matrix.identity(3, 3);
+//			R.set(1, 1, Math.cos(rotAngle));
+//			R.set(2, 2, Math.cos(rotAngle));
+//			R.set(1, 2, -Math.sin(rotAngle));
+//			R.set(2, 1, Math.sin(rotAngle));
+//			Matrix t = new Matrix(3,1);
+//			t.set(0, 0, translation);
+//			this.updatePose(R, t);
 //			pose.setR11((float)Math.cos(rotAngle));
 //			pose.setR22((float)Math.cos(rotAngle));
 //			pose.setR12(-(float)Math.sin(rotAngle));

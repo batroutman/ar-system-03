@@ -9,7 +9,7 @@ public class Correspondence2D2D {
 	protected Double u2 = null;
 	protected Double v2 = null;
 	protected Mat descriptor1 = null;
-	protected Mat desctiptor2 = null;
+	protected Mat descriptor2 = null;
 	
 	public Correspondence2D2D() {
 		
@@ -66,12 +66,12 @@ public class Correspondence2D2D {
 		this.descriptor1 = descriptor1;
 	}
 
-	public Mat getDesctiptor2() {
-		return desctiptor2;
+	public Mat getDescriptor2() {
+		return descriptor2;
 	}
 
-	public void setDesctiptor2(Mat desctiptor2) {
-		this.desctiptor2 = desctiptor2;
+	public void setDescriptor2(Mat descriptor2) {
+		this.descriptor2 = descriptor2;
 	}
 	
 }

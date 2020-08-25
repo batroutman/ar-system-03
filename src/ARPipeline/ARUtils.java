@@ -8,21 +8,46 @@ import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.Point;
+import org.opencv.calib3d.Calib3d;
 
 import Jama.Matrix;
 import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 	
+	public static ArrayList<Correspondence2D2D> pruneCorrespondences(Matrix fundamentalMatrix, ArrayList<Correspondence2D2D> correspondences) {
+		ArrayList<Correspondence2D2D> newC = new ArrayList<Correspondence2D2D>();
+		for (int i = 0 ; i < correspondences.size(); i++) {
+			Matrix x1 = new Matrix(3, 1);
+			x1.set(0, 0, correspondences.get(i).getV1());
+			x1.set(1, 0, correspondences.get(i).getU1());
+			x1.set(2, 0, 1);
+			
+			Matrix x2 = new Matrix(3, 1);
+			x2.set(0, 0, correspondences.get(i).getV2());
+			x2.set(1, 0, correspondences.get(i).getU2());
+			x2.set(2, 0, 1);
+			
+			double EPI_THRESH = 0.2;
+			double epipolar = x2.transpose().times(fundamentalMatrix).times(x1).get(0, 0);
+//			System.out.println("epipolar: " + epipolar);
+			if(Math.abs(epipolar) < EPI_THRESH) {
+				newC.add(correspondences.get(i));
+			}
+			
+		}
+		return newC;
+	}
+	
 	public static Matrix triangulate(Matrix R, Matrix t, Matrix pose, Correspondence2D2D c) {
 
 		Matrix newPose = transformPose(R, t, pose);
 
 		// compute A matrix for Ax = 0
-		Matrix row0 = pose.getMatrix(2, 2, 0, 3).times(c.getV1()).minus(pose.getMatrix(1, 1, 0, 3));
-		Matrix row1 = pose.getMatrix(0, 0, 0, 3).minus(pose.getMatrix(2, 2, 0, 3).times(c.getU1()));
-		Matrix row2 = newPose.getMatrix(2,  2, 0, 3).times(c.getV2()).minus(newPose.getMatrix(1, 1, 0, 3));
-		Matrix row3 = newPose.getMatrix(0, 0, 0, 3).minus(newPose.getMatrix(2, 2, 0, 3).times(c.getU2()));
+		Matrix row0 = pose.getMatrix(2, 2, 0, 3).times(c.getV1()).minus(pose.getMatrix(0, 0, 0, 3));
+		Matrix row1 = pose.getMatrix(2, 2, 0, 3).times(c.getU1()).minus(pose.getMatrix(1, 1, 0, 3));
+		Matrix row2 = newPose.getMatrix(2, 2, 0, 3).times(c.getV2()).minus(newPose.getMatrix(0, 0, 0, 3));
+		Matrix row3 = newPose.getMatrix(2, 2, 0, 3).times(c.getU2()).minus(newPose.getMatrix(1, 1, 0, 3));
 		
 		Matrix A = new Matrix(4, 4);
 		A.set(0, 0, row0.get(0, 0));
@@ -45,6 +70,8 @@ public class ARUtils {
 		SingularValueDecomposition svd = A.svd();
 		Matrix X = svd.getV().getMatrix(0, 3, 3, 3);
 		X = X.times(1.0 / X.get(3,  0));
+		System.out.println("X");
+		X.print(5, 4);
 		return X;
 	}
 	
@@ -54,11 +81,46 @@ public class ARUtils {
 		rt.setT(decomp.getT1());
 		
 		// pick a correspondence
-		Correspondence2D2D c = correspondences.get(0);
-		Matrix X11 = triangulate(decomp.getR1(), decomp.getT1(), pose, c);
-		Matrix X12 = triangulate(decomp.getR1(), decomp.getT2(), pose, c);
-		Matrix X21 = triangulate(decomp.getR2(), decomp.getT1(), pose, c);
-		Matrix X22 = triangulate(decomp.getR2(), decomp.getT2(), pose, c);
+		Correspondence2D2D c = correspondences.get((int)Math.floor(Math.random() * correspondences.size()));
+		Mat points1 = new Mat(2, 1, CvType.CV_32F);
+		Mat points2 = new Mat(2, 1, CvType.CV_32F);
+		points1.put(0, 0, c.getU1());
+		points1.put(1, 0, c.getV1());
+		points2.put(0, 0, c.getU2());
+		points2.put(1, 0, c.getV2());
+		
+		Mat matX11 = new Mat(4, 1, CvType.CV_32F);
+		Mat matX12 = new Mat(4, 1, CvType.CV_32F);
+		Mat matX21 = new Mat(4, 1, CvType.CV_32F);
+		Mat matX22 = new Mat(4, 1, CvType.CV_32F);
+		Calib3d.triangulatePoints(MatrixToMat(pose.getMatrix(0, 2, 0, 3)), MatrixToMat(transformPose(decomp.getR1(), decomp.getT1(), pose).getMatrix(0, 2, 0, 3)),  points1, points2, matX11);
+		Calib3d.triangulatePoints(MatrixToMat(pose.getMatrix(0, 2, 0, 3)), MatrixToMat(transformPose(decomp.getR1(), decomp.getT2(), pose).getMatrix(0, 2, 0, 3)),  points1, points2, matX12);
+		Calib3d.triangulatePoints(MatrixToMat(pose.getMatrix(0, 2, 0, 3)), MatrixToMat(transformPose(decomp.getR2(), decomp.getT1(), pose).getMatrix(0, 2, 0, 3)),  points1, points2, matX21);
+		Calib3d.triangulatePoints(MatrixToMat(pose.getMatrix(0, 2, 0, 3)), MatrixToMat(transformPose(decomp.getR2(), decomp.getT2(), pose).getMatrix(0, 2, 0, 3)),  points1, points2, matX22);
+		
+//		Matrix X11 = triangulate(decomp.getR1(), decomp.getT1(), pose, c);
+//		Matrix X12 = triangulate(decomp.getR1(), decomp.getT2(), pose, c);
+//		Matrix X21 = triangulate(decomp.getR2(), decomp.getT1(), pose, c);
+//		Matrix X22 = triangulate(decomp.getR2(), decomp.getT2(), pose, c);
+		
+		Matrix X11 = MatToMatrix(matX11);
+		Matrix X12 = MatToMatrix(matX12);
+		Matrix X21 = MatToMatrix(matX21);
+		Matrix X22 = MatToMatrix(matX22);
+		
+		X11 = X11.times(1 / X11.get(3, 0));
+		X12 = X12.times(1 / X12.get(3, 0));
+		X21 = X21.times(1 / X21.get(3, 0));
+		X22 = X22.times(1 / X22.get(3, 0));
+		
+		System.out.println("X11");
+		X11.print(5, 4);
+		System.out.println("X12");
+		X12.print(5, 4);
+		System.out.println("X21");
+		X21.print(5, 4);
+		System.out.println("X22");
+		X22.print(5, 4);
 		
 		Matrix b11 = transformPose(decomp.getR1(), decomp.getT1(), pose).times(X11);
 		Matrix b12 = transformPose(decomp.getR1(), decomp.getT2(), pose).times(X12);
@@ -73,6 +135,7 @@ public class ARUtils {
 				rt.setR(decomp.getR1());
 				rt.setT(decomp.getT1());
 				numSet++;
+//				X11.print(5,  4);
 			}
 		}
 		
@@ -82,6 +145,7 @@ public class ARUtils {
 				rt.setR(decomp.getR1());
 				rt.setT(decomp.getT2());
 				numSet++;
+//				X12.print(5, 4);
 			}
 		}
 		
@@ -91,6 +155,7 @@ public class ARUtils {
 				rt.setR(decomp.getR2());
 				rt.setT(decomp.getT1());
 				numSet++;
+//				X21.print(5, 4);
 			}
 		}
 		
@@ -100,10 +165,12 @@ public class ARUtils {
 				rt.setR(decomp.getR2());
 				rt.setT(decomp.getT2());
 				numSet++;
+//				X22.print(5, 4);
 			}
 		}
 		
-//		System.out.println("numSet: " + numSet);
+//		rt.setR(decomp.getR2());
+//		rt.setT(decomp.getT1());
 		
 		return rt;
 	}
@@ -129,40 +196,7 @@ public class ARUtils {
 		return newPose;
 	}
 	
-	public static ArrayList<Correspondence2D2D> getCorrespondences(Matrix fundamentalMatrix, List<Point> keyframePoints, List<Point> framePoints, Mat keyframeDesc, Mat frameDesc) {
-		ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
-		
-		double EPI_THRESH = 0.01;
-		double DESC_THRESH = 150;
-		
-		for (int i = 0; i < keyframePoints.size(); i++) {
-			for (int j = 0; j < framePoints.size(); j++) {
-				Matrix x2 = new Matrix(1, 3);
-				x2.set(0, 0, framePoints.get(j).x);
-				x2.set(0, 1, framePoints.get(j).y);
-				x2.set(0, 2, 1);
-				
-				Matrix x1 = new Matrix(3, 1);
-				x1.set(0, 0, keyframePoints.get(j).x);
-				x1.set(1, 0, keyframePoints.get(j).y);
-				x1.set(2, 0, 1);
-				
-				// if these points are close to the epipolar line...
-				double epiCalc = x2.times(fundamentalMatrix).times(x1).get(0, 0);
-				if (Math.abs(epiCalc) < EPI_THRESH) {
-					// ... check if their descriptors are sufficiently close
-					Double dist = ARUtils.descriptorDistance(keyframeDesc.row(i), frameDesc.row(j));
-					if (dist < DESC_THRESH) {
-						Correspondence2D2D c = new Correspondence2D2D(keyframePoints.get(j).x, keyframePoints.get(j).y, framePoints.get(j).x, framePoints.get(j).y);
-						c.setDescriptor1(keyframeDesc.row(i));
-						c.setDesctiptor2(frameDesc.row(j));
-						correspondences.add(c);
-					}
-				}
-			}
-		}
-		return correspondences;
-	}
+
 
 	public static EssentialDecomposition decomposeEssentialMat(Matrix essentialMatrix) {
 		EssentialDecomposition decomp = new EssentialDecomposition();
@@ -217,6 +251,28 @@ public class ARUtils {
 			}
 		}
 		return mat;
+	}
+	
+	public static Mat MatrixToMat(Matrix matrix) {
+		Mat mat = new Mat(matrix.getRowDimension(), matrix.getColumnDimension(), CvType.CV_32F);
+		for (int row = 0; row < matrix.getRowDimension(); row++) {
+			for (int col = 0; col < matrix.getColumnDimension(); col++) {
+				mat.put(row,  col, matrix.get(row, col));
+			}
+		}
+		return mat;
+	}
+	
+	public static Matrix MatToMatrix(Mat mat) {
+		Matrix matrix = new Matrix(mat.rows(), mat.cols());
+		
+		for (int row = 0; row < mat.rows(); row++) {
+			for (int col = 0; col < mat.cols(); col++) {
+				matrix.set(row, col, mat.get(row, col)[0]);
+			}
+		}
+		
+		return matrix;
 	}
 	
 	public static void boxHighlight(Frame frame, MatOfKeyPoint keypoints, byte [][] RGB, int boxSize) {
