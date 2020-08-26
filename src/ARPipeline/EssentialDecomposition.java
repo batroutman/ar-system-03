@@ -3,14 +3,14 @@ package ARPipeline;
 import Jama.Matrix;
 
 public class EssentialDecomposition {
-	
+
 	protected Matrix R1 = null;
 	protected Matrix R2 = null;
 	protected Matrix t1 = null;
 	protected Matrix t2 = null;
 
 	public EssentialDecomposition() {
-		
+
 	}
 
 	public Matrix getR1() {
@@ -44,5 +44,5 @@ public class EssentialDecomposition {
 	public void setT2(Matrix t2) {
 		this.t2 = t2;
 	}
-	
+
 }

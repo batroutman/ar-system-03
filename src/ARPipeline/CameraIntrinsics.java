@@ -7,5 +7,5 @@ public class CameraIntrinsics {
 	public static final float cx = 240.0892f;
 	public static final float fy = 488.0588f;
 	public static final float cy = 168.4744f;
-	
+
 }

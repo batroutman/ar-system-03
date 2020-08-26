@@ -1,16 +1,14 @@
 package ARPipeline;
 
-import org.opencv.core.Mat;
-
 public class Correspondence {
-	
+
 	MapPoint mapPoint = null;
-	
+
 	double lastFrameU;
 	double lastFrameV;
 
 	public Correspondence() {
-		
+
 	}
 
 	public MapPoint getMapPoint() {
@@ -36,7 +34,5 @@ public class Correspondence {
 	public void setLastFrameV(double lastFrameV) {
 		this.lastFrameV = lastFrameV;
 	}
-
-
 
 }

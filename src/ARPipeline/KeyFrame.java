@@ -6,7 +6,6 @@ import java.util.List;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfKeyPoint;
-import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 
 public class KeyFrame {
@@ -15,11 +14,11 @@ public class KeyFrame {
 	protected Mat descriptors = null;
 	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
 	protected List<Point> keypoints = new ArrayList<Point>();
-	
+
 	public KeyFrame() {
-		
+
 	}
-	
+
 	public KeyFrame(ArrayList<MapPoint> mapPoints) {
 		this.mapPoints = mapPoints;
 	}
@@ -55,7 +54,7 @@ public class KeyFrame {
 	public void setKeypoints(List<Point> keypoints) {
 		this.keypoints = keypoints;
 	}
-	
+
 	public void setKeypoints(MatOfKeyPoint keypoints) {
 		List<KeyPoint> listKeypoints = keypoints.toList();
 		List<Point> listPoints = new ArrayList<Point>();
@@ -64,5 +63,5 @@ public class KeyFrame {
 		}
 		this.keypoints = listPoints;
 	}
-	
+
 }

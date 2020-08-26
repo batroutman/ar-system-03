@@ -1,19 +1,27 @@
 package ARPipeline;
 
 import org.lwjgl.util.vector.Matrix4f;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 import Jama.Matrix;
 
 public class Pose {
-	
+
 	long timestamp;
 
-	double r00; double r01; double r02; double tx;
-	double r10; double r11; double r12; double ty;
-	double r20; double r21; double r22; double tz;
-	
+	double r00;
+	double r01;
+	double r02;
+	double tx;
+	double r10;
+	double r11;
+	double r12;
+	double ty;
+	double r20;
+	double r21;
+	double r22;
+	double tz;
+
 	public Pose() {
 		timestamp = System.nanoTime();
 		r00 = 1;
@@ -29,8 +37,9 @@ public class Pose {
 		ty = 0;
 		tz = 0;
 	}
-	
-	public void setMatrix(double r00, double r01, double r02, double r10, double r11, double r12, double r20, double r21, double r22, double tx, double ty, double tz, long timestamp) {
+
+	public void setMatrix(double r00, double r01, double r02, double r10, double r11, double r12, double r20,
+			double r21, double r22, double tx, double ty, double tz, long timestamp) {
 		this.timestamp = timestamp;
 		this.r00 = r00;
 		this.r01 = r01;
@@ -45,67 +54,67 @@ public class Pose {
 		this.ty = ty;
 		this.tz = tz;
 	}
-	
+
 	public void setMatrix(Mat homogeneousMat) {
 		this.r00 = homogeneousMat.get(0, 0)[0];
 		this.r01 = homogeneousMat.get(0, 1)[0];
 		this.r02 = homogeneousMat.get(0, 2)[0];
-		
+
 		this.r10 = homogeneousMat.get(1, 0)[0];
 		this.r11 = homogeneousMat.get(1, 1)[0];
 		this.r12 = homogeneousMat.get(1, 2)[0];
-		
+
 		this.r20 = homogeneousMat.get(2, 0)[0];
 		this.r21 = homogeneousMat.get(2, 1)[0];
 		this.r22 = homogeneousMat.get(2, 2)[0];
-		
-		this.tx = homogeneousMat.get(0,  3)[0];
-		this.ty = homogeneousMat.get(1,  3)[0];
-		this.tz = homogeneousMat.get(2,  3)[0];
+
+		this.tx = homogeneousMat.get(0, 3)[0];
+		this.ty = homogeneousMat.get(1, 3)[0];
+		this.tz = homogeneousMat.get(2, 3)[0];
 	}
-	
+
 	public void setMatrix(Matrix4f homogeneousMat) {
 		this.r00 = homogeneousMat.m00;
 		this.r01 = homogeneousMat.m01;
 		this.r02 = homogeneousMat.m02;
-		
+
 		this.r10 = homogeneousMat.m10;
 		this.r11 = homogeneousMat.m11;
 		this.r12 = homogeneousMat.m12;
-		
+
 		this.r20 = homogeneousMat.m20;
 		this.r21 = homogeneousMat.m21;
 		this.r22 = homogeneousMat.m22;
-		
+
 		this.tx = homogeneousMat.m30;
 		this.ty = homogeneousMat.m31;
 		this.tz = homogeneousMat.m32;
 	}
-	
+
 	public void setOrigin() {
 		this.setMatrix(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, System.nanoTime());
 	}
-	
+
 	public Matrix4f getHomogeneousMatrix4f() {
 		Matrix4f mat = new Matrix4f();
 		mat.setIdentity();
-		mat.m00 = (float)r00;
-		mat.m01 = (float)r01;
-		mat.m02 = (float)r02;
-		mat.m10 = (float)r10;
-		mat.m11 = (float)r11;
-		mat.m12 = (float)r12;
-		mat.m20 = (float)r20;
-		mat.m21 = (float)r21;
-		mat.m22 = (float)r22;
-		mat.m03 = (float)tx;
-		mat.m13 = (float)ty;
-		mat.m23 = (float)tz;
+		mat.m00 = (float) r00;
+		mat.m01 = (float) r01;
+		mat.m02 = (float) r02;
+		mat.m10 = (float) r10;
+		mat.m11 = (float) r11;
+		mat.m12 = (float) r12;
+		mat.m20 = (float) r20;
+		mat.m21 = (float) r21;
+		mat.m22 = (float) r22;
+		mat.m03 = (float) tx;
+		mat.m13 = (float) ty;
+		mat.m23 = (float) tz;
 		return mat;
 	}
-	
+
 	public Matrix getHomogeneousMatrix() {
-		Matrix mat = Matrix.identity(4,  4);
+		Matrix mat = Matrix.identity(4, 4);
 		mat.set(0, 0, r00);
 		mat.set(0, 1, r01);
 		mat.set(0, 2, r02);
@@ -120,7 +129,7 @@ public class Pose {
 		mat.set(2, 3, tz);
 		return mat;
 	}
-	
+
 	public long getTimestamp() {
 		return timestamp;
 	}
@@ -224,5 +233,5 @@ public class Pose {
 	public void setTz(double tz) {
 		this.tz = tz;
 	}
-	
+
 }

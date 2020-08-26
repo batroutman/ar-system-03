@@ -10,15 +10,15 @@ public class Correspondence2D2D {
 	protected Double v2 = null;
 	protected Mat descriptor1 = null;
 	protected Mat descriptor2 = null;
-	
+
 	public Correspondence2D2D() {
-		
+
 	}
-	
+
 	public Correspondence2D2D(Double u1, Double v1, Double u2, Double v2) {
 		this.set(u1, v1, u2, v2);
 	}
-	
+
 	public void set(Double u1, Double v1, Double u2, Double v2) {
 		this.setU1(u1);
 		this.setV1(v1);
@@ -73,5 +73,5 @@ public class Correspondence2D2D {
 	public void setDescriptor2(Mat descriptor2) {
 		this.descriptor2 = descriptor2;
 	}
-	
+
 }
