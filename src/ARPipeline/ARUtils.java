@@ -3,6 +3,7 @@ package ARPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.lwjgl.util.vector.Matrix4f;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.KeyPoint;
@@ -14,6 +15,48 @@ import Jama.Matrix;
 import Jama.SingularValueDecomposition;
 
 public class ARUtils {
+
+	public static Matrix Matrix4fToMatrix(Matrix4f matrix4f) {
+		Matrix matrix = new Matrix(4, 4);
+		matrix.set(0, 0, matrix4f.m00);
+		matrix.set(0, 1, matrix4f.m01);
+		matrix.set(0, 2, matrix4f.m02);
+		matrix.set(0, 3, matrix4f.m03);
+		matrix.set(1, 0, matrix4f.m10);
+		matrix.set(1, 1, matrix4f.m11);
+		matrix.set(1, 2, matrix4f.m12);
+		matrix.set(1, 3, matrix4f.m13);
+		matrix.set(2, 0, matrix4f.m20);
+		matrix.set(2, 1, matrix4f.m21);
+		matrix.set(2, 2, matrix4f.m22);
+		matrix.set(2, 3, matrix4f.m23);
+		matrix.set(3, 0, matrix4f.m30);
+		matrix.set(3, 1, matrix4f.m31);
+		matrix.set(3, 2, matrix4f.m32);
+		matrix.set(3, 3, matrix4f.m33);
+		return matrix;
+	}
+
+	public static Matrix4f MatrixToMatrix4f(Matrix matrix) {
+		Matrix4f matrix4f = new Matrix4f();
+		matrix4f.m00 = (float) matrix.get(0, 0);
+		matrix4f.m01 = (float) matrix.get(0, 1);
+		matrix4f.m02 = (float) matrix.get(0, 2);
+		matrix4f.m03 = (float) matrix.get(0, 3);
+		matrix4f.m10 = (float) matrix.get(1, 0);
+		matrix4f.m11 = (float) matrix.get(1, 1);
+		matrix4f.m12 = (float) matrix.get(1, 2);
+		matrix4f.m13 = (float) matrix.get(1, 3);
+		matrix4f.m20 = (float) matrix.get(2, 0);
+		matrix4f.m21 = (float) matrix.get(2, 1);
+		matrix4f.m22 = (float) matrix.get(2, 2);
+		matrix4f.m23 = (float) matrix.get(2, 3);
+		matrix4f.m30 = (float) matrix.get(3, 0);
+		matrix4f.m31 = (float) matrix.get(3, 1);
+		matrix4f.m32 = (float) matrix.get(3, 2);
+		matrix4f.m33 = (float) matrix.get(3, 3);
+		return matrix4f;
+	}
 
 	public static ArrayList<Correspondence2D2D> pruneCorrespondences(Matrix fundamentalMatrix,
 			ArrayList<Correspondence2D2D> correspondences) {
