@@ -21,7 +21,7 @@ public class Renderer {
 
 	private static final float FOV = 70;
 	private static final float NEAR_PLANE = 0.01f;
-	private static final float FAR_PLANE = 1000;
+	private static final float FAR_PLANE = 5000;
 
 	private Matrix4f projectionMatrix;
 
@@ -41,7 +41,6 @@ public class Renderer {
 
 	public void render(Camera camera, ArrayList<Entity> entities, StaticShader cameraShader, Entity background,
 			StaticShader bgShader) {
-
 		GL11.glDisable(GL11.GL_DEPTH_TEST);
 		GL11.glDepthFunc(GL11.GL_NEVER);
 		bgShader.start();

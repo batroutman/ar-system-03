@@ -3,6 +3,7 @@ import org.opencv.core.Core;
 import ARPipeline.ARPipeline;
 import ARPipeline.CameraIntrinsics;
 import ARPipeline.MockPipeline;
+import ARPipeline.MockPointData;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import Jama.Matrix;
@@ -38,8 +39,8 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		// arBootstrapper.start();
-		arBootstrapper.tests();
+		arBootstrapper.start();
+		// arBootstrapper.tests();
 	}
 
 	public void tests() {
@@ -55,20 +56,46 @@ public class ARBootstrapper {
 		K.set(2, 2, 1.0);
 
 		Matrix E = Matrix.identity(3, 4);
+		Matrix R = Matrix.identity(3, 3);
+		Matrix C = Matrix.identity(3, 4);
 
-		Matrix cameraMatrix = K.times(E);
+		double rot = Math.PI / 2;
+
+		// R.set(1, 1, Math.cos(rot));
+		// R.set(2, 2, Math.cos(rot));
+		// R.set(1, 2, -Math.sin(rot));
+		// R.set(2, 1, Math.sin(rot));
+
+		C.set(2, 3, -500);
+		System.out.println("C:");
+		C.print(5, 4);
+
+		Matrix cameraMatrix = K.times(R).times(C);
+		System.out.println("cameraMatrix:");
 		cameraMatrix.print(5, 4);
 
 		Matrix point = new Matrix(4, 1);
-		point.set(0, 0, 0);
-		point.set(1, 0, 10);
-		point.set(2, 0, 530);
+		point.set(0, 0, -200);
+		point.set(1, 0, 0);
+		point.set(2, 0, 1000);
 		point.set(3, 0, 1);
 
+		System.out.println("point (3D):");
 		point.print(5, 4);
 		Matrix projected = cameraMatrix.times(point);
+
+		System.out.println("Un-normalized projected point:");
 		projected.print(5, 4);
 		projected = projected.times(1 / projected.get(2, 0));
+
+		System.out.println("Normalized projected point:");
 		projected.print(5, 4);
+
+		MockPointData mock = new MockPointData();
+		mock.getWorldCoordinates().get(2).print(5, 4);
+		for (int i = 0; i < 10; i++) {
+			System.out.println(mock.getKeypoints(i).get(2).x + ", " + mock.getKeypoints(i).get(2).y);
+		}
+
 	}
 }

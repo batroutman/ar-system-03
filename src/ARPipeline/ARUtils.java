@@ -16,6 +16,26 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	public static Frame artificialKeypointFrame(List<Point> points, int width, int height) {
+		byte[] r = new byte[width * height];
+		byte[] g = new byte[width * height];
+		byte[] b = new byte[width * height];
+		for (int i = 0; i < width * height; i++) {
+			r[i] = 0;
+			g[i] = 0;
+			b[i] = 0;
+		}
+		for (Point keypoint : points) {
+			if (keypoint.x >= 0 && keypoint.x < width && keypoint.y >= 0 && keypoint.y < height) {
+				r[(int) (keypoint.y * width + keypoint.x)] = (byte) 255;
+				g[(int) (keypoint.y * width + keypoint.x)] = (byte) 255;
+				b[(int) (keypoint.y * width + keypoint.x)] = (byte) 255;
+			}
+		}
+		Frame frame = new Frame(r, g, b, width, height);
+		return frame;
+	}
+
 	public static Matrix Matrix4fToMatrix(Matrix4f matrix4f) {
 		Matrix matrix = new Matrix(4, 4);
 		matrix.set(0, 0, matrix4f.m00);
@@ -114,8 +134,8 @@ public class ARUtils {
 		SingularValueDecomposition svd = A.svd();
 		Matrix X = svd.getV().getMatrix(0, 3, 3, 3);
 		X = X.times(1.0 / X.get(3, 0));
-		System.out.println("X");
-		X.print(5, 4);
+		// System.out.println("X");
+		// X.print(5, 4);
 		return X;
 	}
 
@@ -166,14 +186,14 @@ public class ARUtils {
 		X21 = X21.times(1 / X21.get(3, 0));
 		X22 = X22.times(1 / X22.get(3, 0));
 
-		System.out.println("X11");
-		X11.print(5, 4);
-		System.out.println("X12");
-		X12.print(5, 4);
-		System.out.println("X21");
-		X21.print(5, 4);
-		System.out.println("X22");
-		X22.print(5, 4);
+		// System.out.println("X11");
+		// X11.print(5, 4);
+		// System.out.println("X12");
+		// X12.print(5, 4);
+		// System.out.println("X21");
+		// X21.print(5, 4);
+		// System.out.println("X22");
+		// X22.print(5, 4);
 
 		Matrix b11 = transformPose(decomp.getR1(), decomp.getT1(), pose).times(X11);
 		Matrix b12 = transformPose(decomp.getR1(), decomp.getT2(), pose).times(X12);

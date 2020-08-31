@@ -94,6 +94,14 @@ public class Camera {
 	}
 
 	public Matrix4f getViewMatrix() {
+		Matrix4f rotationOffset = new Matrix4f();
+		rotationOffset.setIdentity();
+		// rotationOffset.m00 = -1;
+		// rotationOffset.m11 = -1;
+		// rotationOffset.m22 = -1;
+		Matrix4f.rotate((float) Math.PI, new Vector3f(1, 0, 0), rotationOffset, rotationOffset);
+		Matrix4f.rotate((float) Math.PI, new Vector3f(0, 0, 1), rotationOffset, rotationOffset);
+
 		Matrix4f mat = new Matrix4f();
 		mat.setIdentity();
 		mat.m00 = r00;
@@ -108,7 +116,10 @@ public class Camera {
 
 		Matrix4f.translate(new Vector3f(-tx, -ty, -tz), mat, mat);
 
-		return mat;
+		Matrix4f result = new Matrix4f();
+		Matrix4f.mul(mat, rotationOffset, result);
+
+		return result;
 	}
 
 }

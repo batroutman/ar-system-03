@@ -79,44 +79,10 @@ public class OpenGLARDisplay {
 
 		};
 
-		int numRows = 10;
-		int numCols = 10;
-		int spacing = 1;
-
-		// // ceiling
-		// for (int i = 0; i < numRows; i++) {
-		// for (int j = 0; j < numCols; j++) {
-		// // construct model for cube
-		// RawModel tModel =
-		// this.loader.loadToVAO(vertices,textureCoords,indices);
-		// TexturedModel tStaticModel = new TexturedModel(tModel,new
-		// ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		// Entity tEntity = new Entity(tStaticModel, new Vector3f((j - numCols /
-		// 2) * spacing, numRows / 2, ((i - numRows / 2) - 0) *
-		// spacing),0,0,0,0.3f);
-		// this.entities.add(tEntity);
-		// }
-		// }
-		//
-		// // wall
-		// for (int i = 0; i < numRows; i++) {
-		// for (int j = 0; j < numCols; j++) {
-		// // construct model for cube
-		// RawModel tModel =
-		// this.loader.loadToVAO(vertices,textureCoords,indices);
-		// TexturedModel tStaticModel = new TexturedModel(tModel,new
-		// ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		// Entity tEntity = new Entity(tStaticModel, new Vector3f((j - numCols /
-		// 2) * spacing, ((i - numRows / 2) - 0) * spacing, -(numRows /
-		// 2)),0,0,0,0.3f);
-		// this.entities.add(tEntity);
-		// }
-		// }
-
 		RawModel tModel = this.loader.loadToVAO(vertices, textureCoords, indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,
 				new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, -3f), 0, 0, 0, 0.3f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, 1000), 0, 0, 0, 100f);
 		this.entities.add(tEntity);
 
 		// create camera

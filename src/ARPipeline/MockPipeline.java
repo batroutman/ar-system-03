@@ -6,20 +6,17 @@ import java.util.List;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 import org.opencv.calib3d.Calib3d;
-import org.opencv.core.CvType;
-import org.opencv.core.DMatch;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfDMatch;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Point;
-import org.opencv.features2d.FlannBasedMatcher;
-import org.opencv.features2d.ORB;
 
 import Jama.Matrix;
 
 public class MockPipeline extends ARPipeline {
+
+	MockPointData mock = new MockPointData();
+	long frameNum = 0;
 
 	Matrix K = new Matrix(3, 3);
 
@@ -79,6 +76,7 @@ public class MockPipeline extends ARPipeline {
 		K.set(2, 0, 0.0);
 		K.set(2, 1, 0.0);
 		K.set(2, 2, 1.0);
+
 	}
 
 	public void start() {
@@ -139,73 +137,30 @@ public class MockPipeline extends ARPipeline {
 		boolean keepGoing = true;
 		while (keepGoing) {
 
-			if (currentFrame == null) {
+			if (this.frameNum >= this.mock.getMAX_FRAMES() - 1) {
 				keepGoing = false;
-
 				continue;
 			}
 
-			// find ORB features
-			int patchSize = 5;
-			ORB orb = ORB.create(100);
-			orb.setScoreType(ORB.FAST_SCORE);
-			orb.setPatchSize(patchSize);
-			orb.setNLevels(1);
-			MatOfKeyPoint keypoints = new MatOfKeyPoint();
-			Mat descriptors = new Mat();
-			Mat image = ARUtils.frameToMat(currentFrame);
-			orb.detectAndCompute(image, new Mat(), keypoints, descriptors);
-			descriptors.convertTo(descriptors, CvType.CV_32F);
-			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
-			oldDesc = descriptors;
+			// find ORB features (omit for mock)
 
-			// what do I want to do?
-			// find correspondences between descriptors and mappoints in used in
-			// current keyframe
-			// a. if I have 0 keyframes, generate one and set pose to origin.
-			// continue.
+			// if no keyframes exist, generate one
 			if (this.keyframes.size() == 0) {
-				this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
+				this.currentKeyFrame = new KeyFrame();
+				this.currentKeyFrame.setPose(new Pose());
+				this.currentKeyFrame.setKeypoints(this.mock.getKeypoints(this.frameNum));
 				this.keyframes.add(this.currentKeyFrame);
 			}
 			// b. otherwise,
 			else {
 
-				double DIST_THRESH = 150;
-				FlannBasedMatcher flann = FlannBasedMatcher.create();
-				ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
-				flann.knnMatch(descriptors, this.currentKeyFrame.getDescriptors(), matches, 1);
-				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
-				ArrayList<Point> matchedKeyframes = new ArrayList<Point>();
-				ArrayList<Point> matchedPoints = new ArrayList<Point>();
-				for (int i = 0; i < matches.size(); i++) {
-					DMatch match = matches.get(i).toList().get(0);
-					if (match.distance < DIST_THRESH) {
-						Correspondence2D2D c = new Correspondence2D2D();
-						c.setU1(this.currentKeyFrame.getKeypoints().get(match.trainIdx).x);
-						c.setV1(this.currentKeyFrame.getKeypoints().get(match.trainIdx).y);
-						c.setU2(keypoints.toList().get(match.queryIdx).pt.x);
-						c.setV2(keypoints.toList().get(match.queryIdx).pt.y);
-						c.setDescriptor1(this.currentKeyFrame.getDescriptors().row(match.trainIdx));
-						c.setDescriptor2(descriptors.row(match.queryIdx));
-						correspondences.add(c);
-						matchedKeyframes.add(this.currentKeyFrame.getKeypoints().get(match.trainIdx));
-						matchedPoints.add(keypoints.toList().get(match.queryIdx).pt);
-					}
-				}
-
 				// compute fundamental matrix -> essential matrix -> [ R t ]
 				MatOfPoint2f keyframeMat = new MatOfPoint2f();
 				MatOfPoint2f matKeypoints = new MatOfPoint2f();
-				keyframeMat.fromList(matchedKeyframes);
-				matKeypoints.fromList(matchedPoints);
-				// keyframeMat.fromList(this.currentKeyFrame.getKeypoints().subList(0,
-				// min));
-				// matKeypoints.fromList(points.subList(0, min));
-				// Mat fundamentalMatrix =
-				// Calib3d.findFundamentalMat(keyframeMat, matKeypoints,
-				// Calib3d.FM_RANSAC, 10, 0.8);
-				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_8POINT);
+				keyframeMat.fromList(this.currentKeyFrame.getKeypoints());
+				matKeypoints.fromList(this.mock.getKeypoints(this.frameNum));
+				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 3,
+						0.99);
 
 				Matrix funMat = new Matrix(3, 3);
 				funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
@@ -217,45 +172,27 @@ public class MockPipeline extends ARPipeline {
 				funMat.set(2, 0, fundamentalMatrix.get(2, 0)[0]);
 				funMat.set(2, 1, fundamentalMatrix.get(2, 1)[0]);
 				funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
-				System.out.println("funMat");
-				funMat.print(5, 4);
+
 				Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
-				System.out.println("eMatrix");
-				eMatrix.print(5, 4);
+
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
+
+				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
+				for (int i = 0; i < this.currentKeyFrame.getKeypoints().size(); i++) {
+					Correspondence2D2D c = new Correspondence2D2D(this.currentKeyFrame.getKeypoints().get(i).x,
+							this.currentKeyFrame.getKeypoints().get(i).y,
+							this.mock.getKeypoints(this.frameNum).get(i).x,
+							this.mock.getKeypoints(this.frameNum).get(i).y);
+					correspondences.add(c);
+				}
+
 				Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
 				Matrix R = Matrix.identity(3, 3);
 				Matrix t = new Matrix(3, 1);
 				this.updatePose(rt.getR(), rt.getT());
 
-				// i. else (I don't have at least 50(?) correspondences), but I
-				// have at least 10, then generate new keyframe and use the same
-				// correspondences for fundamental matrix -> essential matrix ->
-				// [ R t ]. set current keyframe to new keyframe. continue.
-
-				// ii. else (<10 correspondences), check other keyframes for
-				// keyframe with most correspondences. If >= 10 correspondences,
-				// set as current keyframe and use the correspondences for sfm.
-				// if < 40, generate new keyframe.
-				// iii. else, tracking lost (handle this later)
 			}
 
-			// rotate cube as demo that pose can be modified and displayed
-			// rotAngle += 0.002f;
-			// translation += 0.006f;
-			// Matrix R = Matrix.identity(3, 3);
-			// R.set(1, 1, Math.cos(rotAngle));
-			// R.set(2, 2, Math.cos(rotAngle));
-			// R.set(1, 2, -Math.sin(rotAngle));
-			// R.set(2, 1, Math.sin(rotAngle));
-			// Matrix t = new Matrix(3,1);
-			// t.set(0, 0, translation);
-			// this.updatePose(R, t);
-			// pose.setR11((float)Math.cos(rotAngle));
-			// pose.setR22((float)Math.cos(rotAngle));
-			// pose.setR12(-(float)Math.sin(rotAngle));
-			// pose.setR21((float)Math.sin(rotAngle));
-			//
 			synchronized (this.outputPoseBuffer) {
 				this.outputPoseBuffer.pushPose(pose);
 			}
@@ -263,11 +200,21 @@ public class MockPipeline extends ARPipeline {
 			// for demo, just push the unaltered frame along to the output
 			// buffer
 			synchronized (this.outputFrameBuffer) {
+				int width = 480;
+				int height = 270;
+
+				Frame currentFrame = ARUtils.artificialKeypointFrame(this.mock.getKeypoints(this.frameNum), width,
+						height);
 				this.outputFrameBuffer.pushFrame(currentFrame);
 			}
 
-			currentFrame = this.inputFrameBuffer.getCurrentFrame();
+			this.frameNum++;
 
+			try {
+				Thread.sleep(100);
+			} catch (Exception e) {
+
+			}
 		}
 	}
 
