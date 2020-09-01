@@ -99,8 +99,10 @@ public class Camera {
 		// rotationOffset.m00 = -1;
 		// rotationOffset.m11 = -1;
 		// rotationOffset.m22 = -1;
-		Matrix4f.rotate((float) Math.PI, new Vector3f(1, 0, 0), rotationOffset, rotationOffset);
-		Matrix4f.rotate((float) Math.PI, new Vector3f(0, 0, 1), rotationOffset, rotationOffset);
+		// Matrix4f.rotate((float) Math.PI, new Vector3f(1, 0, 0),
+		// rotationOffset, rotationOffset);
+		// Matrix4f.rotate((float) Math.PI, new Vector3f(0, 0, 1),
+		// rotationOffset, rotationOffset);
 
 		Matrix4f mat = new Matrix4f();
 		mat.setIdentity();

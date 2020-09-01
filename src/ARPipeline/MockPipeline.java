@@ -187,9 +187,28 @@ public class MockPipeline extends ARPipeline {
 				}
 
 				Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
-				Matrix R = Matrix.identity(3, 3);
-				Matrix t = new Matrix(3, 1);
-				this.updatePose(rt.getR(), rt.getT());
+				Matrix4f R4 = new Matrix4f();
+				R4.setIdentity();
+				float rotX = this.frameNum * 0.000f;
+				float rotY = this.frameNum * 0.000f;
+				float rotZ = this.frameNum * 0.000f;
+				R4.rotate(rotX, new Vector3f(1, 0, 0));
+				R4.rotate(rotY, new Vector3f(0, 1, 0));
+				R4.rotate(rotZ, new Vector3f(0, 0, 1));
+				Matrix R = ARUtils.Matrix4fToMatrix(R4).getMatrix(0, 2, 0, 2);
+
+				Matrix c = new Matrix(3, 1);
+				float dx = this.frameNum * 5f;
+				float dy = this.frameNum * 5f;
+				float dz = this.frameNum * 0.0f;
+				c.set(0, 0, dx);
+				c.set(1, 0, dy);
+				c.set(2, 0, dz);
+
+				Matrix t = R.times(c);
+
+				this.updatePose(R, t);
+				// this.updatePose(rt.getR(), rt.getT());
 
 			}
 
