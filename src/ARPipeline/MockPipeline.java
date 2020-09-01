@@ -3,8 +3,6 @@ package ARPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.lwjgl.util.vector.Matrix4f;
-import org.lwjgl.util.vector.Vector3f;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
@@ -113,21 +111,8 @@ public class MockPipeline extends ARPipeline {
 
 	public void updatePose(Matrix R, Matrix t) {
 
-		Matrix4f updatedPose = new Matrix4f();
-		updatedPose.setIdentity();
-		updatedPose.m00 = (float) R.get(0, 0);
-		updatedPose.m01 = (float) R.get(0, 1);
-		updatedPose.m02 = (float) R.get(0, 2);
-		updatedPose.m10 = (float) R.get(1, 0);
-		updatedPose.m11 = (float) R.get(1, 1);
-		updatedPose.m12 = (float) R.get(1, 2);
-		updatedPose.m20 = (float) R.get(2, 0);
-		updatedPose.m21 = (float) R.get(2, 1);
-		updatedPose.m22 = (float) R.get(2, 2);
-		updatedPose.translate(new Vector3f((float) t.get(0, 0), (float) t.get(1, 0), (float) t.get(2, 0)));
-
-		Matrix4f.mul(updatedPose, this.currentKeyFrame.getPose().getHomogeneousMatrix4f(), updatedPose);
-		this.pose.setMatrix(updatedPose);
+		this.pose.setMatrix(R.get(0, 0), R.get(0, 1), R.get(0, 2), R.get(1, 0), R.get(1, 1), R.get(1, 2), R.get(2, 0),
+				R.get(2, 1), R.get(2, 2), t.get(0, 0), t.get(1, 0), t.get(2, 0), System.nanoTime());
 	}
 
 	Mat oldDesc = new Mat();
@@ -187,25 +172,10 @@ public class MockPipeline extends ARPipeline {
 				}
 
 				Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
-				Matrix4f R4 = new Matrix4f();
-				R4.setIdentity();
-				float rotX = this.frameNum * 0.000f;
-				float rotY = this.frameNum * 0.000f;
-				float rotZ = this.frameNum * 0.000f;
-				R4.rotate(rotX, new Vector3f(1, 0, 0));
-				R4.rotate(rotY, new Vector3f(0, 1, 0));
-				R4.rotate(rotZ, new Vector3f(0, 0, 1));
-				Matrix R = ARUtils.Matrix4fToMatrix(R4).getMatrix(0, 2, 0, 2);
-
-				Matrix c = new Matrix(3, 1);
-				float dx = this.frameNum * 5f;
-				float dy = this.frameNum * 5f;
-				float dz = this.frameNum * 0.0f;
-				c.set(0, 0, dx);
-				c.set(1, 0, dy);
-				c.set(2, 0, dz);
-
-				Matrix t = R.times(c);
+				Matrix R = this.mock.getR(this.frameNum);
+				Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
+				// c.print(5, 4);
+				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
 
 				this.updatePose(R, t);
 				// this.updatePose(rt.getR(), rt.getT());

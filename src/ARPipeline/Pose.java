@@ -86,9 +86,9 @@ public class Pose {
 		this.r21 = homogeneousMat.m21;
 		this.r22 = homogeneousMat.m22;
 
-		this.tx = homogeneousMat.m30;
-		this.ty = homogeneousMat.m31;
-		this.tz = homogeneousMat.m32;
+		this.tx = homogeneousMat.m03;
+		this.ty = homogeneousMat.m13;
+		this.tz = homogeneousMat.m23;
 	}
 
 	public void setOrigin() {

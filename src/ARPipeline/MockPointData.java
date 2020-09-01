@@ -3,7 +3,6 @@ package ARPipeline;
 import java.util.ArrayList;
 import java.util.Random;
 
-import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 import org.opencv.core.Point;
 
@@ -27,7 +26,7 @@ public class MockPointData {
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(5f, 5f, 0f);
+	protected Vector3f translationVelocity = new Vector3f(5f, 5f, 10f);
 	protected double rotX = 0.000;
 	protected double rotY = 0.000;
 	protected double rotZ = 0.000;
@@ -82,40 +81,42 @@ public class MockPointData {
 	}
 
 	// Returns homogeneous 4x4 matrix of JUST rotation parameters
-	protected Matrix4f getR(long frameNumber) {
-		// Calculate initial R
-		Matrix4f initialR = new Matrix4f();
-		initialR.setIdentity();
-		initialR.rotate((float) this.initialRotX, new Vector3f(1, 0, 0));
-		initialR.rotate((float) this.initialRotY, new Vector3f(0, 1, 0));
-		initialR.rotate((float) this.initialRotZ, new Vector3f(0, 0, 1));
+	public Matrix getR(long frameNumber) {
 
 		// Calculate this frame's rotation parameters
 		float gamma = (float) this.rotX * frameNumber;
 		float beta = (float) this.rotY * frameNumber;
 		float alpha = (float) this.rotZ * frameNumber;
 
-		// Calculate transformation matrix of current frame parameters
-		Matrix4f transformation = new Matrix4f();
-		transformation.setIdentity();
-		transformation.rotate(gamma, new Vector3f(1, 0, 0));
-		transformation.rotate(beta, new Vector3f(0, 1, 0));
-		transformation.rotate(alpha, new Vector3f(0, 0, 1));
+		Matrix Rx = Matrix.identity(4, 4);
+		Rx.set(1, 1, Math.cos(gamma));
+		Rx.set(2, 2, Math.cos(gamma));
+		Rx.set(1, 2, -Math.sin(gamma));
+		Rx.set(2, 1, Math.sin(gamma));
 
-		// Transform inital R and return
-		Matrix4f.mul(transformation, initialR, initialR);
-		return initialR;
+		Matrix Ry = Matrix.identity(4, 4);
+		Ry.set(0, 0, Math.cos(beta));
+		Ry.set(2, 2, Math.cos(beta));
+		Ry.set(2, 0, -Math.sin(beta));
+		Ry.set(0, 2, Math.sin(beta));
+
+		Matrix Rz = Matrix.identity(4, 4);
+		Rz.set(0, 0, Math.cos(alpha));
+		Rz.set(1, 1, Math.cos(alpha));
+		Rz.set(0, 1, -Math.sin(alpha));
+		Rz.set(1, 0, Math.sin(alpha));
+
+		return Rz.times(Ry).times(Rx);
 	}
 
 	// Returns homogeneous 4x4 matrix of WORLD translation parameters
-	protected Matrix4f getC(long frameNumber) {
+	public Matrix getIC(long frameNumber) {
 		// Calculate C
-		Matrix4f C = new Matrix4f();
-		C.setIdentity();
+		Matrix C = Matrix.identity(4, 4);
 
-		C.m03 = this.initialTranslation.x + this.translationVelocity.x * frameNumber;
-		C.m13 = this.initialTranslation.y + this.translationVelocity.y * frameNumber;
-		C.m23 = this.initialTranslation.z + this.translationVelocity.z * frameNumber;
+		C.set(0, 3, this.initialTranslation.x + this.translationVelocity.x * frameNumber);
+		C.set(1, 3, this.initialTranslation.y + this.translationVelocity.y * frameNumber);
+		C.set(2, 3, this.initialTranslation.z + this.translationVelocity.z * frameNumber);
 
 		return C;
 	}
@@ -123,8 +124,8 @@ public class MockPointData {
 	public ArrayList<Point> getKeypoints(long frameNumber) {
 		ArrayList<Point> keypoints = new ArrayList<Point>();
 
-		Matrix R = ARUtils.Matrix4fToMatrix(this.getR(frameNumber));
-		Matrix C = ARUtils.Matrix4fToMatrix(this.getC(frameNumber));
+		Matrix R = this.getR(frameNumber);
+		Matrix C = this.getIC(frameNumber);
 		Matrix E = R.times(C);
 
 		Matrix cameraMatrix = this.K.times(E.getMatrix(0, 2, 0, 3));

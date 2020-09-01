@@ -88,14 +88,31 @@ public class Renderer {
 		float x_scale = y_scale / aspectRatio;
 		float frustum_length = FAR_PLANE - NEAR_PLANE;
 
+		// projectionMatrix = new Matrix4f();
+		// projectionMatrix.m00 = x_scale;
+		// projectionMatrix.m11 = y_scale;
+		// projectionMatrix.m22 = -((FAR_PLANE + NEAR_PLANE) / frustum_length);
+		// projectionMatrix.m23 = -1;
+		// projectionMatrix.m32 = -((2 * NEAR_PLANE * FAR_PLANE) /
+		// frustum_length);
+		// projectionMatrix.m33 = 0;
+
 		projectionMatrix = new Matrix4f();
-		projectionMatrix.m00 = x_scale;
-		projectionMatrix.m11 = y_scale;
-		projectionMatrix.m22 = -((FAR_PLANE + NEAR_PLANE) / frustum_length);
+		float width = CameraIntrinsics.cx * 2;
+		float height = CameraIntrinsics.cy * 2;
+		float x0 = 0;
+		float y0 = 0;
+		projectionMatrix.m00 = 2 * CameraIntrinsics.fx / width;
+		projectionMatrix.m10 = -2 * CameraIntrinsics.s / width;
+		projectionMatrix.m20 = (width - 2 * CameraIntrinsics.cx + 2 * x0) / width;
+		projectionMatrix.m11 = 2 * CameraIntrinsics.fy / height;
+		projectionMatrix.m21 = (-height + 2 * CameraIntrinsics.cy + 2 * y0) / height;
+		projectionMatrix.m22 = (-FAR_PLANE - NEAR_PLANE) / (FAR_PLANE - NEAR_PLANE);
+		projectionMatrix.m32 = -2 * FAR_PLANE * NEAR_PLANE / frustum_length;
 		projectionMatrix.m23 = -1;
-		projectionMatrix.m32 = -((2 * NEAR_PLANE * FAR_PLANE) / frustum_length);
 		projectionMatrix.m33 = 0;
 
+		System.out.println(projectionMatrix.toString());
 	}
 
 }
