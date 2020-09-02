@@ -146,7 +146,9 @@ public class ARUtils {
 		rt.setT(decomp.getT1());
 
 		// pick a correspondence
-		Correspondence2D2D c = correspondences.get((int) Math.floor(Math.random() * correspondences.size()));
+		// Correspondence2D2D c = correspondences.get((int)
+		// Math.floor(Math.random() * correspondences.size()));
+		Correspondence2D2D c = correspondences.get(0);
 		Mat points1 = new Mat(2, 1, CvType.CV_32F);
 		Mat points2 = new Mat(2, 1, CvType.CV_32F);
 		points1.put(0, 0, c.getU1());
@@ -286,6 +288,15 @@ public class ARUtils {
 		Matrix t2 = t1.times(-1);
 		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
 		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
+
+		// System.out.println("t1: ");
+		// t1.print(5, 4);
+		// System.out.println("t2: ");
+		// t2.print(5, 4);
+		// System.out.println("R1: ");
+		// R1.print(5, 4);
+		// System.out.println("R2: ");
+		// R2.print(5, 4);
 
 		decomp.setR1(R1);
 		decomp.setR2(R2);

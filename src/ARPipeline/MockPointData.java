@@ -12,8 +12,9 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 100;
+	protected long MAX_FRAMES = 120;
 	protected int NUM_POINTS = 30;
+	protected int START_FRAME = 0;
 	protected int SEED = 1;
 	protected Matrix K = new Matrix(3, 3);
 
@@ -27,7 +28,7 @@ public class MockPointData {
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
 	protected Vector3f translationVelocity = new Vector3f(6f, 2f, -10f);
-	protected double rotX = 0.001;
+	protected double rotX = 0.002;
 	protected double rotY = -0.005;
 	protected double rotZ = -0.000;
 
@@ -57,6 +58,7 @@ public class MockPointData {
 	}
 
 	protected void initWorldCoordinates() {
+		String output = "";
 		double Z_SPAWN_MIN = 1000;
 		double Z_SPAWN_MAX = 1500;
 		double Y_SPAWN_MIN = -150;
@@ -76,7 +78,10 @@ public class MockPointData {
 			point.set(2, 0, random.nextDouble() * Z_RANGE + Z_SPAWN_MIN);
 			point.set(3, 0, 1);
 			this.worldCoordinates.add(point);
+			// output += point.get(0, 0) + ", " + point.get(1, 0) + ", " +
+			// point.get(2, 0) + "\n";
 		}
+		// System.out.println(output);
 
 	}
 
@@ -84,9 +89,9 @@ public class MockPointData {
 	public Matrix getR(long frameNumber) {
 
 		// Calculate this frame's rotation parameters
-		float gamma = (float) this.rotX * frameNumber;
-		float beta = (float) this.rotY * frameNumber;
-		float alpha = (float) this.rotZ * frameNumber;
+		float gamma = (float) this.rotX * (frameNumber + this.START_FRAME);
+		float beta = (float) this.rotY * (frameNumber + this.START_FRAME);
+		float alpha = (float) this.rotZ * (frameNumber + this.START_FRAME);
 
 		Matrix Rx = Matrix.identity(4, 4);
 		Rx.set(1, 1, Math.cos(gamma));
@@ -114,9 +119,9 @@ public class MockPointData {
 		// Calculate C
 		Matrix C = Matrix.identity(4, 4);
 
-		C.set(0, 3, this.initialTranslation.x + this.translationVelocity.x * frameNumber);
-		C.set(1, 3, this.initialTranslation.y + this.translationVelocity.y * frameNumber);
-		C.set(2, 3, this.initialTranslation.z + this.translationVelocity.z * frameNumber);
+		C.set(0, 3, this.initialTranslation.x + this.translationVelocity.x * (frameNumber + this.START_FRAME));
+		C.set(1, 3, this.initialTranslation.y + this.translationVelocity.y * (frameNumber + this.START_FRAME));
+		C.set(2, 3, this.initialTranslation.z + this.translationVelocity.z * (frameNumber + this.START_FRAME));
 
 		return C;
 	}

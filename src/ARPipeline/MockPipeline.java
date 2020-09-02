@@ -8,6 +8,7 @@ import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 
 import Jama.Matrix;
 
@@ -111,8 +112,26 @@ public class MockPipeline extends ARPipeline {
 
 	public void updatePose(Matrix R, Matrix t) {
 
-		this.pose.setMatrix(R.get(0, 0), R.get(0, 1), R.get(0, 2), R.get(1, 0), R.get(1, 1), R.get(1, 2), R.get(2, 0),
-				R.get(2, 1), R.get(2, 2), t.get(0, 0), t.get(1, 0), t.get(2, 0), System.nanoTime());
+		Matrix E = Matrix.identity(4, 4);
+		E.set(0, 0, R.get(0, 0));
+		E.set(0, 1, R.get(0, 1));
+		E.set(0, 2, R.get(0, 2));
+		E.set(0, 3, t.get(0, 0));
+
+		E.set(1, 0, R.get(1, 0));
+		E.set(1, 1, R.get(1, 1));
+		E.set(1, 2, R.get(1, 2));
+		E.set(1, 3, t.get(1, 0));
+
+		E.set(2, 0, R.get(2, 0));
+		E.set(2, 1, R.get(2, 1));
+		E.set(2, 2, R.get(2, 2));
+		E.set(2, 3, t.get(2, 0));
+
+		Matrix newPose = E.times(this.currentKeyFrame.getPose().getHomogeneousMatrix());
+
+		this.pose.setMatrix(newPose);
+
 	}
 
 	Mat oldDesc = new Mat();
@@ -128,12 +147,13 @@ public class MockPipeline extends ARPipeline {
 			}
 
 			// find ORB features (omit for mock)
+			ArrayList<Point> keypoints = this.mock.getKeypoints(this.frameNum);
 
 			// if no keyframes exist, generate one
 			if (this.keyframes.size() == 0) {
 				this.currentKeyFrame = new KeyFrame();
 				this.currentKeyFrame.setPose(new Pose());
-				this.currentKeyFrame.setKeypoints(this.mock.getKeypoints(this.frameNum));
+				this.currentKeyFrame.setKeypoints(keypoints);
 				this.keyframes.add(this.currentKeyFrame);
 			}
 			// b. otherwise,
@@ -143,9 +163,8 @@ public class MockPipeline extends ARPipeline {
 				MatOfPoint2f keyframeMat = new MatOfPoint2f();
 				MatOfPoint2f matKeypoints = new MatOfPoint2f();
 				keyframeMat.fromList(this.currentKeyFrame.getKeypoints());
-				matKeypoints.fromList(this.mock.getKeypoints(this.frameNum));
-				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 3,
-						0.99);
+				matKeypoints.fromList(keypoints);
+				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_8POINT);
 
 				Matrix funMat = new Matrix(3, 3);
 				funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
@@ -159,15 +178,28 @@ public class MockPipeline extends ARPipeline {
 				funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
 
 				Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
+				// eMatrix.print(5, 4);
+
+				Matrix point1 = new Matrix(3, 1);
+				Matrix point2 = new Matrix(3, 1);
+
+				point1.set(0, 0, this.currentKeyFrame.getKeypoints().get(0).x);
+				point1.set(1, 0, this.currentKeyFrame.getKeypoints().get(0).y);
+				point1.set(2, 0, 1);
+
+				point2.set(0, 0, keypoints.get(0).x);
+				point2.set(1, 0, keypoints.get(0).y);
+				point2.set(2, 0, 1);
+
+				Matrix result = point2.transpose().times(eMatrix).times(point1);
+				result.print(5, 4);
 
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
 
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				for (int i = 0; i < this.currentKeyFrame.getKeypoints().size(); i++) {
 					Correspondence2D2D c = new Correspondence2D2D(this.currentKeyFrame.getKeypoints().get(i).x,
-							this.currentKeyFrame.getKeypoints().get(i).y,
-							this.mock.getKeypoints(this.frameNum).get(i).x,
-							this.mock.getKeypoints(this.frameNum).get(i).y);
+							this.currentKeyFrame.getKeypoints().get(i).y, keypoints.get(i).x, keypoints.get(i).y);
 					correspondences.add(c);
 				}
 
@@ -177,8 +209,8 @@ public class MockPipeline extends ARPipeline {
 				// c.print(5, 4);
 				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
 
-				this.updatePose(R, t);
-				// this.updatePose(rt.getR(), rt.getT());
+				// this.updatePose(R, t);
+				this.updatePose(rt.getR(), rt.getT());
 
 			}
 
@@ -200,7 +232,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(10);
+				Thread.sleep(100);
 			} catch (Exception e) {
 
 			}

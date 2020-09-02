@@ -112,7 +112,6 @@ public class Renderer {
 		projectionMatrix.m23 = -1;
 		projectionMatrix.m33 = 0;
 
-		System.out.println(projectionMatrix.toString());
 	}
 
 }

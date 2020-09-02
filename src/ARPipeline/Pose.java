@@ -73,6 +73,24 @@ public class Pose {
 		this.tz = homogeneousMat.get(2, 3)[0];
 	}
 
+	public void setMatrix(Matrix homogeneousMat) {
+		this.r00 = homogeneousMat.get(0, 0);
+		this.r01 = homogeneousMat.get(0, 1);
+		this.r02 = homogeneousMat.get(0, 2);
+
+		this.r10 = homogeneousMat.get(1, 0);
+		this.r11 = homogeneousMat.get(1, 1);
+		this.r12 = homogeneousMat.get(1, 2);
+
+		this.r20 = homogeneousMat.get(2, 0);
+		this.r21 = homogeneousMat.get(2, 1);
+		this.r22 = homogeneousMat.get(2, 2);
+
+		this.tx = homogeneousMat.get(0, 3);
+		this.ty = homogeneousMat.get(1, 3);
+		this.tz = homogeneousMat.get(2, 3);
+	}
+
 	public void setMatrix(Matrix4f homogeneousMat) {
 		this.r00 = homogeneousMat.m00;
 		this.r01 = homogeneousMat.m01;
