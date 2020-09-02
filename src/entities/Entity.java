@@ -65,7 +65,7 @@ public class Entity {
 	}
 
 	public float getRotZ() {
-		return rotZ;
+		return (float) (rotZ + 180);
 	}
 
 	public void setRotZ(float rotZ) {

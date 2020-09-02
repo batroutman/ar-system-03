@@ -12,24 +12,24 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 50;
+	protected long MAX_FRAMES = 100;
 	protected int NUM_POINTS = 30;
 	protected int SEED = 1;
 	protected Matrix K = new Matrix(3, 3);
 
 	// Starting pose parameters
 	// NOTE: translations should be negative (-C)
-	protected Vector3f initialTranslation = new Vector3f(0f, 0f, 0f);
+	protected Vector3f initialTranslation = new Vector3f(0f, 0f, 1000f);
 	protected double initialRotX = 0.0;
 	protected double initialRotY = 0.0;
 	protected double initialRotZ = 0.0;
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(5f, 5f, 10f);
-	protected double rotX = 0.000;
-	protected double rotY = 0.000;
-	protected double rotZ = 0.000;
+	protected Vector3f translationVelocity = new Vector3f(6f, 2f, -10f);
+	protected double rotX = 0.001;
+	protected double rotY = -0.005;
+	protected double rotZ = -0.000;
 
 	// List of homogeneous column vectors (4x1) corresponding to world
 	// coordinates
