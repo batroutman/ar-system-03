@@ -131,6 +131,8 @@ public class MockPipeline extends ARPipeline {
 		Matrix newPose = E.times(this.currentKeyFrame.getPose().getHomogeneousMatrix());
 
 		this.pose.setMatrix(newPose);
+		// System.out.println("updatedPose (true pose):");
+		// newPose.print(5, 4);
 
 	}
 
@@ -191,8 +193,11 @@ public class MockPipeline extends ARPipeline {
 				point2.set(1, 0, keypoints.get(0).y);
 				point2.set(2, 0, 1);
 
+				point1 = this.K.inverse().times(point1);
+				point2 = this.K.inverse().times(point2);
+
 				Matrix result = point2.transpose().times(eMatrix).times(point1);
-				result.print(5, 4);
+				// result.print(5, 4);
 
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
 
@@ -203,14 +208,15 @@ public class MockPipeline extends ARPipeline {
 					correspondences.add(c);
 				}
 
-				Rt rt = ARUtils.selectEssentialSolution(decomp, this.pose.getHomogeneousMatrix(), correspondences);
+				Rt rt = ARUtils.selectEssentialSolution(decomp, this.currentKeyFrame.getPose().getHomogeneousMatrix(),
+						correspondences);
 				Matrix R = this.mock.getR(this.frameNum);
 				Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
 				// c.print(5, 4);
 				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
 
-				// this.updatePose(R, t);
-				this.updatePose(rt.getR(), rt.getT());
+				this.updatePose(R, t);
+				// this.updatePose(rt.getR(), rt.getT());
 
 			}
 
@@ -232,7 +238,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(100);
+				Thread.sleep(10);
 			} catch (Exception e) {
 
 			}

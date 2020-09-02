@@ -106,6 +106,8 @@ public class ARUtils {
 	public static Matrix triangulate(Matrix R, Matrix t, Matrix pose, Correspondence2D2D c) {
 
 		Matrix newPose = transformPose(R, t, pose);
+		// System.out.print("newPose:");
+		// newPose.print(5, 4);
 
 		// compute A matrix for Ax = 0
 		Matrix row0 = pose.getMatrix(2, 2, 0, 3).times(c.getU1()).minus(pose.getMatrix(0, 0, 0, 3));
@@ -160,6 +162,7 @@ public class ARUtils {
 		Mat matX12 = new Mat(4, 1, CvType.CV_32F);
 		Mat matX21 = new Mat(4, 1, CvType.CV_32F);
 		Mat matX22 = new Mat(4, 1, CvType.CV_32F);
+		// here
 		Calib3d.triangulatePoints(MatrixToMat(pose.getMatrix(0, 2, 0, 3)),
 				MatrixToMat(transformPose(decomp.getR1(), decomp.getT1(), pose).getMatrix(0, 2, 0, 3)), points1,
 				points2, matX11);
@@ -173,28 +176,28 @@ public class ARUtils {
 				MatrixToMat(transformPose(decomp.getR2(), decomp.getT2(), pose).getMatrix(0, 2, 0, 3)), points1,
 				points2, matX22);
 
-		// Matrix X11 = triangulate(decomp.getR1(), decomp.getT1(), pose, c);
-		// Matrix X12 = triangulate(decomp.getR1(), decomp.getT2(), pose, c);
-		// Matrix X21 = triangulate(decomp.getR2(), decomp.getT1(), pose, c);
-		// Matrix X22 = triangulate(decomp.getR2(), decomp.getT2(), pose, c);
+		Matrix X11 = triangulate(decomp.getR1(), decomp.getT1(), pose, c);
+		Matrix X12 = triangulate(decomp.getR1(), decomp.getT2(), pose, c);
+		Matrix X21 = triangulate(decomp.getR2(), decomp.getT1(), pose, c);
+		Matrix X22 = triangulate(decomp.getR2(), decomp.getT2(), pose, c);
 
-		Matrix X11 = MatToMatrix(matX11);
-		Matrix X12 = MatToMatrix(matX12);
-		Matrix X21 = MatToMatrix(matX21);
-		Matrix X22 = MatToMatrix(matX22);
+		// Matrix X11 = MatToMatrix(matX11);
+		// Matrix X12 = MatToMatrix(matX12);
+		// Matrix X21 = MatToMatrix(matX21);
+		// Matrix X22 = MatToMatrix(matX22);
 
 		X11 = X11.times(1 / X11.get(3, 0));
 		X12 = X12.times(1 / X12.get(3, 0));
 		X21 = X21.times(1 / X21.get(3, 0));
 		X22 = X22.times(1 / X22.get(3, 0));
 
-		// System.out.println("X11");
+		// System.out.print("X11");
 		// X11.print(5, 4);
-		// System.out.println("X12");
+		// System.out.print("X12");
 		// X12.print(5, 4);
-		// System.out.println("X21");
+		// System.out.print("X21");
 		// X21.print(5, 4);
-		// System.out.println("X22");
+		// System.out.print("X22");
 		// X22.print(5, 4);
 
 		Matrix b11 = transformPose(decomp.getR1(), decomp.getT1(), pose).times(X11);
@@ -252,22 +255,21 @@ public class ARUtils {
 
 	public static Matrix transformPose(Matrix R, Matrix t, Matrix pose) {
 		// make homogeneous
-		Matrix homogeneousR = Matrix.identity(4, 4);
-		homogeneousR.set(0, 0, R.get(0, 0));
-		homogeneousR.set(0, 1, R.get(0, 1));
-		homogeneousR.set(0, 2, R.get(0, 2));
-		homogeneousR.set(1, 0, R.get(1, 0));
-		homogeneousR.set(1, 1, R.get(1, 1));
-		homogeneousR.set(1, 2, R.get(1, 2));
-		homogeneousR.set(2, 0, R.get(2, 0));
-		homogeneousR.set(2, 1, R.get(2, 1));
-		homogeneousR.set(2, 2, R.get(2, 2));
-		Matrix homogeneousT = Matrix.identity(4, 4);
-		homogeneousT.set(0, 3, t.get(0, 0));
-		homogeneousT.set(1, 3, t.get(1, 0));
-		homogeneousT.set(2, 3, t.get(2, 0));
+		Matrix homogeneousE = Matrix.identity(4, 4);
+		homogeneousE.set(0, 0, R.get(0, 0));
+		homogeneousE.set(0, 1, R.get(0, 1));
+		homogeneousE.set(0, 2, R.get(0, 2));
+		homogeneousE.set(1, 0, R.get(1, 0));
+		homogeneousE.set(1, 1, R.get(1, 1));
+		homogeneousE.set(1, 2, R.get(1, 2));
+		homogeneousE.set(2, 0, R.get(2, 0));
+		homogeneousE.set(2, 1, R.get(2, 1));
+		homogeneousE.set(2, 2, R.get(2, 2));
+		homogeneousE.set(0, 3, t.get(0, 0));
+		homogeneousE.set(1, 3, t.get(1, 0));
+		homogeneousE.set(2, 3, t.get(2, 0));
 
-		Matrix newPose = homogeneousT.times(homogeneousR).times(pose);
+		Matrix newPose = homogeneousE.times(pose);
 		return newPose;
 	}
 
@@ -285,6 +287,7 @@ public class ARUtils {
 		Z.set(1, 0, -1);
 
 		Matrix t1 = svd.getU().getMatrix(0, 2, 2, 2);
+		t1.print(5, 4);
 		Matrix t2 = t1.times(-1);
 		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
 		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
