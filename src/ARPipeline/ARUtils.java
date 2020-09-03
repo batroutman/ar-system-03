@@ -296,6 +296,10 @@ public class ARUtils {
 		Matrix t2 = t1.times(-1);
 		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
 		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
+		System.out.println("Estimated R1:");
+		R1.print(5, 4);
+		System.out.println("Estimated R2:");
+		R2.print(5, 4);
 
 		// System.out.println("t1: ");
 		// t1.print(5, 4);

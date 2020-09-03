@@ -223,6 +223,8 @@ public class MockPipeline extends ARPipeline {
 				Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
 				// c.print(5, 4);
 				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
+				System.out.println("true R:");
+				R.print(5, 4);
 				System.out.println("true t:");
 				t.print(5, 4);
 				System.out.println("true t (unit):");
