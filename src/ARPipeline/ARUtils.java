@@ -106,6 +106,7 @@ public class ARUtils {
 	public static Matrix triangulate(Matrix R, Matrix t, Matrix pose, Correspondence2D2D c) {
 
 		Matrix newPose = transformPose(R, t, pose);
+		newPose = CameraIntrinsics.getK4x4().times(newPose);
 		// System.out.print("newPose:");
 		// newPose.print(5, 4);
 
@@ -200,10 +201,11 @@ public class ARUtils {
 		// System.out.print("X22");
 		// X22.print(5, 4);
 
-		Matrix b11 = transformPose(decomp.getR1(), decomp.getT1(), pose).times(X11);
-		Matrix b12 = transformPose(decomp.getR1(), decomp.getT2(), pose).times(X12);
-		Matrix b21 = transformPose(decomp.getR2(), decomp.getT1(), pose).times(X21);
-		Matrix b22 = transformPose(decomp.getR2(), decomp.getT2(), pose).times(X22);
+		// fix this? (Add K)
+		Matrix b11 = CameraIntrinsics.getK4x4().times(transformPose(decomp.getR1(), decomp.getT1(), pose)).times(X11);
+		Matrix b12 = CameraIntrinsics.getK4x4().times(transformPose(decomp.getR1(), decomp.getT2(), pose)).times(X12);
+		Matrix b21 = CameraIntrinsics.getK4x4().times(transformPose(decomp.getR2(), decomp.getT1(), pose)).times(X21);
+		Matrix b22 = CameraIntrinsics.getK4x4().times(transformPose(decomp.getR2(), decomp.getT2(), pose)).times(X22);
 
 		int numSet = 0;
 
@@ -287,6 +289,9 @@ public class ARUtils {
 		Z.set(1, 0, -1);
 
 		Matrix t1 = svd.getU().getMatrix(0, 2, 2, 2);
+		svd.getS().print(5, 4);
+		svd.getU().times(Z).times(svd.getU().transpose()).print(5, 4);
+		System.out.println("Estimated t1:");
 		t1.print(5, 4);
 		Matrix t2 = t1.times(-1);
 		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());

@@ -166,7 +166,8 @@ public class MockPipeline extends ARPipeline {
 				MatOfPoint2f matKeypoints = new MatOfPoint2f();
 				keyframeMat.fromList(this.currentKeyFrame.getKeypoints());
 				matKeypoints.fromList(keypoints);
-				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_8POINT);
+				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 0.1,
+						0.99);
 
 				Matrix funMat = new Matrix(3, 3);
 				funMat.set(0, 0, fundamentalMatrix.get(0, 0)[0]);
@@ -180,6 +181,7 @@ public class MockPipeline extends ARPipeline {
 				funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
 
 				Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
+				// eMatrix = eMatrix.times(1 / eMatrix.get(2, 2));
 				// eMatrix.print(5, 4);
 
 				Matrix point1 = new Matrix(3, 1);
@@ -200,6 +202,13 @@ public class MockPipeline extends ARPipeline {
 				// result.print(5, 4);
 
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
+				// Mat essentialMatrix = Calib3d.findEssentialMat(keyframeMat,
+				// matKeypoints);
+				Mat R1 = new Mat();
+				Mat R2 = new Mat();
+				Mat t0 = new Mat();
+				Calib3d.decomposeEssentialMat(ARUtils.MatrixToMat(eMatrix), R1, R2, t0);
+				// ARUtils.MatToMatrix(t0).print(5, 4);
 
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				for (int i = 0; i < this.currentKeyFrame.getKeypoints().size(); i++) {
@@ -214,9 +223,13 @@ public class MockPipeline extends ARPipeline {
 				Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
 				// c.print(5, 4);
 				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
-
-				this.updatePose(R, t);
-				// this.updatePose(rt.getR(), rt.getT());
+				System.out.println("true t:");
+				t.print(5, 4);
+				System.out.println("true t (unit):");
+				t.times(1 / t.normF()).print(5, 4);
+				System.out.println("true t (norm): " + t.normF());
+				// this.updatePose(R, t);
+				this.updatePose(rt.getR(), rt.getT());
 
 			}
 
@@ -238,7 +251,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(10);
+				Thread.sleep(100);
 			} catch (Exception e) {
 
 			}
