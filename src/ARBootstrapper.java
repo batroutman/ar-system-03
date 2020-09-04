@@ -3,7 +3,6 @@ import org.opencv.core.Core;
 import ARPipeline.ARPipeline;
 import ARPipeline.CameraIntrinsics;
 import ARPipeline.MockPipeline;
-import ARPipeline.MockPointData;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import Jama.Matrix;
@@ -39,12 +38,12 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		arBootstrapper.start();
-		// arBootstrapper.tests();
+		// arBootstrapper.start();
+		arBootstrapper.tests();
 	}
 
 	public void tests() {
-		Matrix K = new Matrix(3, 3);
+		Matrix K = Matrix.identity(4, 4);
 		K.set(0, 0, CameraIntrinsics.fx);
 		K.set(0, 1, CameraIntrinsics.s);
 		K.set(0, 2, CameraIntrinsics.cx);
@@ -55,24 +54,51 @@ public class ARBootstrapper {
 		K.set(2, 1, 0.0);
 		K.set(2, 2, 1.0);
 
+		Matrix KInv = K.inverse();
+
 		Matrix worldPoint = new Matrix(4, 1);
-		worldPoint.set(0, 0, 0);
-		worldPoint.set(1, 0, 0);
+		worldPoint.set(0, 0, -1000);
+		worldPoint.set(1, 0, 1000);
 		worldPoint.set(2, 0, 1000);
 		worldPoint.set(3, 0, 1);
 
-		Matrix Rx = Matrix.identity(4, 4);
-		Rx.set(1, 1, Math.cos(Math.PI));
-		Rx.set(2, 2, Math.cos(Math.PI));
-		Rx.set(1, 2, -Math.sin(Math.PI));
-		Rx.set(2, 1, Math.sin(Math.PI));
+		Matrix IC = Matrix.identity(4, 4);
+		IC.set(0, 3, 1000);
+		IC.set(1, 3, 0);
+		IC.set(2, 3, 0);
 
-		long frameNumber = 50;
-		MockPointData mock = new MockPointData();
-		Matrix R = mock.getR(frameNumber);
-		Matrix IC = mock.getIC(frameNumber);
+		Matrix R = Matrix.identity(4, 4);
+		R.set(1, 1, Math.cos(Math.PI / 4));
+		R.set(2, 2, Math.cos(Math.PI / 4));
+		R.set(1, 2, -Math.sin(Math.PI / 4));
+		R.set(2, 1, Math.sin(Math.PI / 4));
 
-		Matrix viewMatrix = R.times(IC).times(Rx);
+		Matrix E = R.times(IC);
+
+		Matrix goal = new Matrix(3, 1);
+		goal.set(0, 0, worldPoint.get(0, 0) + IC.get(0, 3));
+		goal.set(1, 0, worldPoint.get(1, 0) + IC.get(1, 3));
+		goal.set(2, 0, worldPoint.get(2, 0) + IC.get(2, 3));
+		goal = goal.times(1 / goal.normF());
+		System.out.println("goal");
+		goal.print(5, 4);
+
+		Matrix EInv = E.inverse();
+
+		Matrix x = K.times(E).times(worldPoint);
+		x = x.times(1 / x.get(2, 0));
+		x.print(5, 20);
+
+		x.set(3, 0, 1);
+
+		Matrix partial = KInv.times(x);
+		partial.print(5, 20);
+		Matrix unprojected = EInv.times(KInv).times(x);
+		unprojected.set(0, 0, 1 / unprojected.get(0, 0));
+		unprojected.set(1, 0, 1 / unprojected.get(1, 0));
+		unprojected.set(2, 0, 1 / unprojected.get(2, 0));
+		unprojected = unprojected.times(1 / unprojected.getMatrix(0, 2, 0, 0).normF());
+		unprojected.print(5, 20);
 
 	}
 }

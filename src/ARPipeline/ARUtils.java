@@ -152,6 +152,32 @@ public class ARUtils {
 		// Correspondence2D2D c = correspondences.get((int)
 		// Math.floor(Math.random() * correspondences.size()));
 		Correspondence2D2D c = correspondences.get(0);
+
+		// solve for scale
+		Matrix x1 = new Matrix(3, 1);
+		x1.set(2, 0, 1);
+		x1.set(0, 0, c.getU1());
+		x1.set(1, 0, c.getV1());
+
+		Matrix x2 = new Matrix(3, 1);
+		x2.set(2, 0, 1);
+		x2.set(0, 0, c.getU2());
+		x2.set(1, 0, c.getV2());
+
+		Matrix A1 = new Matrix(1, 2);
+		A1.set(0, 0, x2.transpose().times(decomp.getR1().times(x1)).get(0, 0));
+		A1.set(0, 1, x2.transpose().times(decomp.getT1()).get(0, 0));
+		Matrix B = new Matrix(1, 1);
+		SingularValueDecomposition svd = A1.svd();
+		double scale = svd.getV().get(0, 1);
+		System.out.println("scale: " + scale);
+
+		decomp.setT1(decomp.getT1().times(1 / scale));
+		decomp.setT2(decomp.getT2().times(1 / scale));
+
+		System.out.println("updated t1:");
+		decomp.getT1().print(5, 4);
+
 		Mat points1 = new Mat(2, 1, CvType.CV_32F);
 		Mat points2 = new Mat(2, 1, CvType.CV_32F);
 		points1.put(0, 0, c.getU1());
