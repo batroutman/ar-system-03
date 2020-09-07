@@ -143,7 +143,7 @@ public class MockPipeline extends ARPipeline {
 		boolean keepGoing = true;
 		while (keepGoing) {
 
-			if (this.frameNum >= this.mock.getMAX_FRAMES() - 1) {
+			if (this.frameNum >= this.mock.getMAX_FRAMES()) {
 				keepGoing = false;
 				continue;
 			}
@@ -253,7 +253,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(100);
+				Thread.sleep(10);
 			} catch (Exception e) {
 
 			}
