@@ -16,6 +16,121 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	/// E1 - 4x4 or 3x4 matrix of camera pose A
+	/// E2 - 4x4 or 3x4 matrix of transformation from A to B with unit
+	/// translation vector
+	/// c - a correspondence between A and B used to estimate scale
+	public static double estimateScale(Matrix E1, Matrix E2, Correspondence2D2D c) {
+		Matrix K = Matrix.identity(4, 4);
+		K.set(0, 0, CameraIntrinsics.fx);
+		K.set(0, 1, CameraIntrinsics.s);
+		K.set(0, 2, CameraIntrinsics.cx);
+		K.set(1, 0, 0.0);
+		K.set(1, 1, CameraIntrinsics.fy);
+		K.set(1, 2, CameraIntrinsics.cy);
+		K.set(2, 0, 0.0);
+		K.set(2, 1, 0.0);
+		K.set(2, 2, 1.0);
+
+		double oldScore = 0;
+		double THRESHOLD = 0.01;
+		double scale = 1.0;
+		double scaleJump = 10000;
+		boolean goRight = true;
+		boolean firstPass = true;
+		boolean keepGoing = true;
+		int i = 0;
+
+		while (keepGoing) {
+
+			// generate fundamental matrix between poses with some scale
+			// // - calculate C = R1Inv.times(E1.getMatrix(0,2,3,3)).times(-1)
+			Matrix R1Inv = E1.getMatrix(0, 2, 0, 2).inverse();
+			Matrix C = R1Inv.times(E1.getMatrix(0, 2, 3, 3)).times(-1);
+			Matrix Ch = new Matrix(4, 1);
+			Ch.set(0, 0, C.get(0, 0));
+			Ch.set(1, 0, C.get(1, 0));
+			Ch.set(2, 0, C.get(2, 0));
+			Ch.set(3, 0, 1);
+
+			// // - E2 = [R2 | scale * t]
+			Matrix E2scaled = E2.copy();
+			E2scaled.set(0, 3, E2.get(0, 3) * scale);
+			E2scaled.set(1, 3, E2.get(1, 3) * scale);
+			E2scaled.set(2, 3, E2.get(2, 3) * scale);
+
+			// // - calculate e' = E2.times(C)
+			Matrix Pprime = K.getMatrix(0, 2, 0, 2).times(E2scaled.getMatrix(0, 2, 0, 3));
+			Matrix e = Pprime.times(Ch);
+
+			// // - generate [e']x
+			Matrix ex = new Matrix(3, 3);
+			ex.set(0, 1, -e.get(2, 0));
+			ex.set(0, 2, e.get(1, 0));
+			ex.set(1, 0, e.get(2, 0));
+			ex.set(1, 2, -e.get(0, 0));
+			ex.set(2, 0, -e.get(1, 0));
+			ex.set(2, 1, e.get(0, 0));
+
+			// // - calculate P+ = E1.inverse()
+			Matrix P = K.getMatrix(0, 2, 0, 2).times(E1.getMatrix(0, 2, 0, 3));
+			SingularValueDecomposition svd = P.transpose().svd();
+			Matrix Splus = new Matrix(3, 3);
+			Splus.set(0, 0, 1 / svd.getS().get(0, 0));
+			Splus.set(1, 1, 1 / svd.getS().get(1, 1));
+			Splus.set(2, 2, 1 / svd.getS().get(2, 2));
+			Matrix U = svd.getV();
+			Matrix V = svd.getU();
+			Matrix PInv = V.times(Splus).times(U.transpose());
+
+			// // - F = [e']x*(P'*P+)
+			Matrix F = ex.times(Pprime.times(PInv));
+			F = F.times(1 / F.get(2, 2));
+
+			// test a correspondence
+			Matrix x = new Matrix(3, 1);
+			x.set(0, 0, c.getU1());
+			x.set(1, 0, c.getV1());
+			x.set(2, 0, 1);
+
+			Matrix xprime = new Matrix(3, 1);
+			xprime.set(0, 0, c.getU2());
+			xprime.set(1, 0, c.getV2());
+			xprime.set(2, 0, 1);
+
+			// score = | x2' * F * x1 |
+			double score = Math.abs(xprime.transpose().times(F).times(x).get(0, 0));
+
+			// if the score is good enough, stop
+			if (score < THRESHOLD) {
+				keepGoing = false;
+				continue;
+			}
+
+			// if this is the first pass, don't compare with old score
+			if (firstPass) {
+				firstPass = false;
+				oldScore = score;
+				continue;
+			}
+
+			// if this pose is worse than the last, flip search direction and
+			// halve jump distance
+			if (score > oldScore) {
+				goRight = !goRight;
+				if (scaleJump >= 0.001) {
+					scaleJump = scaleJump / 2;
+				}
+			}
+
+			// prepare a new scale for the next iteration
+			scale = goRight ? scale + scaleJump : scale - scaleJump;
+			oldScore = score;
+			i++;
+		}
+		return scale;
+	}
+
 	public static Frame artificialKeypointFrame(List<Point> points, int width, int height) {
 		byte[] r = new byte[width * height];
 		byte[] g = new byte[width * height];
