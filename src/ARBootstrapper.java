@@ -8,6 +8,7 @@ import ARPipeline.MockPointData;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import Jama.Matrix;
+import Jama.SingularValueDecomposition;
 
 public class ARBootstrapper {
 
@@ -113,7 +114,6 @@ public class ARBootstrapper {
 
 		// normalize translation vector on frame 100 and pretend this is an
 		// essential decomposition
-		Matrix R2Inv = R2.getMatrix(0, 2, 0, 2).inverse();
 		Matrix t2 = E2.getMatrix(0, 2, 3, 3);
 		t2 = t2.times(1 / t2.normF());
 		E2.set(0, 3, t2.get(0, 0));
@@ -180,10 +180,40 @@ public class ARBootstrapper {
 			// // // - calculate P+ = E1.inverse()
 			K.times(E1).print(15, 5);
 			K.times(E1).inverse().print(15, 5);
-			Matrix PInv = K.getMatrix(0, 2, 0, 2).times(E1.getMatrix(0, 2, 0, 3)).inverse();
+			Matrix P = K.getMatrix(0, 2, 0, 2).times(E1.getMatrix(0, 2, 0, 3));
+			SingularValueDecomposition svd = P.transpose().svd();
+			Matrix Splus = new Matrix(3, 3);
+			Splus.set(0, 0, 1 / svd.getS().get(0, 0));
+			Splus.set(1, 1, 1 / svd.getS().get(1, 1));
+			Splus.set(2, 2, 1 / svd.getS().get(2, 2));
+			Matrix U = svd.getV();
+			Matrix V = svd.getU();
+			Matrix PInv = V.times(Splus).times(U.transpose());
+
 			// // // - F = [e']x(E2.times(E1.inverse()))
 			Matrix F = ex.times(Pprime.times(PInv));
+			p("F");
 			F.print(15, 5);
+			F = F.times(1 / F.get(2, 2));
+			p("F after homogeneousaztion");
+			F.print(15, 5);
+
+			// test a correspondence
+			Matrix x = new Matrix(3, 1);
+			x.set(0, 0, c.getU1());
+			x.set(1, 0, c.getV1());
+			x.set(2, 0, 1);
+
+			Matrix xprime = new Matrix(3, 1);
+			xprime.set(0, 0, c.getU2());
+			xprime.set(1, 0, c.getV2());
+			xprime.set(2, 0, 1);
+
+			p("x'Fx");
+			xprime.transpose().times(F).times(x).print(15, 5);
+			x.set(0, 0, x.get(0, 0) + 50);
+			p("x'Fx (after x moved out of place)");
+			xprime.transpose().times(F).times(x).print(15, 5);
 
 			// // score = | x2 * F * x1 |
 			// // if score < THRESHOLD:
@@ -200,5 +230,13 @@ public class ARBootstrapper {
 			keepGoing = false;
 		}
 
+	}
+
+	public static void p(String s) {
+		System.out.print(s);
+	}
+
+	public static void pl(String s) {
+		System.out.println(s);
 	}
 }
