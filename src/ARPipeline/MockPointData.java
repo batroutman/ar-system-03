@@ -20,14 +20,14 @@ public class MockPointData {
 
 	// Starting pose parameters
 	// NOTE: translations should be negative (-C)
-	protected Vector3f initialTranslation = new Vector3f(0f, 0f, 500f);
+	protected Vector3f initialTranslation = new Vector3f(0f, 0f, 0f);
 	protected double initialRotX = 0.0;
 	protected double initialRotY = 0.0;
 	protected double initialRotZ = 0.0;
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(3f, 1f, -10f);
+	protected Vector3f translationVelocity = new Vector3f(0.3f, 0.1f, -1f);
 	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
 	protected double rotX = 0.002;
 	protected double rotY = -0.005;

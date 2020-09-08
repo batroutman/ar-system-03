@@ -216,7 +216,6 @@ public class MockPipeline extends ARPipeline {
 							this.currentKeyFrame.getKeypoints().get(i).y, keypoints.get(i).x, keypoints.get(i).y);
 					correspondences.add(c);
 				}
-
 				Rt rt = ARUtils.selectEssentialSolution(decomp, this.currentKeyFrame.getPose().getHomogeneousMatrix(),
 						correspondences);
 				Matrix R = this.mock.getR(this.frameNum);
@@ -230,6 +229,9 @@ public class MockPipeline extends ARPipeline {
 				System.out.println("true t (unit):");
 				t.times(1 / t.normF()).print(5, 4);
 				System.out.println("true t (norm): " + t.normF());
+				pl("estimated t: ");
+				rt.getT().print(15, 5);
+				pl("estimated t (norm): " + rt.getT().normF());
 				// this.updatePose(R, t);
 				this.updatePose(rt.getR(), rt.getT());
 
@@ -272,6 +274,14 @@ public class MockPipeline extends ARPipeline {
 			System.out.println("Average: " + ARUtils.mean(column));
 			System.out.println("Std Dev: " + ARUtils.stdDev(column));
 		}
+	}
+
+	public static void p(Object s) {
+		System.out.print(s);
+	}
+
+	public static void pl(Object s) {
+		System.out.println(s);
 	}
 
 }
