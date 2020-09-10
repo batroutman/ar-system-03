@@ -1,17 +1,16 @@
 import java.util.ArrayList;
-import java.util.Collections;
 
 import org.opencv.core.Core;
+import org.opencv.core.Point;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.ARUtils;
-import ARPipeline.CameraIntrinsics;
 import ARPipeline.Correspondence2D2D;
 import ARPipeline.MockPipeline;
 import ARPipeline.MockPointData;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import Jama.Matrix;
+import Jama.SingularValueDecomposition;
 
 public class ARBootstrapper {
 
@@ -44,107 +43,83 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		arBootstrapper.start();
-		// arBootstrapper.tests();
+		// arBootstrapper.start();
+		arBootstrapper.tests();
 	}
 
 	public void tests() {
-		Matrix K = Matrix.identity(4, 4);
-		K.set(0, 0, CameraIntrinsics.fx);
-		K.set(0, 1, CameraIntrinsics.s);
-		K.set(0, 2, CameraIntrinsics.cx);
-		K.set(1, 0, 0.0);
-		K.set(1, 1, CameraIntrinsics.fy);
-		K.set(1, 2, CameraIntrinsics.cy);
-		K.set(2, 0, 0.0);
-		K.set(2, 1, 0.0);
-		K.set(2, 2, 1.0);
-
-		// Matrix KInv = K.inverse();
-		//
-		// Matrix worldPoint = new Matrix(4, 1);
-		// worldPoint.set(0, 0, -1000);
-		// worldPoint.set(1, 0, 1000);
-		// worldPoint.set(2, 0, 1000);
-		// worldPoint.set(3, 0, 1);
-		//
-		// Matrix IC = Matrix.identity(4, 4);
-		// IC.set(0, 3, 100);
-		// IC.set(1, 3, 0);
-		// IC.set(2, 3, 0);
-		//
-		// Matrix goal = new Matrix(3, 1);
-		// goal.set(0, 0, worldPoint.get(0, 0) + IC.get(0, 3));
-		// goal.set(1, 0, worldPoint.get(1, 0) + IC.get(1, 3));
-		// goal.set(2, 0, worldPoint.get(2, 0) + IC.get(2, 3));
-		// goal = goal.times(1 / goal.normF());
-		// System.out.println("goal: ");
-		// goal.print(5, 10);
-		//
-		// Matrix R = Matrix.identity(4, 4);
-		// R.set(1, 1, Math.cos(Math.PI / 4));
-		// R.set(2, 2, Math.cos(Math.PI / 4));
-		// R.set(1, 2, -Math.sin(Math.PI / 4));
-		// R.set(2, 1, Math.sin(Math.PI / 4));
-		//
-		// Matrix E = R.times(IC);
-		// Matrix EInv = E.inverse();
 
 		int END_FRAME = 99;
 
-		// init mock
 		MockPointData mock = new MockPointData();
-
-		// get a correspondence for frame 0 and 100 from a list of
-		// correspondences
-		Correspondence2D2D c = new Correspondence2D2D();
-		int corrInd = 1;
-		c.setU1(mock.getKeypoints(0).get(corrInd).x);
-		c.setV1(mock.getKeypoints(0).get(corrInd).y);
-		c.setU2(mock.getKeypoints(100).get(corrInd).x);
-		c.setV2(mock.getKeypoints(100).get(corrInd).y);
-
-		// get camera pose for frame 0
 		Matrix R1 = mock.getR(0);
 		Matrix IC1 = mock.getIC(0);
 		Matrix E1 = R1.times(IC1);
 
-		// get camera pose for frame 100
 		Matrix R2 = mock.getR(END_FRAME);
 		Matrix IC2 = mock.getIC(END_FRAME);
 		Matrix E2 = R2.times(IC2);
-		IC2.print(10, 5);
-		E2.print(10, 5);
-		System.out.println("target scale: " + E2.getMatrix(0, 2, 3, 3).normF());
 
-		// normalize translation vector on frame 100 and pretend this is an
-		// essential decomposition
-		Matrix t2 = E2.getMatrix(0, 2, 3, 3);
-		t2 = t2.times(1 / t2.normF());
-		E2.set(0, 3, t2.get(0, 0));
-		E2.set(1, 3, t2.get(1, 0));
-		E2.set(2, 3, t2.get(2, 0));
-		E2.print(10, 5);
+		pl("true E2: ");
+		E2.print(15, 4);
 
-		ArrayList<Double> scales = new ArrayList<Double>();
-		double scaleSum = 0.0;
-		int numCorr = 25;
-		for (int i = 0; i < numCorr; i++) {
-			c.setU1(mock.getKeypoints(0).get(i).x);
-			c.setV1(mock.getKeypoints(0).get(i).y);
-			c.setU2(mock.getKeypoints(100).get(i).x);
-			c.setV2(mock.getKeypoints(100).get(i).y);
-			double scale = ARUtils.estimateScale(E1.getMatrix(0, 2, 0, 3), E2.getMatrix(0, 2, 0, 3), c);
-			scales.add(scale);
+		// normalize E2 t
+		double norm = E2.getMatrix(0, 2, 3, 3).normF();
+		pl("norm:\t\t" + norm);
+		E2.set(0, 3, E2.get(0, 3) / norm);
+		E2.set(1, 3, E2.get(1, 3) / norm);
+		E2.set(2, 3, E2.get(2, 3) / norm);
+
+		pl("E2 normalized: ");
+		E2.print(15, 4);
+
+		ArrayList<Correspondence2D2D> corr = new ArrayList<Correspondence2D2D>();
+		ArrayList<Point> keypoints1 = mock.getKeypoints(0);
+		ArrayList<Point> keypoints2 = mock.getKeypoints(END_FRAME);
+		for (int i = 0; i < keypoints1.size(); i++) {
+			Correspondence2D2D c = new Correspondence2D2D(keypoints1.get(i).x, keypoints1.get(i).y, keypoints2.get(i).x,
+					keypoints2.get(i).y);
+			corr.add(c);
 		}
-		Collections.sort(scales);
-		int q2 = scales.size() / 4;
-		int q4 = q2 * 3;
-		double avg = 0;
-		for (int i = q2; i < q4; i++) {
-			avg += scales.get(i);
-		}
-		avg /= (q4 - q2);
+
+		// START FUNCTION
+		Matrix A = new Matrix(1, 2);
+		Matrix R = E2.getMatrix(0, 2, 0, 2);
+		Matrix t = E2.getMatrix(0, 2, 3, 3);
+
+		Matrix x1 = new Matrix(3, 1);
+		x1.set(0, 0, keypoints1.get(0).x);
+		x1.set(1, 0, keypoints1.get(0).y);
+		x1.set(2, 0, 1);
+
+		Matrix x2 = new Matrix(3, 1);
+		x2.set(0, 0, keypoints2.get(0).x);
+		x2.set(1, 0, keypoints2.get(0).y);
+		x2.set(2, 0, 1);
+
+		Matrix x2hat = new Matrix(3, 1);
+		x2hat.set(0, 0, 1);
+		x2hat.set(1, 0, 1);
+		x2hat.set(2, 0, -x2.get(0, 0) - x2.get(1, 0));
+
+		pl("x2: ");
+		x2.print(15, 4);
+
+		pl("x2hat: ");
+		x2hat.print(15, 4);
+
+		pl("x2hatT * x2: ");
+		x2hat.transpose().times(x2).print(15, 4);
+
+		A.set(0, 0, x2hat.transpose().times(R).times(x1).get(0, 0));
+		A.set(0, 1, x2hat.transpose().times(t).get(0, 0));
+
+		SingularValueDecomposition svd = A.svd();
+		pl("A V:");
+		svd.getV().print(15, 4);
+
+		pl("A*V[1] (should be 0): ");
+		A.times(svd.getV().getMatrix(0, 1, 1, 1)).print(15, 4);
 
 	}
 

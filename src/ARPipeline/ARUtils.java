@@ -93,7 +93,7 @@ public class ARUtils {
 			double score = Math.abs(xprime.transpose().times(F).times(x).get(0, 0));
 
 			// if the score is good enough, stop
-			if (score < THRESHOLD || i >= 50) {
+			if (score < THRESHOLD || i >= 100) {
 				keepGoing = false;
 				continue;
 			}
@@ -109,15 +109,19 @@ public class ARUtils {
 			// halve jump distance
 			if (score > oldScore) {
 				goRight = !goRight;
-				if (scaleJump >= 0.001) {
+				if (scaleJump >= 0.25) {
 					scaleJump = scaleJump / 2;
 				}
 			}
+			// pl("score: " + score);
+			// pl("scale: " + scale);
+			// pl("scaleJump: " + scaleJump);
 
 			// prepare a new scale for the next iteration
 			scale = goRight ? scale + scaleJump : scale - scaleJump;
 			oldScore = score;
 			i++;
+
 		}
 		return scale;
 	}
@@ -211,16 +215,16 @@ public class ARUtils {
 
 	public static Matrix triangulate(Matrix E, Matrix pose, Correspondence2D2D c) {
 
-		Matrix newPose = E.times(pose);
-		newPose = CameraIntrinsics.getK4x4().times(newPose);
-		// System.out.print("newPose:");
-		// newPose.print(5, 4);
+		Matrix Pprime = E.times(pose);
+		Pprime = CameraIntrinsics.getK4x4().times(Pprime);
+
+		Matrix P = CameraIntrinsics.getK4x4().times(pose);
 
 		// compute A matrix for Ax = 0
-		Matrix row0 = pose.getMatrix(2, 2, 0, 3).times(c.getU1()).minus(pose.getMatrix(0, 0, 0, 3));
-		Matrix row1 = pose.getMatrix(2, 2, 0, 3).times(c.getV1()).minus(pose.getMatrix(1, 1, 0, 3));
-		Matrix row2 = newPose.getMatrix(2, 2, 0, 3).times(c.getU2()).minus(newPose.getMatrix(0, 0, 0, 3));
-		Matrix row3 = newPose.getMatrix(2, 2, 0, 3).times(c.getV2()).minus(newPose.getMatrix(1, 1, 0, 3));
+		Matrix row0 = P.getMatrix(2, 2, 0, 3).times(c.getU1()).minus(P.getMatrix(0, 0, 0, 3));
+		Matrix row1 = P.getMatrix(2, 2, 0, 3).times(c.getV1()).minus(P.getMatrix(1, 1, 0, 3));
+		Matrix row2 = Pprime.getMatrix(2, 2, 0, 3).times(c.getU2()).minus(Pprime.getMatrix(0, 0, 0, 3));
+		Matrix row3 = Pprime.getMatrix(2, 2, 0, 3).times(c.getV2()).minus(Pprime.getMatrix(1, 1, 0, 3));
 
 		Matrix A = new Matrix(4, 4);
 		A.set(0, 0, row0.get(0, 0));
@@ -259,6 +263,8 @@ public class ARUtils {
 		// set up extrinsic matrices (both possible options)
 		Matrix E1 = Matrix.identity(4, 4);
 		Matrix E2 = Matrix.identity(4, 4);
+		Matrix E3 = Matrix.identity(4, 4);
+		Matrix E4 = Matrix.identity(4, 4);
 		E1.set(0, 0, decomp.getR1().get(0, 0));
 		E1.set(0, 1, decomp.getR1().get(0, 1));
 		E1.set(0, 2, decomp.getR1().get(0, 2));
@@ -285,14 +291,24 @@ public class ARUtils {
 		E2.set(1, 3, decomp.getT1().get(1, 0));
 		E2.set(2, 3, decomp.getT1().get(2, 0));
 
+		pl("E1 (unit translation): ");
+		E1.print(15, 5);
+		pl("E2 (unit translation): ");
+		E2.print(15, 5);
+
 		// scale estimation for E1
 		ArrayList<Double> E1scales = new ArrayList<Double>();
+
 		for (int i = 0; i < correspondences.size(); i++) {
 			Correspondence2D2D c = correspondences.get(i);
 			double scale = estimateScale(pose, E1, c);
 			E1scales.add(scale);
 		}
 		Collections.sort(E1scales);
+		pl("E1 scales:");
+		for (Double scale : E1scales) {
+			pl(scale);
+		}
 		int E1q2 = E1scales.size() / 4;
 		int E1q4 = E1q2 * 3;
 		double E1avgScale = 0;
@@ -300,6 +316,8 @@ public class ARUtils {
 			E1avgScale += E1scales.get(i);
 		}
 		E1avgScale /= (E1q4 - E1q2);
+
+		pl("E1avgScale: " + E1avgScale);
 
 		// scale estimation for E2
 		ArrayList<Double> E2scales = new ArrayList<Double>();
@@ -309,6 +327,10 @@ public class ARUtils {
 			E2scales.add(scale);
 		}
 		Collections.sort(E2scales);
+		pl("E2scales");
+		for (Double scale : E2scales) {
+			pl(scale);
+		}
 		int E2q2 = E2scales.size() / 4;
 		int E2q4 = E2q2 * 3;
 		double E2avgScale = 0;
@@ -317,6 +339,8 @@ public class ARUtils {
 		}
 		E2avgScale /= (E2q4 - E2q2);
 
+		pl("E2avgScale: " + E2avgScale);
+
 		// apply scales to the possible extrinsics
 		E1.set(0, 3, E1.get(0, 3) * E1avgScale);
 		E1.set(1, 3, E1.get(1, 3) * E1avgScale);
@@ -324,6 +348,24 @@ public class ARUtils {
 		E2.set(0, 3, E2.get(0, 3) * E2avgScale);
 		E2.set(1, 3, E2.get(1, 3) * E2avgScale);
 		E2.set(2, 3, E2.get(2, 3) * E2avgScale);
+		E3 = E1.copy();
+		E4 = E2.copy();
+		E3.set(0, 3, -E3.get(0, 3));
+		E3.set(1, 3, -E3.get(1, 3));
+		E3.set(2, 3, -E3.get(2, 3));
+
+		E4.set(0, 3, -E4.get(0, 3));
+		E4.set(1, 3, -E4.get(1, 3));
+		E4.set(2, 3, -E4.get(2, 3));
+
+		pl("E1: ");
+		E1.print(15, 5);
+		pl("E2: ");
+		E2.print(15, 5);
+		pl("E3: ");
+		E3.print(15, 5);
+		pl("E4: ");
+		E4.print(15, 5);
 
 		// pick a correspondence
 		Correspondence2D2D c = correspondences.get(0);
@@ -337,10 +379,23 @@ public class ARUtils {
 
 		Matrix X1 = triangulate(E1, pose, c);
 		Matrix X2 = triangulate(E2, pose, c);
+		Matrix X3 = triangulate(E3, pose, c);
+		Matrix X4 = triangulate(E4, pose, c);
 
-		// fix this? (Add K)
+		pl("X1: ");
+		X1.print(10, 5);
+		pl("X2: ");
+		X2.print(10, 5);
+		pl("X3: ");
+		X3.print(10, 5);
+		pl("X4: ");
+		X4.print(10, 5);
+
+		// fix this
 		Matrix b1 = CameraIntrinsics.getK4x4().times(E1).times(pose).times(X1);
 		Matrix b2 = CameraIntrinsics.getK4x4().times(E2).times(pose).times(X2);
+		Matrix b3 = CameraIntrinsics.getK4x4().times(E3).times(pose).times(X3);
+		Matrix b4 = CameraIntrinsics.getK4x4().times(E4).times(pose).times(X4);
 		int numSet = 0;
 
 		if (b1.get(2, 0) > 0) {
@@ -361,7 +416,30 @@ public class ARUtils {
 			}
 		}
 
+		if (b3.get(2, 0) > 0) {
+			Matrix a3 = pose.times(X3);
+			if (a3.get(2, 0) > 0) {
+				rt.setR(decomp.getR1());
+				rt.setT(decomp.getT1().times(E1avgScale).times(-1));
+				numSet++;
+			}
+		}
+
+		if (b4.get(2, 0) > 0) {
+			Matrix a4 = pose.times(X3);
+			if (a4.get(2, 0) > 0) {
+				rt.setR(decomp.getR2());
+				rt.setT(decomp.getT1().times(E2avgScale).times(-1));
+				numSet++;
+			}
+		}
+
 		pl("numSet = " + numSet);
+
+		pl("chosen R: ");
+		rt.getR().print(15, 5);
+		pl("chosen t: ");
+		rt.getT().print(15, 5);
 
 		return rt;
 	}
@@ -400,14 +478,9 @@ public class ARUtils {
 		Z.set(1, 0, -1);
 
 		Matrix t1 = svd.getU().getMatrix(0, 2, 2, 2);
-		svd.getS().print(5, 4);
-		svd.getU().times(Z).times(svd.getU().transpose()).print(5, 4);
-		t1.print(5, 4);
 		Matrix t2 = t1.times(-1);
 		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
 		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
-		R1.print(5, 4);
-		R2.print(5, 4);
 
 		decomp.setR1(R1);
 		decomp.setR2(R2);

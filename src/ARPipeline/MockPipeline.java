@@ -11,6 +11,7 @@ import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 
 import Jama.Matrix;
+import Jama.SingularValueDecomposition;
 
 public class MockPipeline extends ARPipeline {
 
@@ -160,13 +161,13 @@ public class MockPipeline extends ARPipeline {
 			}
 			// b. otherwise,
 			else {
-
+				pl("===============================    FRAME    ===================================");
 				// compute fundamental matrix -> essential matrix -> [ R t ]
 				MatOfPoint2f keyframeMat = new MatOfPoint2f();
 				MatOfPoint2f matKeypoints = new MatOfPoint2f();
 				keyframeMat.fromList(this.currentKeyFrame.getKeypoints());
 				matKeypoints.fromList(keypoints);
-				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_RANSAC, 0.1,
+				Mat fundamentalMatrix = Calib3d.findFundamentalMat(keyframeMat, matKeypoints, Calib3d.FM_8POINT, 0.1,
 						0.99);
 
 				Matrix funMat = new Matrix(3, 3);
@@ -179,10 +180,46 @@ public class MockPipeline extends ARPipeline {
 				funMat.set(2, 0, fundamentalMatrix.get(2, 0)[0]);
 				funMat.set(2, 1, fundamentalMatrix.get(2, 1)[0]);
 				funMat.set(2, 2, fundamentalMatrix.get(2, 2)[0]);
+				pl("estimated fundamental matrix:");
+				funMat.print(15, 5);
+
+				Matrix Ch = new Matrix(4, 1);
+				Ch.set(0, 0, mock.getIC(0).get(0, 3));
+				Ch.set(1, 0, mock.getIC(0).get(1, 3));
+				Ch.set(2, 0, mock.getIC(0).get(2, 3));
+				Ch.set(3, 0, 1);
+				Matrix Pprime = K.getMatrix(0, 2, 0, 2).times(mock.getR(1).getMatrix(0, 2, 0, 2))
+						.times(mock.getIC(1).getMatrix(0, 2, 0, 3));
+				Matrix e = Pprime.times(Ch);
+
+				// // - generate [e']x
+				Matrix ex = new Matrix(3, 3);
+				ex.set(0, 1, -e.get(2, 0));
+				ex.set(0, 2, e.get(1, 0));
+				ex.set(1, 0, e.get(2, 0));
+				ex.set(1, 2, -e.get(0, 0));
+				ex.set(2, 0, -e.get(1, 0));
+				ex.set(2, 1, e.get(0, 0));
+
+				// // - calculate P+ = E1.inverse()
+				Matrix P = K.getMatrix(0, 2, 0, 2).times(mock.getR(0).getMatrix(0, 2, 0, 2))
+						.times(mock.getIC(0).getMatrix(0, 2, 0, 3));
+				SingularValueDecomposition svd = P.transpose().svd();
+				Matrix Splus = new Matrix(3, 3);
+				Splus.set(0, 0, 1 / svd.getS().get(0, 0));
+				Splus.set(1, 1, 1 / svd.getS().get(1, 1));
+				Splus.set(2, 2, 1 / svd.getS().get(2, 2));
+				Matrix U = svd.getV();
+				Matrix V = svd.getU();
+				Matrix PInv = V.times(Splus).times(U.transpose());
+
+				// // - F = [e']x*(P'*P+)
+				Matrix F = ex.times(Pprime.times(PInv));
+				F = F.times(1 / F.get(2, 2));
+				pl("calculated fundamental matrix: ");
+				F.print(15, 5);
 
 				Matrix eMatrix = this.K.transpose().times(funMat).times(this.K);
-				// eMatrix = eMatrix.times(1 / eMatrix.get(2, 2));
-				// eMatrix.print(5, 4);
 
 				Matrix point1 = new Matrix(3, 1);
 				Matrix point2 = new Matrix(3, 1);
@@ -199,16 +236,14 @@ public class MockPipeline extends ARPipeline {
 				point2 = this.K.inverse().times(point2);
 
 				Matrix result = point2.transpose().times(eMatrix).times(point1);
-				// result.print(5, 4);
 
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
-				// Mat essentialMatrix = Calib3d.findEssentialMat(keyframeMat,
-				// matKeypoints);
-				Mat R1 = new Mat();
-				Mat R2 = new Mat();
-				Mat t0 = new Mat();
-				Calib3d.decomposeEssentialMat(ARUtils.MatrixToMat(eMatrix), R1, R2, t0);
-				// ARUtils.MatToMatrix(t0).print(5, 4);
+
+				// Mat R1 = new Mat();
+				// Mat R2 = new Mat();
+				// Mat t0 = new Mat();
+				// Calib3d.decomposeEssentialMat(ARUtils.MatrixToMat(eMatrix),
+				// R1, R2, t0);
 
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				for (int i = 0; i < this.currentKeyFrame.getKeypoints().size(); i++) {
@@ -232,8 +267,8 @@ public class MockPipeline extends ARPipeline {
 				pl("estimated t: ");
 				rt.getT().print(15, 5);
 				pl("estimated t (norm): " + rt.getT().normF());
-				// this.updatePose(R, t);
-				this.updatePose(rt.getR(), rt.getT());
+				this.updatePose(R, t);
+				// this.updatePose(rt.getR(), rt.getT());
 
 			}
 

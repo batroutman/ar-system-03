@@ -27,10 +27,10 @@ public class MockPointData {
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(0.3f, 0.1f, -1f);
+	protected Vector3f translationVelocity = new Vector3f(15f, 2f, -10f);
 	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
-	protected double rotX = 0.002;
-	protected double rotY = -0.005;
+	protected double rotX = 0.004;
+	protected double rotY = -0.015;
 	protected double rotZ = -0.000;
 
 	// List of homogeneous column vectors (4x1) corresponding to world
