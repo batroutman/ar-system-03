@@ -1,7 +1,6 @@
 package ARPipeline;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.lwjgl.util.vector.Matrix4f;
@@ -259,6 +258,7 @@ public class ARUtils {
 		rt.setT(decomp.getT1());
 
 		// get scale for each combination
+		double scale = 18.1384;
 
 		// set up extrinsic matrices (both possible options)
 		Matrix E1 = Matrix.identity(4, 4);
@@ -274,9 +274,9 @@ public class ARUtils {
 		E1.set(2, 0, decomp.getR1().get(2, 0));
 		E1.set(2, 1, decomp.getR1().get(2, 1));
 		E1.set(2, 2, decomp.getR1().get(2, 2));
-		E1.set(0, 3, decomp.getT1().get(0, 0));
-		E1.set(1, 3, decomp.getT1().get(1, 0));
-		E1.set(2, 3, decomp.getT1().get(2, 0));
+		E1.set(0, 3, decomp.getT1().get(0, 0) * scale);
+		E1.set(1, 3, decomp.getT1().get(1, 0) * scale);
+		E1.set(2, 3, decomp.getT1().get(2, 0) * scale);
 
 		E2.set(0, 0, decomp.getR2().get(0, 0));
 		E2.set(0, 1, decomp.getR2().get(0, 1));
@@ -287,95 +287,22 @@ public class ARUtils {
 		E2.set(2, 0, decomp.getR2().get(2, 0));
 		E2.set(2, 1, decomp.getR2().get(2, 1));
 		E2.set(2, 2, decomp.getR2().get(2, 2));
-		E2.set(0, 3, decomp.getT1().get(0, 0));
-		E2.set(1, 3, decomp.getT1().get(1, 0));
-		E2.set(2, 3, decomp.getT1().get(2, 0));
+		E2.set(0, 3, decomp.getT1().get(0, 0) * scale);
+		E2.set(1, 3, decomp.getT1().get(1, 0) * scale);
+		E2.set(2, 3, decomp.getT1().get(2, 0) * scale);
 
-		pl("E1 (unit translation): ");
-		E1.print(15, 5);
-		pl("E2 (unit translation): ");
-		E2.print(15, 5);
-
-		// scale estimation for E1
-		ArrayList<Double> E1scales = new ArrayList<Double>();
-
-		for (int i = 0; i < correspondences.size(); i++) {
-			Correspondence2D2D c = correspondences.get(i);
-			double scale = estimateScale(pose, E1, c);
-			E1scales.add(scale);
-		}
-		Collections.sort(E1scales);
-		pl("E1 scales:");
-		for (Double scale : E1scales) {
-			pl(scale);
-		}
-		int E1q2 = E1scales.size() / 4;
-		int E1q4 = E1q2 * 3;
-		double E1avgScale = 0;
-		for (int i = E1q2; i < E1q4; i++) {
-			E1avgScale += E1scales.get(i);
-		}
-		E1avgScale /= (E1q4 - E1q2);
-
-		pl("E1avgScale: " + E1avgScale);
-
-		// scale estimation for E2
-		ArrayList<Double> E2scales = new ArrayList<Double>();
-		for (int i = 0; i < correspondences.size(); i++) {
-			Correspondence2D2D c = correspondences.get(i);
-			double scale = estimateScale(pose, E2, c);
-			E2scales.add(scale);
-		}
-		Collections.sort(E2scales);
-		pl("E2scales");
-		for (Double scale : E2scales) {
-			pl(scale);
-		}
-		int E2q2 = E2scales.size() / 4;
-		int E2q4 = E2q2 * 3;
-		double E2avgScale = 0;
-		for (int i = E2q2; i < E2q4; i++) {
-			E2avgScale += E2scales.get(i);
-		}
-		E2avgScale /= (E2q4 - E2q2);
-
-		pl("E2avgScale: " + E2avgScale);
-
-		// apply scales to the possible extrinsics
-		E1.set(0, 3, E1.get(0, 3) * E1avgScale);
-		E1.set(1, 3, E1.get(1, 3) * E1avgScale);
-		E1.set(2, 3, E1.get(2, 3) * E1avgScale);
-		E2.set(0, 3, E2.get(0, 3) * E2avgScale);
-		E2.set(1, 3, E2.get(1, 3) * E2avgScale);
-		E2.set(2, 3, E2.get(2, 3) * E2avgScale);
 		E3 = E1.copy();
-		E4 = E2.copy();
 		E3.set(0, 3, -E3.get(0, 3));
 		E3.set(1, 3, -E3.get(1, 3));
 		E3.set(2, 3, -E3.get(2, 3));
 
+		E4 = E2.copy();
 		E4.set(0, 3, -E4.get(0, 3));
 		E4.set(1, 3, -E4.get(1, 3));
 		E4.set(2, 3, -E4.get(2, 3));
 
-		pl("E1: ");
-		E1.print(15, 5);
-		pl("E2: ");
-		E2.print(15, 5);
-		pl("E3: ");
-		E3.print(15, 5);
-		pl("E4: ");
-		E4.print(15, 5);
-
 		// pick a correspondence
 		Correspondence2D2D c = correspondences.get(0);
-
-		Mat points1 = new Mat(2, 1, CvType.CV_32F);
-		Mat points2 = new Mat(2, 1, CvType.CV_32F);
-		points1.put(0, 0, c.getU1());
-		points1.put(1, 0, c.getV1());
-		points2.put(0, 0, c.getU2());
-		points2.put(1, 0, c.getV2());
 
 		Matrix X1 = triangulate(E1, pose, c);
 		Matrix X2 = triangulate(E2, pose, c);
@@ -402,7 +329,7 @@ public class ARUtils {
 			Matrix a1 = pose.times(X1);
 			if (a1.get(2, 0) > 0) {
 				rt.setR(decomp.getR1());
-				rt.setT(decomp.getT1().times(E1avgScale));
+				rt.setT(decomp.getT1().times(scale));
 				numSet++;
 			}
 		}
@@ -411,7 +338,7 @@ public class ARUtils {
 			Matrix a2 = pose.times(X2);
 			if (a2.get(2, 0) > 0) {
 				rt.setR(decomp.getR2());
-				rt.setT(decomp.getT1().times(E2avgScale));
+				rt.setT(decomp.getT1().times(scale));
 				numSet++;
 			}
 		}
@@ -420,7 +347,7 @@ public class ARUtils {
 			Matrix a3 = pose.times(X3);
 			if (a3.get(2, 0) > 0) {
 				rt.setR(decomp.getR1());
-				rt.setT(decomp.getT1().times(E1avgScale).times(-1));
+				rt.setT(decomp.getT1().times(scale).times(-1));
 				numSet++;
 			}
 		}
@@ -429,7 +356,7 @@ public class ARUtils {
 			Matrix a4 = pose.times(X3);
 			if (a4.get(2, 0) > 0) {
 				rt.setR(decomp.getR2());
-				rt.setT(decomp.getT1().times(E2avgScale).times(-1));
+				rt.setT(decomp.getT1().times(scale).times(-1));
 				numSet++;
 			}
 		}
