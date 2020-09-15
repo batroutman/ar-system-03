@@ -487,6 +487,15 @@ public class ARUtils {
 		decomp.setT1(t1);
 		decomp.setT2(t2);
 
+		pl("R1: ");
+		R1.print(15, 5);
+		pl("R2: ");
+		R2.print(15, 5);
+		pl("t1: ");
+		t1.print(15, 5);
+		pl("t2: ");
+		t2.print(15, 5);
+
 		return decomp;
 	}
 

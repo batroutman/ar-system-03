@@ -161,7 +161,8 @@ public class MockPipeline extends ARPipeline {
 			}
 			// b. otherwise,
 			else {
-				pl("===============================    FRAME    ===================================");
+				pl("===============================    FRAME " + this.frameNum
+						+ "   ===================================");
 				// compute fundamental matrix -> essential matrix -> [ R t ]
 				MatOfPoint2f keyframeMat = new MatOfPoint2f();
 				MatOfPoint2f matKeypoints = new MatOfPoint2f();
@@ -239,12 +240,6 @@ public class MockPipeline extends ARPipeline {
 
 				EssentialDecomposition decomp = ARUtils.decomposeEssentialMat(eMatrix);
 
-				// Mat R1 = new Mat();
-				// Mat R2 = new Mat();
-				// Mat t0 = new Mat();
-				// Calib3d.decomposeEssentialMat(ARUtils.MatrixToMat(eMatrix),
-				// R1, R2, t0);
-
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				for (int i = 0; i < this.currentKeyFrame.getKeypoints().size(); i++) {
 					Correspondence2D2D c = new Correspondence2D2D(this.currentKeyFrame.getKeypoints().get(i).x,
@@ -255,20 +250,28 @@ public class MockPipeline extends ARPipeline {
 						correspondences);
 				Matrix R = this.mock.getR(this.frameNum);
 				Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
-				// c.print(5, 4);
+
 				Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
 				System.out.println("true R:");
-				R.print(5, 4);
+				R.print(15, 5);
 				System.out.println("true t:");
-				t.print(5, 4);
+				t.print(15, 5);
 				System.out.println("true t (unit):");
-				t.times(1 / t.normF()).print(5, 4);
+				t.times(1 / t.normF()).print(15, 5);
 				System.out.println("true t (norm): " + t.normF());
+
+				// test triangulation
+				Matrix E = R.times(this.mock.getIC(this.frameNum));
+				Matrix triangulation = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(),
+						correspondences.get(0));
+				pl("triangulation: ");
+				triangulation.print(15, 5);
+
 				pl("estimated t: ");
 				rt.getT().print(15, 5);
 				pl("estimated t (norm): " + rt.getT().normF());
-				this.updatePose(R, t);
-				// this.updatePose(rt.getR(), rt.getT());
+				// this.updatePose(R, t);
+				this.updatePose(rt.getR(), rt.getT());
 
 			}
 
@@ -290,7 +293,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(10);
+				Thread.sleep(1000);
 			} catch (Exception e) {
 
 			}

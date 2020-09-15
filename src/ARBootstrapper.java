@@ -43,8 +43,8 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		// arBootstrapper.start();
-		arBootstrapper.tests();
+		arBootstrapper.start();
+		// arBootstrapper.tests();
 	}
 
 	public void tests() {
