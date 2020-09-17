@@ -10,17 +10,19 @@ import org.opencv.core.Point;
 
 public class KeyFrame {
 
+	// pose with respect to origin/identity
 	protected Pose pose = null;
+
 	protected Mat descriptors = null;
-	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
+	protected ArrayList<KeyFrameEntry> entries = new ArrayList<KeyFrameEntry>();
 	protected List<Point> keypoints = new ArrayList<Point>();
 
 	public KeyFrame() {
 
 	}
 
-	public KeyFrame(ArrayList<MapPoint> mapPoints) {
-		this.mapPoints = mapPoints;
+	public KeyFrame(ArrayList<KeyFrameEntry> entries) {
+		this.entries = entries;
 	}
 
 	public Pose getPose() {
@@ -39,12 +41,12 @@ public class KeyFrame {
 		this.descriptors = descriptors;
 	}
 
-	public ArrayList<MapPoint> getMapPoints() {
-		return mapPoints;
+	public ArrayList<KeyFrameEntry> getEntries() {
+		return this.entries;
 	}
 
-	public void setMapPoints(ArrayList<MapPoint> mapPoints) {
-		this.mapPoints = mapPoints;
+	public void setEntries(ArrayList<KeyFrameEntry> entries) {
+		this.entries = entries;
 	}
 
 	public List<Point> getKeypoints() {
@@ -58,7 +60,7 @@ public class KeyFrame {
 	public void setKeypoints(MatOfKeyPoint keypoints) {
 		List<KeyPoint> listKeypoints = keypoints.toList();
 		List<Point> listPoints = new ArrayList<Point>();
-		for (int i = 0; i < 100; i++) {
+		for (int i = 0; i < listKeypoints.size(); i++) {
 			listPoints.add(listKeypoints.get(i).pt);
 		}
 		this.keypoints = listPoints;

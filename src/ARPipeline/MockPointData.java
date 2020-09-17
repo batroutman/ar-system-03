@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import org.lwjgl.util.vector.Vector3f;
+import org.opencv.core.Mat;
 import org.opencv.core.Point;
 
 import Jama.Matrix;
@@ -37,6 +38,9 @@ public class MockPointData {
 	// coordinates
 	protected ArrayList<Matrix> worldCoordinates = new ArrayList<Matrix>();
 
+	// fake descriptors for the world points
+	protected Mat descriptors = null;
+
 	public MockPointData() {
 		this.init();
 	}
@@ -44,6 +48,7 @@ public class MockPointData {
 	protected void init() {
 		this.initK();
 		this.initWorldCoordinates();
+		this.generateDescriptors();
 	}
 
 	protected void initK() {
@@ -144,6 +149,21 @@ public class MockPointData {
 		}
 
 		return keypoints;
+	}
+
+	public void generateDescriptors() {
+
+		Random rand = new Random(101);
+
+		Matrix desc = new Matrix(this.NUM_POINTS, 32);
+		for (int i = 0; i < desc.getRowDimension(); i++) {
+			for (int j = 0; j < desc.getColumnDimension(); j++) {
+				desc.set(i, j, Math.floor(rand.nextDouble() * 256));
+			}
+		}
+
+		this.descriptors = ARUtils.MatrixToMat(desc);
+
 	}
 
 	public ArrayList<Matrix> getWorldCoordinates() {
@@ -256,5 +276,13 @@ public class MockPointData {
 
 	public void setRotZ(double rotZ) {
 		this.rotZ = rotZ;
+	}
+
+	public Mat getDescriptors() {
+		return descriptors;
+	}
+
+	public void setDescriptors(Mat descriptors) {
+		this.descriptors = descriptors;
 	}
 }

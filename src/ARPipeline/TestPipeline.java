@@ -28,7 +28,6 @@ public class TestPipeline extends ARPipeline {
 
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
-	ArrayList<Correspondence> lastCorrespondences = null;
 
 	float rotAngle = 0;
 	float translation = 0;
@@ -103,17 +102,19 @@ public class TestPipeline extends ARPipeline {
 		keyframe.setDescriptors(descriptors);
 		keyframe.setKeypoints(keypoints);
 
-		ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
+		ArrayList<KeyFrameEntry> entries = new ArrayList<KeyFrameEntry>();
 		List<KeyPoint> keypointList = keypoints.toList();
 		// may have issues here. negative y? offset?
 
 		for (int i = 0; i < keypointList.size(); i++) {
-			MapPoint mp = new MapPoint(descriptors.row(i));
-			mp.setUV(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
-			mapPoints.add(mp);
+			KeyFrameEntry entry = new KeyFrameEntry();
+			entry.setDescriptor(descriptors.row(i));
+			Point2D keypoint = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
+			entry.setKeypoint(keypoint);
+			entries.add(entry);
 		}
 
-		keyframe.setMapPoints(mapPoints);
+		keyframe.setEntries(entries);
 		return keyframe;
 
 	}
@@ -164,6 +165,13 @@ public class TestPipeline extends ARPipeline {
 			descriptors.convertTo(descriptors, CvType.CV_32F);
 			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 			oldDesc = descriptors;
+
+			for (int i = 0; i < descriptors.rows(); i++) {
+				for (int j = 0; j < descriptors.cols(); j++) {
+					System.out.print(descriptors.get(i, j)[0] + ",    ");
+				}
+				System.out.print("\n");
+			}
 
 			// what do I want to do?
 			// find correspondences between descriptors and mappoints in used in
