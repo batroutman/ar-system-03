@@ -15,6 +15,82 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	public static Matrix PnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
+		Matrix B = new Matrix(2 * points3D.size(), 12);
+
+		for (int i = 0; i < points3D.size(); i++) {
+			Point3D point3D = points3D.get(i);
+			Point2D point2D = points2D.get(i);
+
+			B.set(2 * i, 0, point3D.getX());
+			B.set(2 * i, 1, point3D.getY());
+			B.set(2 * i, 2, point3D.getZ());
+			B.set(2 * i, 3, 1);
+			B.set(2 * i, 8, -point2D.getX() * point3D.getX());
+			B.set(2 * i, 9, -point2D.getX() * point3D.getY());
+			B.set(2 * i, 10, -point2D.getX() * point3D.getZ());
+			B.set(2 * i, 11, -point2D.getX());
+
+			B.set(2 * i + 1, 4, point3D.getX());
+			B.set(2 * i + 1, 5, point3D.getY());
+			B.set(2 * i + 1, 6, point3D.getZ());
+			B.set(2 * i + 1, 7, 1);
+			B.set(2 * i + 1, 8, -point2D.getY() * point3D.getX());
+			B.set(2 * i + 1, 9, -point2D.getY() * point3D.getY());
+			B.set(2 * i + 1, 10, -point2D.getY() * point3D.getZ());
+			B.set(2 * i + 1, 11, -point2D.getY());
+		}
+		SingularValueDecomposition svd = B.svd();
+		// pl("V: ");
+		// svd.getV().print(15, 5);
+		// pl("B: ");
+		// B.print(15, 5);
+		Matrix p = svd.getV().getMatrix(0, 11, 11, 11);
+
+		// pl("p: ");
+		// p.print(15, 5);
+		Matrix pi = new Matrix(3, 4);
+
+		pi.set(0, 0, p.get(0, 0));
+		pi.set(0, 1, p.get(1, 0));
+		pi.set(0, 2, p.get(2, 0));
+		pi.set(0, 3, p.get(3, 0));
+		pi.set(1, 0, p.get(4, 0));
+		pi.set(1, 1, p.get(5, 0));
+		pi.set(1, 2, p.get(6, 0));
+		pi.set(1, 3, p.get(7, 0));
+		pi.set(2, 0, p.get(8, 0));
+		pi.set(2, 1, p.get(9, 0));
+		pi.set(2, 2, p.get(10, 0));
+		pi.set(2, 3, p.get(11, 0));
+
+		// pl("pi: ");
+		// pi.print(15, 5);
+
+		pi = pi.times(1 / pi.getMatrix(2, 2, 0, 2).normF());
+		Matrix X = new Matrix(4, 1);
+		X.set(0, 0, points3D.get(0).getX());
+		X.set(1, 0, points3D.get(0).getY());
+		X.set(2, 0, points3D.get(0).getZ());
+		X.set(3, 0, 1);
+		Matrix x = pi.times(X);
+		// pl("x: ");
+		// x.print(15, 5);
+
+		if (x.get(2, 0) < 0) {
+			pi = pi.times(-1);
+		}
+
+		// pl("pi normalized: ");
+		// pi.print(15, 5);
+
+		Matrix E = CameraIntrinsics.getK().inverse().times(pi);
+		pl("E: ");
+		E.print(15, 5);
+
+		return E;
+	}
+
 	/// E1 - 4x4 or 3x4 matrix of camera pose A
 	/// E2 - 4x4 or 3x4 matrix of transformation from A to B with unit
 	/// translation vector

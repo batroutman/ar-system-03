@@ -215,8 +215,36 @@ public class MockPipeline extends ARPipeline {
 		pl("estimated t: ");
 		rt.getT().print(15, 5);
 		pl("estimated t (norm): " + rt.getT().normF());
-		// this.updatePose(R, t);
-		this.updatePose(rt.getR(), rt.getT());
+
+		// MOCK PURPOSE
+		this.updatePose(R, t);
+
+		// TRUE PURPOSE
+		// this.updatePose(rt.getR(), rt.getT());
+	}
+
+	// given a list of correspondences between the current keyframe and the
+	// current frame, triangulate the 3D map points for keyframe entries in the
+	// current keyframe using the current keyframe pose and the current system
+	// pose (which must be updated before calling this function)
+	public void triangulateMapPoints(ArrayList<Correspondence2D2D> correspondences) {
+		for (int c = 0; c < correspondences.size(); c++) {
+			Correspondence2D2D corr = correspondences.get(c);
+
+			// isolate the keyframe entry to add a 3D point to
+			KeyFrameEntry keyframeEntry = null;
+			for (int k = 0; k < this.currentKeyFrame.getEntries().size() && keyframeEntry == null; k++) {
+				if (this.currentKeyFrame.getEntries().get(k).getKeypoint().getX() == corr.getU1()
+						&& this.currentKeyFrame.getEntries().get(k).getKeypoint().getY() == corr.getV1()) {
+					keyframeEntry = this.currentKeyFrame.getEntries().get(k);
+				}
+			}
+			Matrix E = this.pose.getHomogeneousMatrix();
+			Matrix pointMatrix = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(), corr);
+
+			Point3D point3D = new Point3D(pointMatrix.get(0, 0), pointMatrix.get(1, 0), pointMatrix.get(2, 0));
+			keyframeEntry.setPoint(point3D);
+		}
 	}
 
 	Mat oldDesc = new Mat();
@@ -247,6 +275,7 @@ public class MockPipeline extends ARPipeline {
 			if (this.keyframes.size() == 0) {
 				this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
 				this.keyframes.add(this.currentKeyFrame);
+
 			}
 			// b. otherwise,
 			else {
@@ -261,10 +290,52 @@ public class MockPipeline extends ARPipeline {
 						matchedPoints);
 				pl("num correspondences: " + correspondences.size());
 
+				// initialize the map (for mock purposes)
 				if (!mapInitialized) {
 					this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints, correspondences);
+
 					// triangulate points in map
-					// mapInitialized = true
+					this.triangulateMapPoints(correspondences);
+
+					mapInitialized = true;
+				} else {
+
+					// Perform PnP to solve
+					ArrayList<Point3D> points3D = new ArrayList<Point3D>();
+					ArrayList<Point2D> points2D = new ArrayList<Point2D>();
+
+					for (int c = 0; c < correspondences.size(); c++) {
+						Correspondence2D2D corr = correspondences.get(c);
+						KeyFrameEntry keyframeEntry = null;
+						for (int k = 0; k < this.currentKeyFrame.getEntries().size() && keyframeEntry == null; k++) {
+							if (this.currentKeyFrame.getEntries().get(k).getKeypoint().getX() == corr.getU1()
+									&& this.currentKeyFrame.getEntries().get(k).getKeypoint().getY() == corr.getV1()) {
+								keyframeEntry = this.currentKeyFrame.getEntries().get(k);
+							}
+						}
+						points3D.add(keyframeEntry.getPoint());
+						// Point3D point3D = new Point3D();
+						// point3D.setX(this.mock.getWorldCoordinates().get(c).get(0,
+						// 0));
+						// point3D.setY(this.mock.getWorldCoordinates().get(c).get(1,
+						// 0));
+						// point3D.setZ(this.mock.getWorldCoordinates().get(c).get(2,
+						// 0));
+						// points3D.add(point3D);
+						Point2D point2D = new Point2D(corr.getU2(), corr.getV2());
+						points2D.add(point2D);
+					}
+
+					Matrix E = ARUtils.PnP(points3D, points2D);
+					Matrix R1 = E.getMatrix(0, 2, 0, 2);
+					Matrix t1 = E.getMatrix(0, 2, 3, 3);
+					this.updatePose(R1, t1);
+					pl("true E: ");
+					Matrix R = this.mock.getR(this.frameNum);
+					Matrix IC = this.mock.getIC(this.frameNum);
+					Matrix trueE = R.times(IC);
+					trueE.print(15, 5);
+
 				}
 
 			}
@@ -287,7 +358,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(50);
 			} catch (Exception e) {
 
 			}
