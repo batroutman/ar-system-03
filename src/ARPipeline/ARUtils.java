@@ -15,6 +15,225 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	public static void bundleAdjust(Matrix E, Point3D point) {
+
+		// establish variables
+		double x = point.getX();
+		double y = point.getY();
+		double z = point.getZ();
+		double tx = E.get(0, 3);
+		double ty = E.get(1, 3);
+		double tz = E.get(2, 3);
+		double r00 = E.get(0, 0);
+		double r01 = E.get(0, 1);
+		double r02 = E.get(0, 2);
+		double r10 = E.get(1, 0);
+		double r11 = E.get(1, 1);
+		double r12 = E.get(1, 2);
+		double r20 = E.get(2, 0);
+		double r21 = E.get(2, 1);
+		double r22 = E.get(2, 2);
+
+		double fx = CameraIntrinsics.getFx();
+		double fy = CameraIntrinsics.getFy();
+		double s = CameraIntrinsics.getS();
+		double cx = CameraIntrinsics.getCx();
+		double cy = CameraIntrinsics.getCy();
+
+		// establish a posteriori
+		double w = x * r20 + y * r21 + z * r22 + tz;
+		double wSquared = w * w;
+		double fuTop = x * (fx * r00 + s * r10 + cx * r20) + y * (fx * r01 + s * r11 + cx * r21)
+				+ z * (fx * r02 + s * r12 + cx * r22) + fx * tx + s * ty + cx * tz;
+		double fvTop = x * (fy * r10 + cy * r20) + y * (fy * r11 + cy * r21) + z * (fy * r12 + cy * r22) + fy * ty
+				+ cy * tz;
+
+		double fu = fuTop / w;
+		double fv = fvTop / w;
+
+		// calculate partial derivatives
+		double dfudx = ((fx * r00 + s * r10 + cx * r20) * w - fuTop * r20) / wSquared;
+		double dfvdx = ((fy * r10 + cy * r20) * w - fvTop * r20) / wSquared;
+		double dfudy = ((fx * r01 + s * r11 + cx * r21) * w - fuTop * r21) / wSquared;
+		double dfvdy = ((fy * r11 + cy * r21) * w - fvTop * r21) / wSquared;
+		double dfudz = ((fx * r02 + s * r12 + cx * r22) * w - fuTop * r22) / wSquared;
+		double dfvdz = ((fy * r12 + cy * r22) * w - fvTop * r22) / wSquared;
+		double dfudtx = fx / w;
+		double dfvtx = 0;
+		double dfuty = s / w;
+		double dfvty = fy / w;
+		double dfutz = (cx * w - fuTop) / wSquared;
+		double dfvtz = (cy * w - fvTop) / wSquared;
+		double dfur00 = x * fx / w;
+		double dfvr00 = 0;
+		double dfur01 = y * fx / w;
+		double dfvr01 = 0;
+		double dfur02 = z * fx / w;
+		double dfvr02 = 0;
+		double dfur10 = x * s / w;
+		double dfvr10 = x * fy / w;
+		double dfur11 = y * s / w;
+		double dfvr11 = y * fy / w;
+		double dfur12 = z * s / w;
+		double dfvr12 = z * fy / w;
+		double dfur20 = (x * cx * w - fuTop * x) / wSquared;
+		double dfvr20 = (x * cy * w - fvTop * x) / wSquared;
+		double dfur21 = (y * cx * w - fuTop * y) / wSquared;
+		double dfvr21 = (y * cy * w - fvTop * y) / wSquared;
+		double dfur22 = (z * cx * w - fuTop * z) / wSquared;
+		double dfvr22 = (z * cy * w - fvTop * z) / wSquared;
+
+	}
+
+	public static Matrix quaternionToRotationMatrix(Matrix Q) {
+		double q1 = Q.get(0, 0);
+		double q2 = Q.get(1, 0);
+		double q3 = Q.get(2, 0);
+		double q4 = Q.get(3, 0);
+		Matrix R = Matrix.identity(4, 4);
+
+		// R.set(0, 0, q1 * q1 + q2 * q2 - q3 * q3 - q4 * q4);
+		// R.set(0, 1, 2 * (q2 * q3 - q1 * q4));
+		// R.set(0, 2, 2 * (q2 * q4 + q1 * q3));
+		// R.set(1, 0, 2 * (q2 * q3 + q1 * q4));
+		// R.set(1, 1, q1 * q1 - q2 * q2 + q3 * q3 - q4 * q4);
+		// R.set(1, 2, 2 * (q2 * q4 - q1 * q2));
+		// R.set(2, 0, 2 * (q2 * q4 - q1 * q3));
+		// R.set(2, 1, 2 * (q3 * q4 + q1 * q2));
+		// R.set(2, 2, q1 * q1 - q2 * q2 - q3 * q3 + q4 * q4);
+
+		double qw = Q.get(0, 0);
+		double qx = Q.get(1, 0);
+		double qy = Q.get(2, 0);
+		double qz = Q.get(3, 0);
+
+		R.set(0, 0, 1 - 2 * qy * qy - 2 * qz * qz);
+		R.set(0, 1, 2 * qx * qy - 2 * qz * qw);
+		R.set(0, 2, 2 * qx * qz + 2 * qy * qw);
+		R.set(1, 0, 2 * qx * qy + 2 * qz * qw);
+		R.set(1, 1, 1 - 2 * qx * qx - 2 * qz * qz);
+		R.set(1, 2, 2 * qy * qz - 2 * qx * qw);
+		R.set(2, 0, 2 * qx * qz - 2 * qy * qw);
+		R.set(2, 1, 2 * qy * qz + 2 * qx * qw);
+		R.set(2, 2, 1 - 2 * qx * qx - 2 * qy * qy);
+
+		return R;
+	}
+
+	public static Matrix getQuaternion(Matrix R) {
+		// index starting with 1
+		double r11 = R.get(0, 0);
+		double r12 = R.get(0, 1);
+		double r13 = R.get(0, 2);
+		double r21 = R.get(1, 0);
+		double r22 = R.get(1, 1);
+		double r23 = R.get(1, 2);
+		double r31 = R.get(2, 0);
+		double r32 = R.get(2, 1);
+		double r33 = R.get(2, 2);
+
+		// using Sarabandi-Thomas method
+		double n = -1;
+		double q1 = 0;
+		double q2 = 0;
+		double q3 = 0;
+		double q4 = 0;
+
+		// q1
+		if (r11 + r22 + r33 > n) {
+			q1 = 0.5 * Math.sqrt(1 + r11 + r22 + r33);
+		} else {
+			q1 = 0.5 * Math.sqrt(((r32 - r23) * (r32 - r23) + (r13 - r31) * (r13 - r31) + (r21 - r12) * (r21 - r12))
+					/ (3 - r11 - r22 - r33));
+		}
+
+		// q2
+		if (r11 - r22 - r33 > n) {
+			q2 = 0.5 * Math.sqrt(1 + r11 - r22 - r33);
+		} else {
+			q2 = 0.5 * Math.sqrt(((r32 - r23) * (r32 - r23) + (r12 + r21) * (r12 + r21) + (r31 + r13) * (r31 + r13))
+					/ (3 - r11 + r22 + r33));
+		}
+
+		// q3
+		if (-r11 + r22 - r33 > n) {
+			q3 = 0.5 * Math.sqrt(1 - r11 + r22 - r33);
+		} else {
+			q3 = 0.5 * Math.sqrt(((r13 - r31) * (r13 - r31) + (r12 + r21) * (r12 + r21) + (r23 + r32) * (r23 + r32))
+					/ (3 + r11 - r22 + r33));
+		}
+
+		// q4
+		if (-r11 - r22 + r33 > n) {
+			q4 = 0.5 * Math.sqrt(1 - r11 - r22 + r33);
+		} else {
+			q4 = 0.5 * Math.sqrt(((r21 - r12) * (r21 - r12) + (r31 + r13) * (r31 + r13) + (r32 + r23) * (r32 + r23))
+					/ (3 + r11 + r22 - r33));
+		}
+
+		// assign signs
+		q2 = r32 - r23 < 0 ? -q2 : q2;
+		q3 = r13 - r31 < 0 ? -q3 : q3;
+		q4 = r21 - r12 < 0 ? -q4 : q4;
+
+		Matrix Q = new Matrix(4, 1);
+		Q.set(0, 0, q1);
+		Q.set(1, 0, q2);
+		Q.set(2, 0, q3);
+		Q.set(3, 0, q4);
+
+		return Q;
+
+	}
+
+	public static Matrix setQuatFromMatrix(Matrix mat) {
+		double az, ay, ax;
+		double ai, aj, ak;
+		double si, sj, sk;
+		double ci, cj, ck;
+		double cy, cc, cs, sc, ss;
+
+		cy = Math.sqrt(mat.get(0, 0) * mat.get(0, 0) + mat.get(1, 0) * mat.get(1, 0));
+
+		if (cy > 0.00000001) {
+			ax = Math.atan2(mat.get(2, 1), mat.get(2, 2));
+			ay = Math.atan2(-mat.get(2, 0), cy);
+			az = Math.atan2(mat.get(1, 0), mat.get(0, 0));
+		} else {
+			ax = Math.atan2(-mat.get(1, 2), mat.get(1, 1));
+			ay = Math.atan2(-mat.get(2, 0), cy);
+			az = 0.0;
+		}
+
+		ai = ax / 2.0;
+		aj = ay / 2.0;
+		ak = az / 2.0;
+
+		ci = Math.cos(ai);
+		si = Math.sin(ai);
+		cj = Math.cos(aj);
+		sj = Math.sin(aj);
+		ck = Math.cos(ak);
+		sk = Math.sin(ak);
+		cc = ci * ck;
+		cs = ci * sk;
+		sc = si * ck;
+		ss = si * sk;
+
+		double qx = cj * sc - sj * cs;
+		double qy = cj * ss + sj * cc;
+		double qz = cj * cs - sj * sc;
+		double qw = cj * cc + sj * ss;
+
+		Matrix Q = new Matrix(4, 1);
+		Q.set(0, 0, qw);
+		Q.set(1, 0, qx);
+		Q.set(2, 0, qy);
+		Q.set(3, 0, qz);
+
+		return Q;
+	}
+
 	public static Matrix PnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
 		Matrix B = new Matrix(2 * points3D.size(), 12);
 

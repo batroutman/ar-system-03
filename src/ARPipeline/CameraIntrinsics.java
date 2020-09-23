@@ -34,4 +34,24 @@ public class CameraIntrinsics {
 		return K;
 	}
 
+	public static float getFx() {
+		return fx;
+	}
+
+	public static float getS() {
+		return s;
+	}
+
+	public static float getCx() {
+		return cx;
+	}
+
+	public static float getFy() {
+		return fy;
+	}
+
+	public static float getCy() {
+		return cy;
+	}
+
 }
