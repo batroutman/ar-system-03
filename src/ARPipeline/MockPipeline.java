@@ -301,31 +301,29 @@ public class MockPipeline extends ARPipeline {
 					mapInitialized = true;
 				} else {
 
-					// bundle adjust tests
-					ArrayList<Pose> cameras = new ArrayList<Pose>();
-					ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
-					ArrayList<ArrayList<Point2D>> observations = new ArrayList<ArrayList<Point2D>>();
-
-					for (int i = 0; i < this.keyframes.size(); i++) {
-						cameras.add(this.keyframes.get(i).getPose());
-						for (int j = 0; j < this.keyframes.get(i).getEntries().size(); j++) {
-							point3Ds.add(this.keyframes.get(i).getEntries().get(j).getPoint());
-							ArrayList<Point2D> obs = new ArrayList<Point2D>();
-							for (int k = 0; k < this.keyframes.size() + 1; k++) {
-								obs.add(null);
-							}
-							double x = this.mock.getKeypoints(this.frameNum).get(j).x;
-							double y = this.mock.getKeypoints(this.frameNum).get(j).y;
-							Point2D pt = new Point2D(x, y);
-							obs.set(i, this.keyframes.get(i).getEntries().get(j).getKeypoint());
-							obs.set(i + 1, pt);
-							observations.add(obs);
-						}
-					}
-					cameras.add(this.pose);
-
-					ARUtils.bundleAdjust(cameras, point3Ds, observations, 2);
-
+					/*
+					 * // bundle adjust tests ArrayList<Pose> cameras = new
+					 * ArrayList<Pose>(); ArrayList<Point3D> point3Ds = new
+					 * ArrayList<Point3D>(); ArrayList<ArrayList<Point2D>>
+					 * observations = new ArrayList<ArrayList<Point2D>>();
+					 * 
+					 * for (int i = 0; i < this.keyframes.size(); i++) {
+					 * cameras.add(this.keyframes.get(i).getPose()); for (int j
+					 * = 0; j < this.keyframes.get(i).getEntries().size(); j++)
+					 * { point3Ds.add(this.keyframes.get(i).getEntries().get(j).
+					 * getPoint()); ArrayList<Point2D> obs = new
+					 * ArrayList<Point2D>(); for (int k = 0; k <
+					 * this.keyframes.size() + 1; k++) { obs.add(null); } double
+					 * x = this.mock.getKeypoints(this.frameNum).get(j).x;
+					 * double y =
+					 * this.mock.getKeypoints(this.frameNum).get(j).y; Point2D
+					 * pt = new Point2D(x, y); obs.set(i,
+					 * this.keyframes.get(i).getEntries().get(j).getKeypoint());
+					 * obs.set(i + 1, pt); observations.add(obs); } }
+					 * cameras.add(this.pose);
+					 * 
+					 * ARUtils.bundleAdjust(cameras, point3Ds, observations, 2);
+					 */
 					// Perform PnP to solve
 					ArrayList<Point3D> points3D = new ArrayList<Point3D>();
 					ArrayList<Point2D> points2D = new ArrayList<Point2D>();

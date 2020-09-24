@@ -21,6 +21,8 @@ public class ARUtils {
 	public static void bundleAdjust(ArrayList<Pose> cameras, ArrayList<Point3D> point3Ds,
 			ArrayList<ArrayList<Point2D>> observations, int numIterations) {
 
+		double lambda = 0.05;
+
 		double fx = CameraIntrinsics.getFx();
 		double fy = CameraIntrinsics.getFy();
 		double s = CameraIntrinsics.getS();
@@ -151,8 +153,8 @@ public class ARUtils {
 				}
 			}
 
-			// pl("J:");
-			// J.print(10, 3);
+			pl("J:");
+			J.print(10, 3);
 			pl("r:");
 			r.print(15, 5);
 			pl("|r|: " + r.normF());
@@ -162,13 +164,19 @@ public class ARUtils {
 			// JtJ.print(15, 3);
 
 			Matrix epsilon = J.transpose().times(r);
+			pl("epsilon");
+			epsilon.print(15, 5);
 			Matrix epsilonA = epsilon.getMatrix(0, 12 * cameras.size() - 1, 0, 0);
 			Matrix epsilonB = epsilon.getMatrix(12 * cameras.size(), epsilon.getRowDimension() - 1, 0, 0);
 
 			Matrix U = JtJ.getMatrix(0, 12 * cameras.size() - 1, 0, 12 * cameras.size() - 1);
 			Matrix V = JtJ.getMatrix(12 * cameras.size(), JtJ.getRowDimension() - 1, 12 * cameras.size(),
-					JtJ.getRowDimension() - 1);
-
+					JtJ.getColumnDimension() - 1);
+			// pl("V");
+			// V.print(15, 3);
+			//
+			// pl("VInv");
+			// V.inverse().print(15, 3);
 			Matrix W = JtJ.getMatrix(0, 12 * cameras.size() - 1, 12 * cameras.size(), JtJ.getColumnDimension() - 1);
 			SingularValueDecomposition svdV = V.svd();
 
@@ -177,13 +185,23 @@ public class ARUtils {
 				sigmaPrime.set(sing, sing, sigmaPrime.get(sing, sing) == 0 ? 0 : 1 / sigmaPrime.get(sing, sing));
 			}
 			Matrix VInv = svdV.getV().times(sigmaPrime).times(svdV.getU().transpose());
+			// VInv = V.inverse();
 
 			// camera updates
 			Matrix shurComp = U.minus(W.times(VInv).times(W.transpose()));
+			pl("shur");
+			shurComp.print(15, 3);
+
 			SingularValueDecomposition svdShur = shurComp.svd();
 			sigmaPrime = svdShur.getS().copy();
+			for (int sig = 0; sig < sigmaPrime.getRowDimension(); sig++) {
+				sigmaPrime.set(sig, sig, sigmaPrime.get(sig, sig) == 0 ? 0 : 1 / sigmaPrime.get(sig, sig));
+			}
+			Matrix shurInv = svdShur.getV().times(sigmaPrime).times(svdShur.getU().transpose());
+			pl("shur * shurInv");
+			shurComp.times(shurInv).print(15, 4);
 
-			Matrix deltaA = shurComp.solve(epsilonA.minus(W.times(VInv).times(epsilonB)));
+			Matrix deltaA = shurInv.times(epsilonA.minus(W.times(VInv).times(epsilonB)));
 			// pl("deltaA");
 			// deltaA.print(15, 4);
 
@@ -211,25 +229,25 @@ public class ARUtils {
 
 			// update the points
 			for (int p = 0; p < point3Ds.size(); p++) {
-				point3Ds.get(p).setX(point3Ds.get(p).getX() - deltaC.get(12 * cameras.size() + 3 * p + 0, 0));
-				point3Ds.get(p).setY(point3Ds.get(p).getY() - deltaC.get(12 * cameras.size() + 3 * p + 1, 0));
-				point3Ds.get(p).setZ(point3Ds.get(p).getZ() - deltaC.get(12 * cameras.size() + 3 * p + 2, 0));
+				point3Ds.get(p).setX(point3Ds.get(p).getX() - lambda * deltaC.get(12 * cameras.size() + 3 * p + 0, 0));
+				point3Ds.get(p).setY(point3Ds.get(p).getY() - lambda * deltaC.get(12 * cameras.size() + 3 * p + 1, 0));
+				point3Ds.get(p).setZ(point3Ds.get(p).getZ() - lambda * deltaC.get(12 * cameras.size() + 3 * p + 2, 0));
 			}
 
 			// update the poses
 			for (int c = 0; c < cameras.size(); c++) {
-				cameras.get(c).setR00(cameras.get(c).getR00() - deltaC.get(12 * c + 0, 0));
-				cameras.get(c).setR01(cameras.get(c).getR01() - deltaC.get(12 * c + 1, 0));
-				cameras.get(c).setR02(cameras.get(c).getR02() - deltaC.get(12 * c + 2, 0));
-				cameras.get(c).setR10(cameras.get(c).getR10() - deltaC.get(12 * c + 3, 0));
-				cameras.get(c).setR11(cameras.get(c).getR11() - deltaC.get(12 * c + 4, 0));
-				cameras.get(c).setR12(cameras.get(c).getR12() - deltaC.get(12 * c + 5, 0));
-				cameras.get(c).setR20(cameras.get(c).getR20() - deltaC.get(12 * c + 6, 0));
-				cameras.get(c).setR21(cameras.get(c).getR21() - deltaC.get(12 * c + 7, 0));
-				cameras.get(c).setR22(cameras.get(c).getR22() - deltaC.get(12 * c + 8, 0));
-				cameras.get(c).setTx(cameras.get(c).getTx() - deltaC.get(12 * c + 9, 0));
-				cameras.get(c).setTy(cameras.get(c).getTy() - deltaC.get(12 * c + 10, 0));
-				cameras.get(c).setTz(cameras.get(c).getTz() - deltaC.get(12 * c + 11, 0));
+				cameras.get(c).setR00(cameras.get(c).getR00() - lambda * deltaC.get(12 * c + 0, 0));
+				cameras.get(c).setR01(cameras.get(c).getR01() - lambda * deltaC.get(12 * c + 1, 0));
+				cameras.get(c).setR02(cameras.get(c).getR02() - lambda * deltaC.get(12 * c + 2, 0));
+				cameras.get(c).setR10(cameras.get(c).getR10() - lambda * deltaC.get(12 * c + 3, 0));
+				cameras.get(c).setR11(cameras.get(c).getR11() - lambda * deltaC.get(12 * c + 4, 0));
+				cameras.get(c).setR12(cameras.get(c).getR12() - lambda * deltaC.get(12 * c + 5, 0));
+				cameras.get(c).setR20(cameras.get(c).getR20() - lambda * deltaC.get(12 * c + 6, 0));
+				cameras.get(c).setR21(cameras.get(c).getR21() - lambda * deltaC.get(12 * c + 7, 0));
+				cameras.get(c).setR22(cameras.get(c).getR22() - lambda * deltaC.get(12 * c + 8, 0));
+				cameras.get(c).setTx(cameras.get(c).getTx() - lambda * deltaC.get(12 * c + 9, 0));
+				cameras.get(c).setTy(cameras.get(c).getTy() - lambda * deltaC.get(12 * c + 10, 0));
+				cameras.get(c).setTz(cameras.get(c).getTz() - lambda * deltaC.get(12 * c + 11, 0));
 			}
 		}
 
