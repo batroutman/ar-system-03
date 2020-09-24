@@ -24,6 +24,7 @@ public class MockPipeline extends ARPipeline {
 	Matrix K = new Matrix(3, 3);
 
 	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
+	ArrayList<KeyFrame> tempKeyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
 
 	Pose pose = new Pose();
@@ -310,13 +311,18 @@ public class MockPipeline extends ARPipeline {
 						for (int j = 0; j < this.keyframes.get(i).getEntries().size(); j++) {
 							point3Ds.add(this.keyframes.get(i).getEntries().get(j).getPoint());
 							ArrayList<Point2D> obs = new ArrayList<Point2D>();
-							for (int k = 0; k < this.keyframes.size(); k++) {
+							for (int k = 0; k < this.keyframes.size() + 1; k++) {
 								obs.add(null);
 							}
+							double x = this.mock.getKeypoints(this.frameNum).get(j).x;
+							double y = this.mock.getKeypoints(this.frameNum).get(j).y;
+							Point2D pt = new Point2D(x, y);
 							obs.set(i, this.keyframes.get(i).getEntries().get(j).getKeypoint());
+							obs.set(i + 1, pt);
 							observations.add(obs);
 						}
 					}
+					cameras.add(this.pose);
 
 					ARUtils.bundleAdjust(cameras, point3Ds, observations, 2);
 
