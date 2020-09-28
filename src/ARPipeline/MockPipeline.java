@@ -2,6 +2,7 @@ package ARPipeline;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.DMatch;
@@ -137,6 +138,30 @@ public class MockPipeline extends ARPipeline {
 		Matrix newPose = E.times(this.currentKeyFrame.getPose().getHomogeneousMatrix());
 
 		this.pose.setMatrix(newPose);
+		// System.out.println("updatedPose (true pose):");
+		// newPose.print(5, 4);
+
+	}
+
+	public void setPose(Matrix R, Matrix t) {
+
+		Matrix E = Matrix.identity(4, 4);
+		E.set(0, 0, R.get(0, 0));
+		E.set(0, 1, R.get(0, 1));
+		E.set(0, 2, R.get(0, 2));
+		E.set(0, 3, t.get(0, 0));
+
+		E.set(1, 0, R.get(1, 0));
+		E.set(1, 1, R.get(1, 1));
+		E.set(1, 2, R.get(1, 2));
+		E.set(1, 3, t.get(1, 0));
+
+		E.set(2, 0, R.get(2, 0));
+		E.set(2, 1, R.get(2, 1));
+		E.set(2, 2, R.get(2, 2));
+		E.set(2, 3, t.get(2, 0));
+
+		this.pose.setMatrix(E);
 		// System.out.println("updatedPose (true pose):");
 		// newPose.print(5, 4);
 
@@ -327,7 +352,7 @@ public class MockPipeline extends ARPipeline {
 					// Perform PnP to solve
 					ArrayList<Point3D> points3D = new ArrayList<Point3D>();
 					ArrayList<Point2D> points2D = new ArrayList<Point2D>();
-
+					Random rand = new Random();
 					for (int c = 0; c < correspondences.size(); c++) {
 						Correspondence2D2D corr = correspondences.get(c);
 						KeyFrameEntry keyframeEntry = null;
@@ -337,15 +362,12 @@ public class MockPipeline extends ARPipeline {
 								keyframeEntry = this.currentKeyFrame.getEntries().get(k);
 							}
 						}
-						points3D.add(keyframeEntry.getPoint());
-						// Point3D point3D = new Point3D();
-						// point3D.setX(this.mock.getWorldCoordinates().get(c).get(0,
-						// 0));
-						// point3D.setY(this.mock.getWorldCoordinates().get(c).get(1,
-						// 0));
-						// point3D.setZ(this.mock.getWorldCoordinates().get(c).get(2,
-						// 0));
-						// points3D.add(point3D);
+						// points3D.add(keyframeEntry.getPoint());
+						Point3D point3D = new Point3D();
+						point3D.setX(this.mock.getWorldCoordinates().get(c).get(0, 0) + rand.nextDouble() * 10);
+						point3D.setY(this.mock.getWorldCoordinates().get(c).get(1, 0) - rand.nextDouble() * 10);
+						point3D.setZ(this.mock.getWorldCoordinates().get(c).get(2, 0) + rand.nextDouble() * 10);
+						points3D.add(point3D);
 						Point2D point2D = new Point2D(corr.getU2(), corr.getV2());
 						points2D.add(point2D);
 					}
@@ -353,7 +375,7 @@ public class MockPipeline extends ARPipeline {
 					Matrix E = ARUtils.PnP(points3D, points2D);
 					Matrix R1 = E.getMatrix(0, 2, 0, 2);
 					Matrix t1 = E.getMatrix(0, 2, 3, 3);
-					this.updatePose(R1, t1);
+					this.setPose(R1, t1);
 					pl("true E: ");
 					Matrix R = this.mock.getR(this.frameNum);
 					Matrix IC = this.mock.getIC(this.frameNum);

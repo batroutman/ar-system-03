@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Random;
 
 import org.opencv.core.Core;
 
@@ -75,12 +76,15 @@ public class ARBootstrapper {
 		cameras.add(pose1);
 		cameras.add(pose2);
 
+		Random rand = new Random();
+
+		ArrayList<Matrix> initPointRes = new ArrayList<Matrix>();
 		// 3D points and 2D points
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
 			Point3D pt3 = new Point3D();
-			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + 10);
-			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + 10);
-			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + 10);
+			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + rand.nextDouble() * 20 - 10);
+			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + rand.nextDouble() * 20 - 10);
+			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + rand.nextDouble() * 20 - 10);
 
 			point3Ds.add(pt3);
 
@@ -96,9 +100,39 @@ public class ARBootstrapper {
 			pts2.add(pt21);
 			pts2.add(pt22);
 			observations.add(pts2);
+
+			Matrix res = new Matrix(3, 1);
+			res.set(0, 0, Math.pow(mock.getWorldCoordinates().get(i).get(0, 0) - point3Ds.get(i).getX(), 2));
+			res.set(1, 0, Math.pow(mock.getWorldCoordinates().get(i).get(1, 0) - point3Ds.get(i).getY(), 2));
+			res.set(2, 0, Math.pow(mock.getWorldCoordinates().get(i).get(2, 0) - point3Ds.get(i).getZ(), 2));
+			initPointRes.add(res);
 		}
 
-		ARUtils.bundleAdjust(cameras, point3Ds, observations, 5);
+		ARUtils.bundleAdjust(cameras, point3Ds, observations, 100);
+
+		ArrayList<Matrix> pointRes = new ArrayList<Matrix>();
+		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
+			p(mock.getWorldCoordinates().get(i).get(0, 0) + ", " + mock.getWorldCoordinates().get(i).get(1, 0) + ", "
+					+ mock.getWorldCoordinates().get(i).get(2, 0) + "\t\t\t" + point3Ds.get(i).getX() + ", "
+					+ point3Ds.get(i).getY() + ", " + point3Ds.get(i).getZ() + "\n");
+			Matrix res = new Matrix(3, 1);
+			res.set(0, 0, Math.pow(mock.getWorldCoordinates().get(i).get(0, 0) - point3Ds.get(i).getX(), 2));
+			res.set(1, 0, Math.pow(mock.getWorldCoordinates().get(i).get(1, 0) - point3Ds.get(i).getY(), 2));
+			res.set(2, 0, Math.pow(mock.getWorldCoordinates().get(i).get(2, 0) - point3Ds.get(i).getZ(), 2));
+			pointRes.add(res);
+		}
+
+		pl("");
+		pl("residuals for 3D points (before)");
+		for (int i = 0; i < pointRes.size(); i++) {
+			pl(initPointRes.get(i).normF());
+		}
+
+		pl("");
+		pl("residuals for 3D points (after)");
+		for (int i = 0; i < pointRes.size(); i++) {
+			pl(pointRes.get(i).normF());
+		}
 
 	}
 

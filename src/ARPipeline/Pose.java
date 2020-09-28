@@ -22,6 +22,15 @@ public class Pose {
 	double r22;
 	double tz;
 
+	double qw;
+	double qx;
+	double qy;
+	double qz;
+
+	double Cx;
+	double Cy;
+	double Cz;
+
 	public Pose() {
 		timestamp = System.nanoTime();
 		r00 = 1;
@@ -36,6 +45,15 @@ public class Pose {
 		tx = 0;
 		ty = 0;
 		tz = 0;
+
+		qw = 1;
+		qx = 0;
+		qy = 0;
+		qz = 0;
+
+		Cx = 0;
+		Cy = 0;
+		Cz = 0;
 	}
 
 	public void setMatrix(double r00, double r01, double r02, double r10, double r11, double r12, double r20,
