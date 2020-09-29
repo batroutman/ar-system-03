@@ -3,8 +3,6 @@ package ARPipeline;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.lwjgl.util.vector.Matrix4f;
-import org.lwjgl.util.vector.Vector3f;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.DMatch;
@@ -97,7 +95,6 @@ public class TestPipeline extends ARPipeline {
 
 		KeyFrame keyframe = new KeyFrame();
 		Pose pose = new Pose();
-		pose.setOrigin();
 		keyframe.setPose(pose);
 		keyframe.setDescriptors(descriptors);
 		keyframe.setKeypoints(keypoints);
@@ -121,21 +118,7 @@ public class TestPipeline extends ARPipeline {
 
 	public void updatePose(Matrix R, Matrix t) {
 
-		Matrix4f updatedPose = new Matrix4f();
-		updatedPose.setIdentity();
-		updatedPose.m00 = (float) R.get(0, 0);
-		updatedPose.m01 = (float) R.get(0, 1);
-		updatedPose.m02 = (float) R.get(0, 2);
-		updatedPose.m10 = (float) R.get(1, 0);
-		updatedPose.m11 = (float) R.get(1, 1);
-		updatedPose.m12 = (float) R.get(1, 2);
-		updatedPose.m20 = (float) R.get(2, 0);
-		updatedPose.m21 = (float) R.get(2, 1);
-		updatedPose.m22 = (float) R.get(2, 2);
-		updatedPose.translate(new Vector3f((float) t.get(0, 0), (float) t.get(1, 0), (float) t.get(2, 0)));
-
-		Matrix4f.mul(updatedPose, this.currentKeyFrame.getPose().getHomogeneousMatrix4f(), updatedPose);
-		this.pose.setMatrix(updatedPose);
+		pl("IMPLEMENT THIS");
 	}
 
 	Mat oldDesc = new Mat();
@@ -297,6 +280,14 @@ public class TestPipeline extends ARPipeline {
 			System.out.println("Average: " + ARUtils.mean(column));
 			System.out.println("Std Dev: " + ARUtils.stdDev(column));
 		}
+	}
+
+	public static void p(Object s) {
+		System.out.print(s);
+	}
+
+	public static void pl(Object s) {
+		System.out.println(s);
 	}
 
 }

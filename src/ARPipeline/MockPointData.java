@@ -30,9 +30,12 @@ public class MockPointData {
 	// NOTE: translations should be negative (-C)
 	protected Vector3f translationVelocity = new Vector3f(15f, 2f, -10f);
 	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
-	protected double rotX = 0.004;
-	protected double rotY = -0.015;
-	protected double rotZ = -0.000;
+	// protected double rotX = 0.004;
+	// protected double rotY = -0.015;
+	// protected double rotZ = -0.000;
+	protected double rotX = 0.5;
+	protected double rotY = 0.2;
+	protected double rotZ = 1.4;
 
 	// List of homogeneous column vectors (4x1) corresponding to world
 	// coordinates
@@ -130,6 +133,37 @@ public class MockPointData {
 		C.set(2, 3, this.initialTranslation.z + this.translationVelocity.z * (frameNumber + this.START_FRAME));
 
 		return C;
+	}
+
+	public Matrix getQuaternion(long frameNumber) {
+
+		// Calculate this frame's rotation parameters
+		float gamma = (float) this.rotX * (frameNumber + this.START_FRAME);
+		float beta = (float) this.rotY * (frameNumber + this.START_FRAME);
+		float alpha = (float) this.rotZ * (frameNumber + this.START_FRAME);
+
+		double cx = Math.cos(gamma * 0.5);
+		double cy = Math.cos(beta * 0.5);
+		double cz = Math.cos(alpha * 0.5);
+		double sx = Math.sin(gamma * 0.5);
+		double sy = Math.sin(beta * 0.5);
+		double sz = Math.sin(alpha * 0.5);
+
+		double qw = cx * cy * cz + sx * sy * sz;
+		double qx = sx * cy * cz - cx * sy * sz;
+		double qy = cx * sy * cz + sx * cy * sz;
+		double qz = cx * cy * sz - sx * sy * cz;
+
+		Matrix q = new Matrix(4, 1);
+		q.set(0, 0, qw);
+		q.set(1, 0, qx);
+		q.set(2, 0, qy);
+		q.set(3, 0, qz);
+
+		q = q.times(1 / q.normF());
+
+		return q;
+
 	}
 
 	public ArrayList<Point> getKeypoints(long frameNumber) {

@@ -95,7 +95,6 @@ public class MockPipeline extends ARPipeline {
 
 		KeyFrame keyframe = new KeyFrame();
 		Pose pose = new Pose();
-		pose.setOrigin();
 		keyframe.setPose(pose);
 		keyframe.setDescriptors(descriptors);
 		keyframe.setKeypoints(keypoints);
@@ -117,53 +116,15 @@ public class MockPipeline extends ARPipeline {
 
 	}
 
-	public void updatePose(Matrix R, Matrix t) {
+	public void updatePose(Matrix q, Matrix C) {
 
-		Matrix E = Matrix.identity(4, 4);
-		E.set(0, 0, R.get(0, 0));
-		E.set(0, 1, R.get(0, 1));
-		E.set(0, 2, R.get(0, 2));
-		E.set(0, 3, t.get(0, 0));
-
-		E.set(1, 0, R.get(1, 0));
-		E.set(1, 1, R.get(1, 1));
-		E.set(1, 2, R.get(1, 2));
-		E.set(1, 3, t.get(1, 0));
-
-		E.set(2, 0, R.get(2, 0));
-		E.set(2, 1, R.get(2, 1));
-		E.set(2, 2, R.get(2, 2));
-		E.set(2, 3, t.get(2, 0));
-
-		Matrix newPose = E.times(this.currentKeyFrame.getPose().getHomogeneousMatrix());
-
-		this.pose.setMatrix(newPose);
-		// System.out.println("updatedPose (true pose):");
-		// newPose.print(5, 4);
+		pl("IMPLEMENT THIS!!!!!!!!!");
 
 	}
 
-	public void setPose(Matrix R, Matrix t) {
+	public void setPose(Matrix q, Matrix C) {
 
-		Matrix E = Matrix.identity(4, 4);
-		E.set(0, 0, R.get(0, 0));
-		E.set(0, 1, R.get(0, 1));
-		E.set(0, 2, R.get(0, 2));
-		E.set(0, 3, t.get(0, 0));
-
-		E.set(1, 0, R.get(1, 0));
-		E.set(1, 1, R.get(1, 1));
-		E.set(1, 2, R.get(1, 2));
-		E.set(1, 3, t.get(1, 0));
-
-		E.set(2, 0, R.get(2, 0));
-		E.set(2, 1, R.get(2, 1));
-		E.set(2, 2, R.get(2, 2));
-		E.set(2, 3, t.get(2, 0));
-
-		this.pose.setMatrix(E);
-		// System.out.println("updatedPose (true pose):");
-		// newPose.print(5, 4);
+		pl("IMPLEMENT THIS!!!!");
 
 	}
 

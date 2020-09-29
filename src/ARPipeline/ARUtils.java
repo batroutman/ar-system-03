@@ -15,6 +15,48 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	// quaternion rotation, assuming column vector of format [qw, qx,
+	// qy, qz].transpose()
+	public static Matrix quatRot(Matrix q1, Matrix q2) {
+		Matrix rot = quatMult(q1, quatMult(q2, quatInv(q1)));
+		rot = rot.times(1 / rot.normF());
+		return rot;
+	}
+
+	// quaternion inverse/reciprocal, assuming column vector of format [qw, qx,
+	// qy, qz].transpose()
+	public static Matrix quatInv(Matrix q) {
+		Matrix inv = q.copy().times(-1);
+		inv.set(0, 0, -inv.get(0, 0));
+		inv = inv.times(1 / Math.pow(inv.normF(), 2));
+		return inv;
+	}
+
+	// quaternion multiplication, assuming column vector of format [qw, qx, qy,
+	// qz].transpose()
+	public static Matrix quatMult(Matrix q, Matrix r) {
+
+		Matrix t = new Matrix(4, 1);
+
+		double q0 = q.get(0, 0);
+		double q1 = q.get(1, 0);
+		double q2 = q.get(2, 0);
+		double q3 = q.get(3, 0);
+		double r0 = r.get(0, 0);
+		double r1 = r.get(1, 0);
+		double r2 = r.get(2, 0);
+		double r3 = r.get(3, 0);
+
+		t.set(0, 0, r0 * q0 - r1 * q1 - r2 * q2 - r3 * q3);
+		t.set(1, 0, r0 * q1 + r1 * q0 - r2 * q3 + r3 * q2);
+		t.set(2, 0, r0 * q2 + r1 * q3 + r2 * q0 - r3 * q1);
+		t.set(3, 0, r0 * q3 - r1 * q2 + r2 * q1 + r3 * q0);
+
+		t = t.times(1 / t.normF());
+
+		return t;
+	}
+
 	public static Matrix getOrthogonalized(Matrix R, int limit) {
 
 		Matrix I = Matrix.identity(3, 3);
@@ -42,13 +84,11 @@ public class ARUtils {
 	}
 
 	// observations is a list of size n (points) with inner lists of size m
-	// (cameras). If 3 cameras and 10 points, observations is a list of size 10,
+	// (cameras). If 3 cameras and 10 points, observations is a list of size
+	// 10,
 	// with the sublists being size 3
 	public static void bundleAdjust(ArrayList<Pose> cameras, ArrayList<Point3D> point3Ds,
 			ArrayList<ArrayList<Point2D>> observations, int numIterations) {
-
-		long lambda = 1L;
-		double scale = 1;
 
 		double fx = CameraIntrinsics.getFx();
 		double fy = CameraIntrinsics.getFy();
@@ -69,9 +109,14 @@ public class ARUtils {
 					double x = point3Ds.get(p).getX();
 					double y = point3Ds.get(p).getY();
 					double z = point3Ds.get(p).getZ();
-					double tx = cameras.get(c).getTx();
-					double ty = cameras.get(c).getTy();
-					double tz = cameras.get(c).getTz();
+					double Cx = cameras.get(c).getCx();
+					double Cy = cameras.get(c).getCy();
+					double Cz = cameras.get(c).getCz();
+					double qw = cameras.get(c).getQw();
+					double qx = cameras.get(c).getQx();
+					double qy = cameras.get(c).getQy();
+					double qz = cameras.get(c).getQz();
+
 					double r00 = cameras.get(c).getR00();
 					double r01 = cameras.get(c).getR01();
 					double r02 = cameras.get(c).getR02();
@@ -83,18 +128,32 @@ public class ARUtils {
 					double r22 = cameras.get(c).getR22();
 
 					// establish a posteriori
-					double w = x * r20 + y * r21 + z * r22 + tz;
-					if (w == 0) {
-						w = 1;
-					}
-					double wSquared = w * w;
-					double fuTop = x * (fx * r00 + s * r10 + cx * r20) + y * (fx * r01 + s * r11 + cx * r21)
-							+ z * (fx * r02 + s * r12 + cx * r22) + fx * tx + s * ty + cx * tz;
-					double fvTop = x * (fy * r10 + cy * r20) + y * (fy * r11 + cy * r21) + z * (fy * r12 + cy * r22)
-							+ fy * ty + cy * tz;
+					Matrix XC = new Matrix(3, 1);
+					XC.set(0, 0, x - Cx);
+					XC.set(1, 0, y - Cy);
+					XC.set(2, 0, z - Cz);
 
-					double fu = fuTop / w;
-					double fv = fvTop / w;
+					Matrix u = new Matrix(1, 3);
+					u.set(0, 0, fx * r00 + s * r10 + cx * r20);
+					u.set(0, 1, fx * r01 + s * r11 + cx * r21);
+					u.set(0, 2, fx * r02 + s * r12 + cx * r22);
+					u = u.times(XC);
+
+					Matrix v = new Matrix(1, 3);
+					v.set(0, 0, fy * r10 + cy * r20);
+					v.set(0, 1, fy * r11 + cy * r21);
+					v.set(0, 2, fy * r12 + cy * r22);
+					v = v.times(XC);
+
+					Matrix w = new Matrix(1, 3);
+					w.set(0, 0, r20);
+					w.set(0, 1, r21);
+					w.set(0, 2, r22);
+					w = w.times(XC);
+
+					double fu = u.get(0, 0) * w.get(0, 0);
+					double fv = v.get(0, 0) * w.get(0, 0);
+					double wSqInv = 1 / (w.get(0, 0) * w.get(0, 0));
 
 					// if the camera did not see this point, skip these rows
 					if (observations.get(p).get(c) == null) {
@@ -102,36 +161,119 @@ public class ARUtils {
 					}
 
 					// calculate partial derivatives
-					double dfudx = ((fx * r00 + s * r10 + cx * r20) * w - fuTop * r20) / wSquared;
-					double dfvdx = ((fy * r10 + cy * r20) * w - fvTop * r20) / wSquared;
-					double dfudy = ((fx * r01 + s * r11 + cx * r21) * w - fuTop * r21) / wSquared;
-					double dfvdy = ((fy * r11 + cy * r21) * w - fvTop * r21) / wSquared;
-					double dfudz = ((fx * r02 + s * r12 + cx * r22) * w - fuTop * r22) / wSquared;
-					double dfvdz = ((fy * r12 + cy * r22) * w - fvTop * r22) / wSquared;
-					double dfudtx = fx / w;
-					double dfvdtx = 0;
-					double dfudty = s / w;
-					double dfvdty = fy / w;
-					double dfudtz = (cx * w - fuTop) / wSquared;
-					double dfvdtz = (cy * w - fvTop) / wSquared;
-					double dfudr00 = x * fx / w;
-					double dfvdr00 = 0;
-					double dfudr01 = y * fx / w;
-					double dfvdr01 = 0;
-					double dfudr02 = z * fx / w;
-					double dfvdr02 = 0;
-					double dfudr10 = x * s / w;
-					double dfvdr10 = x * fy / w;
-					double dfudr11 = y * s / w;
-					double dfvdr11 = y * fy / w;
-					double dfudr12 = z * s / w;
-					double dfvdr12 = z * fy / w;
-					double dfudr20 = (x * cx * w - fuTop * x) / wSquared;
-					double dfvdr20 = (x * cy * w - fvTop * x) / wSquared;
-					double dfudr21 = (y * cx * w - fuTop * y) / wSquared;
-					double dfvdr21 = (y * cy * w - fvTop * y) / wSquared;
-					double dfudr22 = (z * cx * w - fuTop * z) / wSquared;
-					double dfvdr22 = (z * cy * w - fvTop * z) / wSquared;
+					// C
+					Matrix dudC = new Matrix(1, 3);
+					Matrix dvdC = new Matrix(1, 3);
+					Matrix dwdC = new Matrix(1, 3);
+
+					dudC.set(0, 0, -fx * r00 - s * r10 - cx * r20);
+					dudC.set(0, 1, -fx * r01 - s * r11 - cx * r21);
+					dudC.set(0, 2, -fx * r02 - s * r12 - cx * r22);
+
+					dvdC.set(0, 0, -fy * r10 - cy * r20);
+					dvdC.set(0, 1, -fy * r11 - cy * r21);
+					dvdC.set(0, 2, -fy * r12 - cy * r22);
+
+					dwdC.set(0, 0, -r20);
+					dwdC.set(0, 1, -r21);
+					dwdC.set(0, 2, -r22);
+
+					Matrix dfudC = dudC.times(w.get(0, 0)).minus(dwdC.times(u.get(0, 0))).times(wSqInv);
+					Matrix dfvdC = dvdC.times(w.get(0, 0)).minus(dwdC.times(v.get(0, 0))).times(wSqInv);
+
+					// X
+					Matrix dudX = new Matrix(1, 3);
+					Matrix dvdX = new Matrix(1, 3);
+					Matrix dwdX = new Matrix(1, 3);
+
+					dudX.set(0, 0, fx * r00 + s * r10 + cx * r20);
+					dudX.set(0, 1, fx * r01 + s * r11 + cx * r21);
+					dudX.set(0, 2, fx * r02 + s * r12 + cx * r22);
+
+					dvdX.set(0, 0, fy * r10 + cy * r20);
+					dvdX.set(0, 1, fy * r11 + cy * r21);
+					dvdX.set(0, 2, fy * r12 + cy * r22);
+
+					dwdX.set(0, 0, r20);
+					dwdX.set(0, 1, r21);
+					dwdX.set(0, 2, r22);
+
+					Matrix dfudX = dudX.times(w.get(0, 0)).minus(dwdX.times(u.get(0, 0))).times(wSqInv);
+					Matrix dfvdX = dvdX.times(w.get(0, 0)).minus(dwdX.times(v.get(0, 0))).times(wSqInv);
+
+					// R
+					Matrix dudR = new Matrix(1, 9);
+					Matrix dvdR = new Matrix(1, 9);
+					Matrix dwdR = new Matrix(1, 9);
+
+					dudR.set(0, 0, fx * XC.get(0, 0));
+					dudR.set(0, 1, fx * XC.get(1, 0));
+					dudR.set(0, 2, fx * XC.get(2, 0));
+					dudR.set(0, 3, s * XC.get(0, 0));
+					dudR.set(0, 4, s * XC.get(1, 0));
+					dudR.set(0, 5, s * XC.get(2, 0));
+					dudR.set(0, 6, cx * XC.get(0, 0));
+					dudR.set(0, 7, cx * XC.get(1, 0));
+					dudR.set(0, 8, cx * XC.get(2, 0));
+
+					dvdR.set(0, 3, fy * XC.get(0, 0));
+					dvdR.set(0, 4, fy * XC.get(1, 0));
+					dvdR.set(0, 5, fy * XC.get(2, 0));
+					dudR.set(0, 6, cy * XC.get(0, 0));
+					dudR.set(0, 7, cy * XC.get(1, 0));
+					dudR.set(0, 8, cy * XC.get(2, 0));
+
+					dwdR.set(0, 6, XC.get(0, 0));
+					dwdR.set(0, 7, XC.get(1, 0));
+					dwdR.set(0, 8, XC.get(2, 0));
+
+					Matrix dfudR = dudR.times(w.get(0, 0)).minus(dwdR.times(u.get(0, 0))).times(wSqInv);
+					Matrix dfvdR = dvdR.times(w.get(0, 0)).minus(dwdR.times(v.get(0, 0))).times(wSqInv);
+
+					// q
+					Matrix dRdq = new Matrix(9, 4);
+
+					dRdq.set(0, 1, -4 * qy);
+					dRdq.set(0, 2, -4 * qz);
+
+					dRdq.set(1, 0, 2 * qy);
+					dRdq.set(1, 1, 2 * qx);
+					dRdq.set(1, 2, -2 * qw);
+					dRdq.set(1, 3, -2 * qz);
+
+					dRdq.set(2, 0, 2 * qz);
+					dRdq.set(2, 1, 2 * qw);
+					dRdq.set(2, 2, 2 * qx);
+					dRdq.set(2, 3, 2 * qy);
+
+					dRdq.set(3, 0, 2 * qy);
+					dRdq.set(3, 1, 2 * qx);
+					dRdq.set(3, 2, 2 * qw);
+					dRdq.set(3, 3, 2 * qz);
+
+					dRdq.set(4, 0, -4 * qx);
+					dRdq.set(4, 2, -4 * qz);
+
+					dRdq.set(5, 0, -2 * qw);
+					dRdq.set(5, 1, 2 * qz);
+					dRdq.set(5, 2, 2 * qy);
+					dRdq.set(5, 3, 2 * qx);
+
+					dRdq.set(6, 0, 2 * qz);
+					dRdq.set(6, 1, -2 * qw);
+					dRdq.set(6, 2, 2 * qx);
+					dRdq.set(6, 3, -2 * qy);
+
+					dRdq.set(7, 0, -4 * qx);
+					dRdq.set(7, 1, -4 * qy);
+
+					dRdq.set(8, 0, 2 * qw);
+					dRdq.set(8, 1, 2 * qz);
+					dRdq.set(8, 2, 2 * qy);
+					dRdq.set(8, 3, 2 * qx);
+
+					Matrix dfudq = dfudR.times(dRdq);
+					Matrix dfvdq = dfvdR.times(dRdq);
 
 					// set in J
 					int rowU = 2 * cameras.size() * p + 2 * c;
@@ -182,124 +324,327 @@ public class ARUtils {
 
 			pl("|rBefore|: " + rBefore.normF());
 
-			Matrix JtJ = J.transpose().times(J)
-					.plus(Matrix.identity(J.getColumnDimension(), J.getColumnDimension()).times(lambda));
-
-			Matrix epsilon = J.transpose().times(rBefore);
-
-			Matrix epsilonA = epsilon.getMatrix(0, 12 * cameras.size() - 1, 0, 0);
-			Matrix epsilonB = epsilon.getMatrix(12 * cameras.size(), epsilon.getRowDimension() - 1, 0, 0);
-
-			Matrix U = JtJ.getMatrix(0, 12 * cameras.size() - 1, 0, 12 * cameras.size() - 1);
-			Matrix V = JtJ.getMatrix(12 * cameras.size(), JtJ.getRowDimension() - 1, 12 * cameras.size(),
-					JtJ.getColumnDimension() - 1);
-
-			Matrix W = JtJ.getMatrix(0, 12 * cameras.size() - 1, 12 * cameras.size(), JtJ.getColumnDimension() - 1);
-			SingularValueDecomposition svdV = V.svd();
-
-			Matrix sigmaPrime = svdV.getS().copy();
-			for (int sing = 0; sing < sigmaPrime.getRowDimension(); sing++) {
-				sigmaPrime.set(sing, sing, sigmaPrime.get(sing, sing) == 0 ? 0 : 1 / sigmaPrime.get(sing, sing));
-			}
-			Matrix VInv = svdV.getV().times(sigmaPrime).times(svdV.getU().transpose());
-
-			// camera updates
-			Matrix shurComp = U.minus(W.times(VInv).times(W.transpose()));
-
-			SingularValueDecomposition svdShur = shurComp.svd();
-			sigmaPrime = svdShur.getS().copy();
-			for (int sig = 0; sig < sigmaPrime.getRowDimension(); sig++) {
-				sigmaPrime.set(sig, sig, sigmaPrime.get(sig, sig) == 0 ? 0 : 1 / sigmaPrime.get(sig, sig));
-			}
-			Matrix shurInv = svdShur.getV().times(sigmaPrime).times(svdShur.getU().transpose());
-
-			Matrix deltaA = shurInv.times(epsilonA.minus(W.times(VInv).times(epsilonB)));
-
-			Matrix deltaB = VInv.times(epsilonB.minus(W.transpose().times(deltaA)));
-
-			Matrix deltaC = new Matrix(deltaA.getRowDimension() + deltaB.getRowDimension(), 1);
-			for (int d = 0; d < deltaA.getRowDimension(); d++) {
-				deltaC.set(d, 0, deltaA.get(d, 0));
-			}
-			for (int d = 0; d < deltaB.getRowDimension(); d++) {
-				deltaC.set(d + deltaA.getRowDimension(), 0, deltaB.get(d, 0));
-			}
-
 			// test for improvement
 			Matrix rAfter = new Matrix(2 * point3Ds.size() * cameras.size(), 1);
 			for (int p = 0; p < point3Ds.size(); p++) {
 				for (int c = 0; c < cameras.size(); c++) {
-					// set r variables
-					int rowU = 2 * cameras.size() * p + 2 * c;
-					int rowV = rowU + 1;
 
-					// establish variables
-					double x = point3Ds.get(p).getX() - scale * deltaC.get(12 * cameras.size() + 3 * p + 0, 0);
-					double y = point3Ds.get(p).getY() - scale * deltaC.get(12 * cameras.size() + 3 * p + 1, 0);
-					double z = point3Ds.get(p).getZ() - scale * deltaC.get(12 * cameras.size() + 3 * p + 2, 0);
-					double tx = cameras.get(c).getTx() - scale * deltaC.get(12 * c + 9, 0);
-					double ty = cameras.get(c).getTy() - scale * deltaC.get(12 * c + 10, 0);
-					double tz = cameras.get(c).getTz() - scale * deltaC.get(12 * c + 11, 0);
-					double r00 = cameras.get(c).getR00() - scale * deltaC.get(12 * c + 0, 0);
-					double r01 = cameras.get(c).getR01() - scale * deltaC.get(12 * c + 1, 0);
-					double r02 = cameras.get(c).getR02() - scale * deltaC.get(12 * c + 2, 0);
-					double r10 = cameras.get(c).getR10() - scale * deltaC.get(12 * c + 3, 0);
-					double r11 = cameras.get(c).getR11() - scale * deltaC.get(12 * c + 4, 0);
-					double r12 = cameras.get(c).getR12() - scale * deltaC.get(12 * c + 5, 0);
-					double r20 = cameras.get(c).getR20() - scale * deltaC.get(12 * c + 6, 0);
-					double r21 = cameras.get(c).getR21() - scale * deltaC.get(12 * c + 7, 0);
-					double r22 = cameras.get(c).getR22() - scale * deltaC.get(12 * c + 8, 0);
-
-					// establish a posteriori
-					double w = x * r20 + y * r21 + z * r22 + tz;
-					if (w == 0) {
-						w = 1;
-					}
-					double fuTop = x * (fx * r00 + s * r10 + cx * r20) + y * (fx * r01 + s * r11 + cx * r21)
-							+ z * (fx * r02 + s * r12 + cx * r22) + fx * tx + s * ty + cx * tz;
-					double fvTop = x * (fy * r10 + cy * r20) + y * (fy * r11 + cy * r21) + z * (fy * r12 + cy * r22)
-							+ fy * ty + cy * tz;
-
-					double fu = fuTop / w;
-					double fv = fvTop / w;
-
-					rAfter.set(rowU, 0, Math.pow(observations.get(p).get(c).getX() - fu, 2));
-					rAfter.set(rowV, 0, Math.pow(observations.get(p).get(c).getY() - fv, 2));
 				}
-			}
-			if (rAfter.normF() > rBefore.normF() && scale > 0.000001) {
-				pl("\t\t\t\t\t\t\t\trBefore ==> rAfter: " + rBefore.normF() + " ==> " + rAfter.normF());
-				scale /= 2;
-				pl("\t\t\t\t\t\t\t\tscale updated to " + scale);
-				continue;
 			}
 
 			// update the points
 			for (int p = 0; p < point3Ds.size(); p++) {
-				point3Ds.get(p).setX(point3Ds.get(p).getX() - scale * deltaC.get(12 * cameras.size() + 3 * p + 0, 0));
-				point3Ds.get(p).setY(point3Ds.get(p).getY() - scale * deltaC.get(12 * cameras.size() + 3 * p + 1, 0));
-				point3Ds.get(p).setZ(point3Ds.get(p).getZ() - scale * deltaC.get(12 * cameras.size() + 3 * p + 2, 0));
 			}
 
 			// update the poses
 			for (int c = 0; c < cameras.size(); c++) {
-				cameras.get(c).setR00(cameras.get(c).getR00() - scale * deltaC.get(12 * c + 0, 0));
-				cameras.get(c).setR01(cameras.get(c).getR01() - scale * deltaC.get(12 * c + 1, 0));
-				cameras.get(c).setR02(cameras.get(c).getR02() - scale * deltaC.get(12 * c + 2, 0));
-				cameras.get(c).setR10(cameras.get(c).getR10() - scale * deltaC.get(12 * c + 3, 0));
-				cameras.get(c).setR11(cameras.get(c).getR11() - scale * deltaC.get(12 * c + 4, 0));
-				cameras.get(c).setR12(cameras.get(c).getR12() - scale * deltaC.get(12 * c + 5, 0));
-				cameras.get(c).setR20(cameras.get(c).getR20() - scale * deltaC.get(12 * c + 6, 0));
-				cameras.get(c).setR21(cameras.get(c).getR21() - scale * deltaC.get(12 * c + 7, 0));
-				cameras.get(c).setR22(cameras.get(c).getR22() - scale * deltaC.get(12 * c + 8, 0));
-				cameras.get(c).setTx(cameras.get(c).getTx() - scale * deltaC.get(12 * c + 9, 0));
-				cameras.get(c).setTy(cameras.get(c).getTy() - scale * deltaC.get(12 * c + 10, 0));
-				cameras.get(c).setTz(cameras.get(c).getTz() - scale * deltaC.get(12 * c + 11, 0));
 			}
 
 		}
 
 	}
+
+	// observations is a list of size n (points) with inner lists of size m
+	// (cameras). If 3 cameras and 10 points, observations is a list of size
+	// 10,
+	// with the sublists being size 3
+	// public static void bundleAdjust(ArrayList<Pose> cameras,
+	// ArrayList<Point3D> point3Ds,
+	// ArrayList<ArrayList<Point2D>> observations, int numIterations) {
+	//
+	// long lambda = 1L;
+	// double scale = 1;
+	//
+	// double fx = CameraIntrinsics.getFx();
+	// double fy = CameraIntrinsics.getFy();
+	// double s = CameraIntrinsics.getS();
+	// double cx = CameraIntrinsics.getCx();
+	// double cy = CameraIntrinsics.getCy();
+	//
+	// for (int i = 0; i < numIterations; i++) {
+	//
+	// Matrix J = new Matrix(2 * point3Ds.size() * cameras.size(), 3 *
+	// point3Ds.size() + 12 * cameras.size());
+	// Matrix rBefore = new Matrix(2 * point3Ds.size() * cameras.size(), 1);
+	//
+	// // calculate J and r
+	// for (int p = 0; p < point3Ds.size(); p++) {
+	// for (int c = 0; c < cameras.size(); c++) {
+	//
+	// // establish variables
+	// double x = point3Ds.get(p).getX();
+	// double y = point3Ds.get(p).getY();
+	// double z = point3Ds.get(p).getZ();
+	// double tx = cameras.get(c).getTx();
+	// double ty = cameras.get(c).getTy();
+	// double tz = cameras.get(c).getTz();
+	// double r00 = cameras.get(c).getR00();
+	// double r01 = cameras.get(c).getR01();
+	// double r02 = cameras.get(c).getR02();
+	// double r10 = cameras.get(c).getR10();
+	// double r11 = cameras.get(c).getR11();
+	// double r12 = cameras.get(c).getR12();
+	// double r20 = cameras.get(c).getR20();
+	// double r21 = cameras.get(c).getR21();
+	// double r22 = cameras.get(c).getR22();
+	//
+	// // establish a posteriori
+	// double w = x * r20 + y * r21 + z * r22 + tz;
+	// if (w == 0) {
+	// w = 1;
+	// }
+	// double wSquared = w * w;
+	// double fuTop = x * (fx * r00 + s * r10 + cx * r20) + y * (fx * r01 + s *
+	// r11 + cx * r21)
+	// + z * (fx * r02 + s * r12 + cx * r22) + fx * tx + s * ty + cx * tz;
+	// double fvTop = x * (fy * r10 + cy * r20) + y * (fy * r11 + cy * r21) + z
+	// * (fy * r12 + cy * r22)
+	// + fy * ty + cy * tz;
+	//
+	// double fu = fuTop / w;
+	// double fv = fvTop / w;
+	//
+	// // if the camera did not see this point, skip these rows
+	// if (observations.get(p).get(c) == null) {
+	// continue;
+	// }
+	//
+	// // calculate partial derivatives
+	// double dfudx = ((fx * r00 + s * r10 + cx * r20) * w - fuTop * r20) /
+	// wSquared;
+	// double dfvdx = ((fy * r10 + cy * r20) * w - fvTop * r20) / wSquared;
+	// double dfudy = ((fx * r01 + s * r11 + cx * r21) * w - fuTop * r21) /
+	// wSquared;
+	// double dfvdy = ((fy * r11 + cy * r21) * w - fvTop * r21) / wSquared;
+	// double dfudz = ((fx * r02 + s * r12 + cx * r22) * w - fuTop * r22) /
+	// wSquared;
+	// double dfvdz = ((fy * r12 + cy * r22) * w - fvTop * r22) / wSquared;
+	// double dfudtx = fx / w;
+	// double dfvdtx = 0;
+	// double dfudty = s / w;
+	// double dfvdty = fy / w;
+	// double dfudtz = (cx * w - fuTop) / wSquared;
+	// double dfvdtz = (cy * w - fvTop) / wSquared;
+	// double dfudr00 = x * fx / w;
+	// double dfvdr00 = 0;
+	// double dfudr01 = y * fx / w;
+	// double dfvdr01 = 0;
+	// double dfudr02 = z * fx / w;
+	// double dfvdr02 = 0;
+	// double dfudr10 = x * s / w;
+	// double dfvdr10 = x * fy / w;
+	// double dfudr11 = y * s / w;
+	// double dfvdr11 = y * fy / w;
+	// double dfudr12 = z * s / w;
+	// double dfvdr12 = z * fy / w;
+	// double dfudr20 = (x * cx * w - fuTop * x) / wSquared;
+	// double dfvdr20 = (x * cy * w - fvTop * x) / wSquared;
+	// double dfudr21 = (y * cx * w - fuTop * y) / wSquared;
+	// double dfvdr21 = (y * cy * w - fvTop * y) / wSquared;
+	// double dfudr22 = (z * cx * w - fuTop * z) / wSquared;
+	// double dfvdr22 = (z * cy * w - fvTop * z) / wSquared;
+	//
+	// // set in J
+	// int rowU = 2 * cameras.size() * p + 2 * c;
+	// int rowV = rowU + 1;
+	//
+	// // u constraint
+	// J.set(rowU, 12 * c + 0, dfudr00);
+	// J.set(rowU, 12 * c + 1, dfudr01);
+	// J.set(rowU, 12 * c + 2, dfudr02);
+	// J.set(rowU, 12 * c + 3, dfudr10);
+	// J.set(rowU, 12 * c + 4, dfudr11);
+	// J.set(rowU, 12 * c + 5, dfudr12);
+	// J.set(rowU, 12 * c + 6, dfudr20);
+	// J.set(rowU, 12 * c + 7, dfudr21);
+	// J.set(rowU, 12 * c + 8, dfudr22);
+	// J.set(rowU, 12 * c + 9, dfudtx);
+	// J.set(rowU, 12 * c + 10, dfudty);
+	// J.set(rowU, 12 * c + 11, dfudtz);
+	//
+	// J.set(rowU, 12 * cameras.size() + 3 * p + 0, dfudx);
+	// J.set(rowU, 12 * cameras.size() + 3 * p + 1, dfudy);
+	// J.set(rowU, 12 * cameras.size() + 3 * p + 2, dfudz);
+	//
+	// // v constraint
+	// J.set(rowV, 12 * c + 0, dfvdr00);
+	// J.set(rowV, 12 * c + 1, dfvdr01);
+	// J.set(rowV, 12 * c + 2, dfvdr02);
+	// J.set(rowV, 12 * c + 3, dfvdr10);
+	// J.set(rowV, 12 * c + 4, dfvdr11);
+	// J.set(rowV, 12 * c + 5, dfvdr12);
+	// J.set(rowV, 12 * c + 6, dfvdr20);
+	// J.set(rowV, 12 * c + 7, dfvdr21);
+	// J.set(rowV, 12 * c + 8, dfvdr22);
+	// J.set(rowV, 12 * c + 9, dfvdtx);
+	// J.set(rowV, 12 * c + 10, dfvdty);
+	// J.set(rowV, 12 * c + 11, dfvdtz);
+	//
+	// J.set(rowV, 12 * cameras.size() + 3 * p + 0, dfvdx);
+	// J.set(rowV, 12 * cameras.size() + 3 * p + 1, dfvdy);
+	// J.set(rowV, 12 * cameras.size() + 3 * p + 2, dfvdz);
+	//
+	// // set r variables
+	// rBefore.set(rowU, 0, Math.pow(observations.get(p).get(c).getX() - fu,
+	// 2));
+	// rBefore.set(rowV, 0, Math.pow(observations.get(p).get(c).getY() - fv,
+	// 2));
+	//
+	// }
+	// }
+	//
+	// pl("|rBefore|: " + rBefore.normF());
+	//
+	// Matrix JtJ = J.transpose().times(J)
+	// .plus(Matrix.identity(J.getColumnDimension(),
+	// J.getColumnDimension()).times(lambda));
+	//
+	// Matrix epsilon = J.transpose().times(rBefore);
+	//
+	// Matrix epsilonA = epsilon.getMatrix(0, 12 * cameras.size() - 1, 0, 0);
+	// Matrix epsilonB = epsilon.getMatrix(12 * cameras.size(),
+	// epsilon.getRowDimension() - 1, 0, 0);
+	//
+	// Matrix U = JtJ.getMatrix(0, 12 * cameras.size() - 1, 0, 12 *
+	// cameras.size() - 1);
+	// Matrix V = JtJ.getMatrix(12 * cameras.size(), JtJ.getRowDimension() - 1,
+	// 12 * cameras.size(),
+	// JtJ.getColumnDimension() - 1);
+	//
+	// Matrix W = JtJ.getMatrix(0, 12 * cameras.size() - 1, 12 * cameras.size(),
+	// JtJ.getColumnDimension() - 1);
+	// SingularValueDecomposition svdV = V.svd();
+	//
+	// Matrix sigmaPrime = svdV.getS().copy();
+	// for (int sing = 0; sing < sigmaPrime.getRowDimension(); sing++) {
+	// sigmaPrime.set(sing, sing, sigmaPrime.get(sing, sing) == 0 ? 0 : 1 /
+	// sigmaPrime.get(sing, sing));
+	// }
+	// Matrix VInv =
+	// svdV.getV().times(sigmaPrime).times(svdV.getU().transpose());
+	//
+	// // camera updates
+	// Matrix shurComp = U.minus(W.times(VInv).times(W.transpose()));
+	//
+	// SingularValueDecomposition svdShur = shurComp.svd();
+	// sigmaPrime = svdShur.getS().copy();
+	// for (int sig = 0; sig < sigmaPrime.getRowDimension(); sig++) {
+	// sigmaPrime.set(sig, sig, sigmaPrime.get(sig, sig) == 0 ? 0 : 1 /
+	// sigmaPrime.get(sig, sig));
+	// }
+	// Matrix shurInv =
+	// svdShur.getV().times(sigmaPrime).times(svdShur.getU().transpose());
+	//
+	// Matrix deltaA =
+	// shurInv.times(epsilonA.minus(W.times(VInv).times(epsilonB)));
+	//
+	// Matrix deltaB = VInv.times(epsilonB.minus(W.transpose().times(deltaA)));
+	//
+	// Matrix deltaC = new Matrix(deltaA.getRowDimension() +
+	// deltaB.getRowDimension(), 1);
+	// for (int d = 0; d < deltaA.getRowDimension(); d++) {
+	// deltaC.set(d, 0, deltaA.get(d, 0));
+	// }
+	// for (int d = 0; d < deltaB.getRowDimension(); d++) {
+	// deltaC.set(d + deltaA.getRowDimension(), 0, deltaB.get(d, 0));
+	// }
+	//
+	// // test for improvement
+	// Matrix rAfter = new Matrix(2 * point3Ds.size() * cameras.size(), 1);
+	// for (int p = 0; p < point3Ds.size(); p++) {
+	// for (int c = 0; c < cameras.size(); c++) {
+	// // set r variables
+	// int rowU = 2 * cameras.size() * p + 2 * c;
+	// int rowV = rowU + 1;
+	//
+	// // establish variables
+	// double x = point3Ds.get(p).getX() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 0, 0);
+	// double y = point3Ds.get(p).getY() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 1, 0);
+	// double z = point3Ds.get(p).getZ() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 2, 0);
+	// double tx = cameras.get(c).getTx() - scale * deltaC.get(12 * c + 9, 0);
+	// double ty = cameras.get(c).getTy() - scale * deltaC.get(12 * c + 10, 0);
+	// double tz = cameras.get(c).getTz() - scale * deltaC.get(12 * c + 11, 0);
+	// double r00 = cameras.get(c).getR00() - scale * deltaC.get(12 * c + 0, 0);
+	// double r01 = cameras.get(c).getR01() - scale * deltaC.get(12 * c + 1, 0);
+	// double r02 = cameras.get(c).getR02() - scale * deltaC.get(12 * c + 2, 0);
+	// double r10 = cameras.get(c).getR10() - scale * deltaC.get(12 * c + 3, 0);
+	// double r11 = cameras.get(c).getR11() - scale * deltaC.get(12 * c + 4, 0);
+	// double r12 = cameras.get(c).getR12() - scale * deltaC.get(12 * c + 5, 0);
+	// double r20 = cameras.get(c).getR20() - scale * deltaC.get(12 * c + 6, 0);
+	// double r21 = cameras.get(c).getR21() - scale * deltaC.get(12 * c + 7, 0);
+	// double r22 = cameras.get(c).getR22() - scale * deltaC.get(12 * c + 8, 0);
+	//
+	// // establish a posteriori
+	// double w = x * r20 + y * r21 + z * r22 + tz;
+	// if (w == 0) {
+	// w = 1;
+	// }
+	// double fuTop = x * (fx * r00 + s * r10 + cx * r20) + y * (fx * r01 + s *
+	// r11 + cx * r21)
+	// + z * (fx * r02 + s * r12 + cx * r22) + fx * tx + s * ty + cx * tz;
+	// double fvTop = x * (fy * r10 + cy * r20) + y * (fy * r11 + cy * r21) + z
+	// * (fy * r12 + cy * r22)
+	// + fy * ty + cy * tz;
+	//
+	// double fu = fuTop / w;
+	// double fv = fvTop / w;
+	//
+	// rAfter.set(rowU, 0, Math.pow(observations.get(p).get(c).getX() - fu, 2));
+	// rAfter.set(rowV, 0, Math.pow(observations.get(p).get(c).getY() - fv, 2));
+	// }
+	// }
+	// if (rAfter.normF() > rBefore.normF() && scale > 0.000001) {
+	// pl("\t\t\t\t\t\t\t\trBefore ==> rAfter: " + rBefore.normF() + " ==> " +
+	// rAfter.normF());
+	// scale /= 2;
+	// pl("\t\t\t\t\t\t\t\tscale updated to " + scale);
+	// continue;
+	// }
+	//
+	// // update the points
+	// for (int p = 0; p < point3Ds.size(); p++) {
+	// point3Ds.get(p).setX(point3Ds.get(p).getX() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 0, 0));
+	// point3Ds.get(p).setY(point3Ds.get(p).getY() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 1, 0));
+	// point3Ds.get(p).setZ(point3Ds.get(p).getZ() - scale * deltaC.get(12 *
+	// cameras.size() + 3 * p + 2, 0));
+	// }
+	//
+	// // update the poses
+	// for (int c = 0; c < cameras.size(); c++) {
+	// cameras.get(c).setR00(cameras.get(c).getR00() - scale * deltaC.get(12 * c
+	// + 0, 0));
+	// cameras.get(c).setR01(cameras.get(c).getR01() - scale * deltaC.get(12 * c
+	// + 1, 0));
+	// cameras.get(c).setR02(cameras.get(c).getR02() - scale * deltaC.get(12 * c
+	// + 2, 0));
+	// cameras.get(c).setR10(cameras.get(c).getR10() - scale * deltaC.get(12 * c
+	// + 3, 0));
+	// cameras.get(c).setR11(cameras.get(c).getR11() - scale * deltaC.get(12 * c
+	// + 4, 0));
+	// cameras.get(c).setR12(cameras.get(c).getR12() - scale * deltaC.get(12 * c
+	// + 5, 0));
+	// cameras.get(c).setR20(cameras.get(c).getR20() - scale * deltaC.get(12 * c
+	// + 6, 0));
+	// cameras.get(c).setR21(cameras.get(c).getR21() - scale * deltaC.get(12 * c
+	// + 7, 0));
+	// cameras.get(c).setR22(cameras.get(c).getR22() - scale * deltaC.get(12 * c
+	// + 8, 0));
+	// cameras.get(c).setTx(cameras.get(c).getTx() - scale * deltaC.get(12 * c +
+	// 9, 0));
+	// cameras.get(c).setTy(cameras.get(c).getTy() - scale * deltaC.get(12 * c +
+	// 10, 0));
+	// cameras.get(c).setTz(cameras.get(c).getTz() - scale * deltaC.get(12 * c +
+	// 11, 0));
+	// }
+	//
+	// }
+	//
+	// }
 
 	public static Matrix quaternionToRotationMatrix(Matrix Q) {
 		double q1 = Q.get(0, 0);
