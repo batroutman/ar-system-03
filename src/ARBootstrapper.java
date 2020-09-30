@@ -56,7 +56,7 @@ public class ARBootstrapper {
 		ArrayList<ArrayList<Point2D>> observations = new ArrayList<ArrayList<Point2D>>();
 
 		int START_FRAME = 0;
-		int END_FRAME = 1;
+		int END_FRAME = 50;
 
 		// poses
 		Matrix R1 = mock.getR(START_FRAME);
@@ -69,9 +69,9 @@ public class ARBootstrapper {
 		pose1.setQx(q1.get(1, 0));
 		pose1.setQy(q1.get(2, 0));
 		pose1.setQz(q1.get(3, 0));
-		pose1.setCx(IC1.get(0, 3));
-		pose1.setCy(IC1.get(1, 3));
-		pose1.setCz(IC1.get(2, 3));
+		pose1.setCx(-IC1.get(0, 3));
+		pose1.setCy(-IC1.get(1, 3));
+		pose1.setCz(-IC1.get(2, 3));
 
 		Matrix R2 = mock.getR(END_FRAME);
 		Matrix IC2 = mock.getIC(END_FRAME);
@@ -83,37 +83,29 @@ public class ARBootstrapper {
 		pose2.setQx(q2.get(1, 0));
 		pose2.setQy(q2.get(2, 0));
 		pose2.setQz(q2.get(3, 0));
-		pose2.setCx(IC2.get(0, 3));
-		pose2.setCy(IC2.get(1, 3));
-		pose2.setCz(IC2.get(2, 3));
+		pose2.setCx(-IC2.get(0, 3));
+		pose2.setCy(-IC2.get(1, 3));
+		pose2.setCz(-IC2.get(2, 3));
 
 		cameras.add(pose1);
 		cameras.add(pose2);
-
-		pl("q1");
-		q1.print(15, 10);
-
-		pl("rot for q1");
-		pose1.getRotationMatrix().print(15, 5);
-
-		pl("q2");
-		q2.print(15, 10);
-
-		pl("rot for q2");
-		pose2.getRotationMatrix().print(15, 5);
-
-		pl("rot1 rotated by rot2");
-		ARUtils.quatRot(q1, q2).print(15, 5);
 
 		Random rand = new Random();
 
 		ArrayList<Matrix> initPointRes = new ArrayList<Matrix>();
 		// 3D points and 2D points
+		// pl("noise");
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
 			Point3D pt3 = new Point3D();
-			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + rand.nextDouble() * 20 - 10);
-			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + rand.nextDouble() * 20 - 10);
-			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + rand.nextDouble() * 20 - 10);
+			double xNoise = rand.nextDouble() * 1 - 0.5;
+			double yNoise = rand.nextDouble() * 1 - 0.5;
+			double zNoise = rand.nextDouble() * 1 - 0.5;
+			// pl(xNoise);
+			// pl(yNoise);
+			// pl(zNoise);
+			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + xNoise);
+			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + yNoise);
+			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + zNoise);
 
 			point3Ds.add(pt3);
 
@@ -137,7 +129,7 @@ public class ARBootstrapper {
 			initPointRes.add(res);
 		}
 
-		// ARUtils.bundleAdjust(cameras, point3Ds, observations, 100);
+		ARUtils.bundleAdjust(cameras, point3Ds, observations, 100);
 
 		// ArrayList<Matrix> pointRes = new ArrayList<Matrix>();
 		// for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {

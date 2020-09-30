@@ -365,7 +365,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(10);
+				Thread.sleep(100);
 			} catch (Exception e) {
 
 			}

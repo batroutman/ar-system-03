@@ -13,7 +13,7 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 100;
+	protected long MAX_FRAMES = 6;
 	protected int NUM_POINTS = 30;
 	protected int START_FRAME = 0;
 	protected int SEED = 1;
@@ -30,12 +30,12 @@ public class MockPointData {
 	// NOTE: translations should be negative (-C)
 	protected Vector3f translationVelocity = new Vector3f(15f, 2f, -10f);
 	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
-	// protected double rotX = 0.004;
-	// protected double rotY = -0.015;
-	// protected double rotZ = -0.000;
-	protected double rotX = 0.5;
-	protected double rotY = 0.2;
-	protected double rotZ = 1.4;
+	protected double rotX = 0.004;
+	protected double rotY = -0.015;
+	protected double rotZ = -0.000;
+	// protected double rotX = 0.5;
+	// protected double rotY = 0.2;
+	// protected double rotZ = 1.4;
 
 	// List of homogeneous column vectors (4x1) corresponding to world
 	// coordinates

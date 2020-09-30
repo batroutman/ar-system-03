@@ -15,6 +15,16 @@ import Jama.SingularValueDecomposition;
 
 public class ARUtils {
 
+	// return pseudo inverse of Matrix X using SVD
+	public static Matrix pseudoInverse(Matrix X) {
+		SingularValueDecomposition svd = X.svd();
+		Matrix sPrime = svd.getS().copy();
+		for (int i = 0; i < sPrime.getRowDimension(); i++) {
+			sPrime.set(i, i, sPrime.get(i, i) == 0 ? 0 : (1 / sPrime.get(i, i)));
+		}
+		return svd.getV().times(sPrime).times(svd.getU().transpose());
+	}
+
 	// quaternion rotation, assuming column vector of format [qw, qx,
 	// qy, qz].transpose()
 	public static Matrix quatRot(Matrix q1, Matrix q2) {
@@ -90,6 +100,9 @@ public class ARUtils {
 	public static void bundleAdjust(ArrayList<Pose> cameras, ArrayList<Point3D> point3Ds,
 			ArrayList<ArrayList<Point2D>> observations, int numIterations) {
 
+		double tune = 1;
+		long damp = 10000000L;
+
 		double fx = CameraIntrinsics.getFx();
 		double fy = CameraIntrinsics.getFy();
 		double s = CameraIntrinsics.getS();
@@ -98,7 +111,7 @@ public class ARUtils {
 
 		for (int i = 0; i < numIterations; i++) {
 
-			Matrix J = new Matrix(2 * point3Ds.size() * cameras.size(), 3 * point3Ds.size() + 12 * cameras.size());
+			Matrix J = new Matrix(2 * point3Ds.size() * cameras.size(), 3 * point3Ds.size() + 7 * cameras.size());
 			Matrix rBefore = new Matrix(2 * point3Ds.size() * cameras.size(), 1);
 
 			// calculate J and r
@@ -151,8 +164,8 @@ public class ARUtils {
 					w.set(0, 2, r22);
 					w = w.times(XC);
 
-					double fu = u.get(0, 0) * w.get(0, 0);
-					double fv = v.get(0, 0) * w.get(0, 0);
+					double fu = u.get(0, 0) / w.get(0, 0);
+					double fv = v.get(0, 0) / w.get(0, 0);
 					double wSqInv = 1 / (w.get(0, 0) * w.get(0, 0));
 
 					// if the camera did not see this point, skip these rows
@@ -280,40 +293,28 @@ public class ARUtils {
 					int rowV = rowU + 1;
 
 					// u constraint
-					J.set(rowU, 12 * c + 0, dfudr00);
-					J.set(rowU, 12 * c + 1, dfudr01);
-					J.set(rowU, 12 * c + 2, dfudr02);
-					J.set(rowU, 12 * c + 3, dfudr10);
-					J.set(rowU, 12 * c + 4, dfudr11);
-					J.set(rowU, 12 * c + 5, dfudr12);
-					J.set(rowU, 12 * c + 6, dfudr20);
-					J.set(rowU, 12 * c + 7, dfudr21);
-					J.set(rowU, 12 * c + 8, dfudr22);
-					J.set(rowU, 12 * c + 9, dfudtx);
-					J.set(rowU, 12 * c + 10, dfudty);
-					J.set(rowU, 12 * c + 11, dfudtz);
-
-					J.set(rowU, 12 * cameras.size() + 3 * p + 0, dfudx);
-					J.set(rowU, 12 * cameras.size() + 3 * p + 1, dfudy);
-					J.set(rowU, 12 * cameras.size() + 3 * p + 2, dfudz);
+					J.set(rowU, 7 * c + 0, dfudq.get(0, 0));
+					J.set(rowU, 7 * c + 1, dfudq.get(0, 1));
+					J.set(rowU, 7 * c + 2, dfudq.get(0, 2));
+					J.set(rowU, 7 * c + 3, dfudq.get(0, 3));
+					J.set(rowU, 7 * c + 4, dfudC.get(0, 0));
+					J.set(rowU, 7 * c + 5, dfudC.get(0, 1));
+					J.set(rowU, 7 * c + 6, dfudC.get(0, 2));
+					J.set(rowU, 7 * cameras.size() + 3 * p + 0, dfudX.get(0, 0));
+					J.set(rowU, 7 * cameras.size() + 3 * p + 1, dfudX.get(0, 1));
+					J.set(rowU, 7 * cameras.size() + 3 * p + 2, dfudX.get(0, 2));
 
 					// v constraint
-					J.set(rowV, 12 * c + 0, dfvdr00);
-					J.set(rowV, 12 * c + 1, dfvdr01);
-					J.set(rowV, 12 * c + 2, dfvdr02);
-					J.set(rowV, 12 * c + 3, dfvdr10);
-					J.set(rowV, 12 * c + 4, dfvdr11);
-					J.set(rowV, 12 * c + 5, dfvdr12);
-					J.set(rowV, 12 * c + 6, dfvdr20);
-					J.set(rowV, 12 * c + 7, dfvdr21);
-					J.set(rowV, 12 * c + 8, dfvdr22);
-					J.set(rowV, 12 * c + 9, dfvdtx);
-					J.set(rowV, 12 * c + 10, dfvdty);
-					J.set(rowV, 12 * c + 11, dfvdtz);
-
-					J.set(rowV, 12 * cameras.size() + 3 * p + 0, dfvdx);
-					J.set(rowV, 12 * cameras.size() + 3 * p + 1, dfvdy);
-					J.set(rowV, 12 * cameras.size() + 3 * p + 2, dfvdz);
+					J.set(rowV, 7 * c + 0, dfvdq.get(0, 0));
+					J.set(rowU, 7 * c + 1, dfvdq.get(0, 1));
+					J.set(rowV, 7 * c + 2, dfvdq.get(0, 2));
+					J.set(rowV, 7 * c + 3, dfvdq.get(0, 3));
+					J.set(rowV, 7 * c + 4, dfvdC.get(0, 0));
+					J.set(rowV, 7 * c + 5, dfvdC.get(0, 1));
+					J.set(rowV, 7 * c + 6, dfvdC.get(0, 2));
+					J.set(rowV, 7 * cameras.size() + 3 * p + 0, dfvdX.get(0, 0));
+					J.set(rowV, 7 * cameras.size() + 3 * p + 1, dfvdX.get(0, 1));
+					J.set(rowV, 7 * cameras.size() + 3 * p + 2, dfvdX.get(0, 2));
 
 					// set r variables
 					rBefore.set(rowU, 0, Math.pow(observations.get(p).get(c).getX() - fu, 2));
@@ -322,7 +323,40 @@ public class ARUtils {
 				}
 			}
 
+			// pl("rBefore");
+			// rBefore.print(15, 5);
 			pl("|rBefore|: " + rBefore.normF());
+
+			Matrix JtJ = J.transpose().times(J)
+					.times(Matrix.identity(J.getColumnDimension(), J.getColumnDimension()).times(damp));
+			// pl("J: ");
+			// J.print(20, 4);
+			//
+			// pl("JtJ: ");
+			// JtJ.print(20, 5);
+
+			Matrix U = JtJ.getMatrix(0, 7 * cameras.size() - 1, 0, 7 * cameras.size() - 1);
+			Matrix V = JtJ.getMatrix(7 * cameras.size(), JtJ.getRowDimension() - 1, 7 * cameras.size(),
+					JtJ.getColumnDimension() - 1);
+			Matrix W = JtJ.getMatrix(0, 7 * cameras.size() - 1, 7 * cameras.size(), JtJ.getColumnDimension() - 1);
+
+			Matrix VInv = pseudoInverse(V);
+
+			Matrix shurComp = U.minus(W.times(VInv).times(W.transpose()));
+			Matrix shurInv = pseudoInverse(shurComp);
+
+			Matrix Jtr = J.transpose().times(rBefore);
+			Matrix rc = Jtr.getMatrix(0, 7 * cameras.size() - 1, 0, 0);
+			Matrix rp = Jtr.getMatrix(7 * cameras.size(), Jtr.getRowDimension() - 1, 0, 0);
+
+			Matrix deltaC = shurInv.times(rc.minus(W.times(VInv).times(rp)));
+			Matrix deltaP = VInv.times(rp.minus(W.transpose().times(deltaC)));
+
+			// pl("deltaC");
+			// deltaC.print(15, 5);
+			//
+			// pl("deltaP");
+			// deltaP.print(15, 5);
 
 			// test for improvement
 			Matrix rAfter = new Matrix(2 * point3Ds.size() * cameras.size(), 1);
@@ -334,10 +368,20 @@ public class ARUtils {
 
 			// update the points
 			for (int p = 0; p < point3Ds.size(); p++) {
+				point3Ds.get(p).setX(point3Ds.get(p).getX() - deltaP.get(3 * p + 0, 0) * tune);
+				point3Ds.get(p).setX(point3Ds.get(p).getX() - deltaP.get(3 * p + 1, 0) * tune);
+				point3Ds.get(p).setX(point3Ds.get(p).getX() - deltaP.get(3 * p + 2, 0) * tune);
 			}
 
 			// update the poses
 			for (int c = 0; c < cameras.size(); c++) {
+				cameras.get(c).setQw(cameras.get(c).getQw() - deltaC.get(7 * c + 0, 0) * tune);
+				cameras.get(c).setQx(cameras.get(c).getQx() - deltaC.get(7 * c + 1, 0) * tune);
+				cameras.get(c).setQy(cameras.get(c).getQy() - deltaC.get(7 * c + 2, 0) * tune);
+				cameras.get(c).setQz(cameras.get(c).getQz() - deltaC.get(7 * c + 3, 0) * tune);
+				cameras.get(c).setCx(cameras.get(c).getCx() - deltaC.get(7 * c + 4, 0) * tune);
+				cameras.get(c).setCy(cameras.get(c).getCy() - deltaC.get(7 * c + 5, 0) * tune);
+				cameras.get(c).setCz(cameras.get(c).getCz() - deltaC.get(7 * c + 6, 0) * tune);
 			}
 
 		}
