@@ -11,7 +11,7 @@ import org.ddogleg.optimization.lm.ConfigLevenbergMarquardt;
 import org.opencv.core.Core;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.ARUtils;
+import ARPipeline.CameraIntrinsics;
 import ARPipeline.MockPipeline;
 import ARPipeline.MockPointData;
 import ARPipeline.Point2D;
@@ -22,7 +22,9 @@ import ARPipeline.SingletonPoseBuffer;
 import Jama.Matrix;
 import boofcv.abst.geo.bundle.BundleAdjustment;
 import boofcv.abst.geo.bundle.ScaleSceneStructure;
+import boofcv.abst.geo.bundle.SceneObservations;
 import boofcv.abst.geo.bundle.SceneStructureMetric;
+import boofcv.alg.geo.bundle.cameras.BundlePinhole;
 import boofcv.factory.geo.ConfigBundleAdjustment;
 import boofcv.factory.geo.FactoryMultiView;
 import boofcv.gui.image.ShowImages;
@@ -68,13 +70,13 @@ public class ARBootstrapper {
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
 		// arBootstrapper.start();
-		// arBootstrapper.tests();
-		try {
-			arBootstrapper.boof();
-		} catch (Exception e) {
-			pl("error in boof");
-			e.printStackTrace();
-		}
+		arBootstrapper.tests();
+		// try {
+		// arBootstrapper.boof();
+		// } catch (Exception e) {
+		// pl("error in boof");
+		// e.printStackTrace();
+		// }
 
 	}
 
@@ -83,7 +85,7 @@ public class ARBootstrapper {
 		MockPointData mock = new MockPointData();
 		ArrayList<Pose> cameras = new ArrayList<Pose>();
 		ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
-		ArrayList<ArrayList<Point2D>> observations = new ArrayList<ArrayList<Point2D>>();
+		ArrayList<ArrayList<Point2D>> obsv = new ArrayList<ArrayList<Point2D>>();
 
 		int START_FRAME = 0;
 		int END_FRAME = 50;
@@ -127,9 +129,9 @@ public class ARBootstrapper {
 		// pl("noise");
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
 			Point3D pt3 = new Point3D();
-			double xNoise = rand.nextDouble() * 1 - 0.5;
-			double yNoise = rand.nextDouble() * 1 - 0.5;
-			double zNoise = rand.nextDouble() * 1 - 0.5;
+			double xNoise = rand.nextDouble() * 20 - 10;
+			double yNoise = rand.nextDouble() * 20 - 10;
+			double zNoise = rand.nextDouble() * 20 - 10;
 			// pl(xNoise);
 			// pl(yNoise);
 			// pl(zNoise);
@@ -150,7 +152,7 @@ public class ARBootstrapper {
 
 			pts2.add(pt21);
 			pts2.add(pt22);
-			observations.add(pts2);
+			obsv.add(pts2);
 
 			Matrix res = new Matrix(3, 1);
 			res.set(0, 0, Math.pow(mock.getWorldCoordinates().get(i).get(0, 0) - point3Ds.get(i).getX(), 2));
@@ -159,36 +161,96 @@ public class ARBootstrapper {
 			initPointRes.add(res);
 		}
 
-		ARUtils.bundleAdjust(cameras, point3Ds, observations, 100);
+		// boofCV
+		SceneStructureMetric scene = new SceneStructureMetric(false);
+		scene.initialize(cameras.size(), cameras.size(), point3Ds.size());
+		SceneObservations observations = new SceneObservations();
+		observations.initialize(cameras.size());
 
-		// ArrayList<Matrix> pointRes = new ArrayList<Matrix>();
-		// for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
-		// p(mock.getWorldCoordinates().get(i).get(0, 0) + ", " +
-		// mock.getWorldCoordinates().get(i).get(1, 0) + ", "
-		// + mock.getWorldCoordinates().get(i).get(2, 0) + "\t\t\t" +
-		// point3Ds.get(i).getX() + ", "
-		// + point3Ds.get(i).getY() + ", " + point3Ds.get(i).getZ() + "\n");
-		// Matrix res = new Matrix(3, 1);
-		// res.set(0, 0, Math.pow(mock.getWorldCoordinates().get(i).get(0, 0) -
-		// point3Ds.get(i).getX(), 2));
-		// res.set(1, 0, Math.pow(mock.getWorldCoordinates().get(i).get(1, 0) -
-		// point3Ds.get(i).getY(), 2));
-		// res.set(2, 0, Math.pow(mock.getWorldCoordinates().get(i).get(2, 0) -
-		// point3Ds.get(i).getZ(), 2));
-		// pointRes.add(res);
-		// }
-		//
-		// pl("");
-		// pl("residuals for 3D points (before)");
-		// for (int i = 0; i < pointRes.size(); i++) {
-		// pl(initPointRes.get(i).normF());
-		// }
-		//
-		// pl("");
-		// pl("residuals for 3D points (after)");
-		// for (int i = 0; i < pointRes.size(); i++) {
-		// pl(pointRes.get(i).normF());
-		// }
+		// load projected observations into observations variable
+		for (int i = 0; i < mock.getKeypoints(START_FRAME).size(); i++) {
+			int cameraID = 0;
+			int pointID = i;
+			float pixelX = (float) mock.getKeypoints(START_FRAME).get(i).x;
+			float pixelY = (float) mock.getKeypoints(START_FRAME).get(i).y;
+			observations.getView(cameraID).add(pointID, pixelX, pixelY);
+
+			cameraID = 1;
+			pointID = i;
+			pixelX = (float) mock.getKeypoints(END_FRAME).get(i).x;
+			pixelY = (float) mock.getKeypoints(END_FRAME).get(i).y;
+			observations.getView(cameraID).add(pointID, pixelX, pixelY);
+		}
+
+		// load 3D points into scene
+		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
+			float x = (float) mock.getWorldCoordinates().get(i).get(0, 0);
+			float y = (float) mock.getWorldCoordinates().get(i).get(1, 0);
+			float z = (float) mock.getWorldCoordinates().get(i).get(2, 0);
+
+			scene.setPoint(i, x, y, z);
+		}
+
+		// load camera poses into scene
+		BundlePinhole camera = new BundlePinhole();
+		camera.fx = CameraIntrinsics.fx;
+		camera.fy = CameraIntrinsics.fy;
+		camera.cx = CameraIntrinsics.cx;
+		camera.cy = CameraIntrinsics.cy;
+		camera.skew = CameraIntrinsics.s;
+		for (int i = 0; i < cameras.size(); i++) {
+			Se3_F64 worldToCameraGL = new Se3_F64();
+			ConvertRotation3D_F64.quaternionToMatrix(cameras.get(i).getQw(), cameras.get(i).getQx(),
+					cameras.get(i).getQy(), cameras.get(i).getQz(), worldToCameraGL.R);
+			worldToCameraGL.T.x = cameras.get(i).getTx();
+			worldToCameraGL.T.y = cameras.get(i).getTy();
+			worldToCameraGL.T.z = cameras.get(i).getTz();
+			scene.setCamera(i, true, camera);
+			scene.setView(i, false, worldToCameraGL);
+			scene.connectViewToCamera(i, i);
+
+		}
+
+		ConfigLevenbergMarquardt configLM = new ConfigLevenbergMarquardt();
+		configLM.dampeningInitial = 1e-3;
+		configLM.hessianScaling = true;
+
+		ConfigBundleAdjustment configSBA = new ConfigBundleAdjustment();
+		configSBA.configOptimizer = configLM;
+		BundleAdjustment<SceneStructureMetric> bundleAdjustment = FactoryMultiView.bundleSparseMetric(configSBA);
+
+		// prints out useful debugging information that lets you know how well
+		// it's converging
+		bundleAdjustment.setVerbose(System.out, 0);
+
+		// Specifies convergence criteria
+		int maxIterations = 50;
+		bundleAdjustment.configure(1e-6, 1e-6, maxIterations);
+
+		// Scaling each variable type so that it takes on a similar numerical
+		// value. This aids in optimization
+		// Not important for this problem but is for others
+		ScaleSceneStructure bundleScale = new ScaleSceneStructure();
+		bundleScale.applyScale(scene, observations);
+		bundleAdjustment.setParameters(scene, observations); // i think this one
+																// is important
+
+		// Runs the solver. This will take a few minutes. 7 iterations takes
+		// about 3 minutes on my computer
+		long startTime = System.currentTimeMillis();
+		double errorBefore = bundleAdjustment.getFitScore();
+		if (!bundleAdjustment.optimize(scene)) {
+			throw new RuntimeException("Bundle adjustment failed?!?");
+		}
+
+		// Print out how much it improved the model
+		System.out.println();
+		System.out.printf("Error reduced by %.1f%%\n", (100.0 * (errorBefore / bundleAdjustment.getFitScore() - 1.0)));
+		System.out.println((System.currentTimeMillis() - startTime) / 1000.0);
+
+		// Return parameters to their original scaling. Can probably skip this
+		// step.
+		bundleScale.undoScale(scene, observations);
 
 	}
 
