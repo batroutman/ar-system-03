@@ -52,6 +52,15 @@ public class Pose {
 		return R;
 	}
 
+	public Matrix getQuaternion() {
+		Matrix q = new Matrix(4, 1);
+		q.set(0, 0, qw);
+		q.set(1, 0, qx);
+		q.set(2, 0, qy);
+		q.set(3, 0, qz);
+		return q;
+	}
+
 	public long getTimestamp() {
 		return timestamp;
 	}
@@ -170,6 +179,18 @@ public class Pose {
 
 	public void setCz(double cz) {
 		Cz = cz;
+	}
+
+	public void setT(double tx, double ty, double tz) {
+		Matrix RInv = this.getRotationMatrix().getMatrix(0, 0, 2, 2).inverse();
+		Matrix T = new Matrix(3, 1);
+		T.set(0, 0, tx);
+		T.set(1, 0, ty);
+		T.set(2, 0, tz);
+		Matrix C = RInv.times(T);
+		this.Cx = -C.get(0, 0);
+		this.Cy = -C.get(1, 0);
+		this.Cz = -C.get(2, 0);
 	}
 
 }

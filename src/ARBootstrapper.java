@@ -69,8 +69,8 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		// arBootstrapper.start();
-		arBootstrapper.tests();
+		arBootstrapper.start();
+		// arBootstrapper.tests();
 		// try {
 		// arBootstrapper.boof();
 		// } catch (Exception e) {
@@ -88,7 +88,7 @@ public class ARBootstrapper {
 		ArrayList<ArrayList<Point2D>> obsv = new ArrayList<ArrayList<Point2D>>();
 
 		int START_FRAME = 0;
-		int END_FRAME = 50;
+		int END_FRAME = 1;
 
 		// poses
 		Matrix R1 = mock.getR(START_FRAME);
@@ -229,8 +229,8 @@ public class ARBootstrapper {
 		bundleAdjustment.setVerbose(System.out, 0);
 
 		// Specifies convergence criteria
-		int maxIterations = 1;
-		bundleAdjustment.configure(1e-6, 1e-6, maxIterations);
+		int maxIterations = 100;
+		bundleAdjustment.configure(1e-12, 1e-12, maxIterations);
 
 		// Scaling each variable type so that it takes on a similar numerical
 		// value. This aids in optimization

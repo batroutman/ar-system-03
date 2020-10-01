@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.ejml.data.DMatrixRMaj;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.DMatch;
 import org.opencv.core.KeyPoint;
@@ -15,6 +16,8 @@ import org.opencv.core.Point;
 import org.opencv.features2d.FlannBasedMatcher;
 
 import Jama.Matrix;
+import georegression.geometry.ConvertRotation3D_F64;
+import georegression.struct.so.Quaternion_F64;
 
 public class MockPipeline extends ARPipeline {
 
@@ -116,9 +119,29 @@ public class MockPipeline extends ARPipeline {
 
 	}
 
-	public void updatePose(Matrix q, Matrix C) {
+	public void updatePoseFromCurrent(Matrix E) {
 
-		pl("IMPLEMENT THIS!!!!!!!!!");
+		Matrix currentTransform = this.currentKeyFrame.getPose().getHomogeneousMatrix();
+		Matrix newTransform = E.times(currentTransform);
+
+		DMatrixRMaj R = new DMatrixRMaj(3, 3);
+		R.add(0, 0, newTransform.get(0, 0));
+		R.add(0, 1, newTransform.get(0, 1));
+		R.add(0, 2, newTransform.get(0, 2));
+		R.add(1, 0, newTransform.get(1, 0));
+		R.add(1, 1, newTransform.get(1, 1));
+		R.add(1, 2, newTransform.get(1, 2));
+		R.add(2, 0, newTransform.get(2, 0));
+		R.add(2, 1, newTransform.get(2, 1));
+		R.add(2, 2, newTransform.get(2, 2));
+
+		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(R, null);
+		this.currentKeyFrame.getPose().setQw(q.w);
+		this.currentKeyFrame.getPose().setQx(q.x);
+		this.currentKeyFrame.getPose().setQy(q.y);
+		this.currentKeyFrame.getPose().setQz(q.z);
+
+		this.currentKeyFrame.getPose().setT(newTransform.get(0, 3), newTransform.get(1, 3), newTransform.get(2, 3));
 
 	}
 
@@ -204,7 +227,7 @@ public class MockPipeline extends ARPipeline {
 		pl("estimated t (norm): " + rt.getT().normF());
 
 		// MOCK PURPOSE
-		this.updatePose(R, t);
+		this.updatePoseFromCurrent(E);
 
 		// TRUE PURPOSE
 		// this.updatePose(rt.getR(), rt.getT());
@@ -365,7 +388,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(100);
+				Thread.sleep(10);
 			} catch (Exception e) {
 
 			}
