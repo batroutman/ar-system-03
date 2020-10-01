@@ -124,20 +124,30 @@ public class ARBootstrapper {
 
 		Random rand = new Random();
 
-		ArrayList<Matrix> initPointRes = new ArrayList<Matrix>();
 		// 3D points and 2D points
 		// pl("noise");
+		Matrix pointResBefore = new Matrix(mock.getWorldCoordinates().size(), 1);
+		pl("true points");
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
 			Point3D pt3 = new Point3D();
-			double xNoise = rand.nextDouble() * 20 - 10;
-			double yNoise = rand.nextDouble() * 20 - 10;
-			double zNoise = rand.nextDouble() * 20 - 10;
+			double xNoise = rand.nextDouble() * 300 - 150;
+			double yNoise = rand.nextDouble() * 300 - 150;
+			double zNoise = rand.nextDouble() * 300 - 150;
 			// pl(xNoise);
 			// pl(yNoise);
 			// pl(zNoise);
 			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + xNoise);
 			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + yNoise);
 			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + zNoise);
+
+			pl(mock.getWorldCoordinates().get(i).get(0, 0) + ", " + mock.getWorldCoordinates().get(i).get(1, 0) + ", "
+					+ mock.getWorldCoordinates().get(i).get(2, 0));
+
+			double xRes = mock.getWorldCoordinates().get(i).get(0, 0) - pt3.getX();
+			double yRes = mock.getWorldCoordinates().get(i).get(1, 0) - pt3.getY();
+			double zRes = mock.getWorldCoordinates().get(i).get(2, 0) - pt3.getZ();
+
+			pointResBefore.set(i, 0, Math.sqrt(xRes * xRes + yRes * yRes + zRes * zRes));
 
 			point3Ds.add(pt3);
 
@@ -154,11 +164,6 @@ public class ARBootstrapper {
 			pts2.add(pt22);
 			obsv.add(pts2);
 
-			Matrix res = new Matrix(3, 1);
-			res.set(0, 0, Math.pow(mock.getWorldCoordinates().get(i).get(0, 0) - point3Ds.get(i).getX(), 2));
-			res.set(1, 0, Math.pow(mock.getWorldCoordinates().get(i).get(1, 0) - point3Ds.get(i).getY(), 2));
-			res.set(2, 0, Math.pow(mock.getWorldCoordinates().get(i).get(2, 0) - point3Ds.get(i).getZ(), 2));
-			initPointRes.add(res);
 		}
 
 		// boofCV
@@ -224,7 +229,7 @@ public class ARBootstrapper {
 		bundleAdjustment.setVerbose(System.out, 0);
 
 		// Specifies convergence criteria
-		int maxIterations = 50;
+		int maxIterations = 1;
 		bundleAdjustment.configure(1e-6, 1e-6, maxIterations);
 
 		// Scaling each variable type so that it takes on a similar numerical
@@ -251,6 +256,24 @@ public class ARBootstrapper {
 		// Return parameters to their original scaling. Can probably skip this
 		// step.
 		bundleScale.undoScale(scene, observations);
+
+		Matrix pointResAfter = new Matrix(mock.getWorldCoordinates().size(), 1);
+		pl("points after BA");
+		for (int i = 0; i < scene.getPoints().size(); i++) {
+			pl(scene.getPoints().get(i).getX() + ", " + scene.getPoints().get(i).getY() + ", "
+					+ scene.getPoints().get(i).getZ() + ", ");
+			double xRes = scene.getPoints().get(i).getX() - mock.getWorldCoordinates().get(i).get(0, 0);
+			double yRes = scene.getPoints().get(i).getY() - mock.getWorldCoordinates().get(i).get(1, 0);
+			double zRes = scene.getPoints().get(i).getZ() - mock.getWorldCoordinates().get(i).get(2, 0);
+
+			pointResAfter.set(i, 0, Math.sqrt(xRes * xRes + yRes * yRes + zRes * zRes));
+		}
+
+		pl("point res before BA");
+		pointResBefore.print(15, 5);
+
+		pl("point res after BA");
+		pointResAfter.print(15, 5);
 
 	}
 
