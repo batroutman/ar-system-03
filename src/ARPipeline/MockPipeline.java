@@ -1,7 +1,6 @@
 package ARPipeline;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 import org.ejml.data.DMatrixRMaj;
@@ -27,9 +26,9 @@ public class MockPipeline extends ARPipeline {
 
 	Matrix K = new Matrix(3, 3);
 
-	ArrayList<KeyFrame> keyframes = new ArrayList<KeyFrame>();
-	ArrayList<KeyFrame> tempKeyframes = new ArrayList<KeyFrame>();
 	KeyFrame currentKeyFrame = null;
+
+	Map map = new Map();
 
 	Pose pose = new Pose();
 
@@ -94,31 +93,6 @@ public class MockPipeline extends ARPipeline {
 		this.mainThread.interrupt();
 	}
 
-	public static KeyFrame generateKeyFrame(Mat descriptors, MatOfKeyPoint keypoints) {
-
-		KeyFrame keyframe = new KeyFrame();
-		Pose pose = new Pose();
-		keyframe.setPose(pose);
-		keyframe.setDescriptors(descriptors);
-		keyframe.setKeypoints(keypoints);
-
-		ArrayList<KeyFrameEntry> entries = new ArrayList<KeyFrameEntry>();
-		List<KeyPoint> keypointList = keypoints.toList();
-		// may have issues here. negative y? offset?
-
-		for (int i = 0; i < keypointList.size(); i++) {
-			KeyFrameEntry entry = new KeyFrameEntry();
-			entry.setDescriptor(descriptors.row(i));
-			Point2D keypoint = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
-			entry.setKeypoint(keypoint);
-			entries.add(entry);
-		}
-
-		keyframe.setEntries(entries);
-		return keyframe;
-
-	}
-
 	public void updatePoseFromCurrent(Matrix E) {
 
 		Matrix currentTransform = this.currentKeyFrame.getPose().getHomogeneousMatrix();
@@ -136,18 +110,39 @@ public class MockPipeline extends ARPipeline {
 		R.add(2, 2, newTransform.get(2, 2));
 
 		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(R, null);
-		this.currentKeyFrame.getPose().setQw(q.w);
-		this.currentKeyFrame.getPose().setQx(q.x);
-		this.currentKeyFrame.getPose().setQy(q.y);
-		this.currentKeyFrame.getPose().setQz(q.z);
+		q.normalize();
 
-		this.currentKeyFrame.getPose().setT(newTransform.get(0, 3), newTransform.get(1, 3), newTransform.get(2, 3));
+		this.pose.setQw(q.w);
+		this.pose.setQx(q.x);
+		this.pose.setQy(q.y);
+		this.pose.setQz(q.z);
+
+		this.pose.setT(newTransform.get(0, 3), newTransform.get(1, 3), newTransform.get(2, 3));
 
 	}
 
-	public void setPose(Matrix q, Matrix C) {
+	public void setPose(Matrix E) {
 
-		pl("IMPLEMENT THIS!!!!");
+		DMatrixRMaj R = new DMatrixRMaj(3, 3);
+		R.add(0, 0, E.get(0, 0));
+		R.add(0, 1, E.get(0, 1));
+		R.add(0, 2, E.get(0, 2));
+		R.add(1, 0, E.get(1, 0));
+		R.add(1, 1, E.get(1, 1));
+		R.add(1, 2, E.get(1, 2));
+		R.add(2, 0, E.get(2, 0));
+		R.add(2, 1, E.get(2, 1));
+		R.add(2, 2, E.get(2, 2));
+
+		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(R, null);
+		q.normalize();
+
+		this.pose.setQw(q.w);
+		this.pose.setQx(q.x);
+		this.pose.setQy(q.y);
+		this.pose.setQz(q.z);
+
+		this.pose.setT(E.get(0, 3), E.get(1, 3), E.get(2, 3));
 
 	}
 
@@ -162,14 +157,17 @@ public class MockPipeline extends ARPipeline {
 			DMatch match = matches.get(i).toList().get(0);
 			if (match.distance < DIST_THRESH) {
 				Correspondence2D2D c = new Correspondence2D2D();
-				c.setU1(currentKeyFrame.getKeypoints().get(match.trainIdx).x);
-				c.setV1(currentKeyFrame.getKeypoints().get(match.trainIdx).y);
+				c.setU1(currentKeyFrame.getKeypoints().get(match.trainIdx).getX());
+				c.setV1(currentKeyFrame.getKeypoints().get(match.trainIdx).getY());
 				c.setU2(keypoints.toList().get(match.queryIdx).pt.x);
 				c.setV2(keypoints.toList().get(match.queryIdx).pt.y);
 				c.setDescriptor1(currentKeyFrame.getDescriptors().row(match.trainIdx));
 				c.setDescriptor2(descriptors.row(match.queryIdx));
 				correspondences.add(c);
-				matchedKeyframePoints.add(currentKeyFrame.getKeypoints().get(match.trainIdx));
+				Point pt = new Point();
+				pt.x = currentKeyFrame.getKeypoints().get(match.trainIdx).getX();
+				pt.y = currentKeyFrame.getKeypoints().get(match.trainIdx).getY();
+				matchedKeyframePoints.add(pt);
 				matchedPoints.add(keypoints.toList().get(match.queryIdx).pt);
 			}
 		}
@@ -207,34 +205,31 @@ public class MockPipeline extends ARPipeline {
 		Matrix c = this.mock.getIC(this.frameNum).getMatrix(0, 2, 3, 3);
 
 		Matrix t = R.getMatrix(0, 2, 0, 2).times(c);
-		System.out.println("true R:");
-		R.print(15, 5);
-		System.out.println("true t:");
-		t.print(15, 5);
-		System.out.println("true t (unit):");
-		t.times(1 / t.normF()).print(15, 5);
-		System.out.println("true t (norm): " + t.normF());
 
 		// test triangulation
 		Matrix E = R.times(this.mock.getIC(this.frameNum));
-		Matrix triangulation = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(),
-				correspondences.get(0));
-		pl("triangulation: ");
-		triangulation.print(15, 5);
-
-		pl("estimated t: ");
-		rt.getT().print(15, 5);
-		pl("estimated t (norm): " + rt.getT().normF());
 
 		// MOCK PURPOSE
 		this.updatePoseFromCurrent(E);
 
 		// TRUE PURPOSE
-		// this.updatePose(rt.getR(), rt.getT());
+		// E.set(0, 0, rt.getR().get(0, 0));
+		// E.set(0, 1, rt.getR().get(0, 1));
+		// E.set(0, 2, rt.getR().get(0, 2));
+		// E.set(1, 0, rt.getR().get(1, 0));
+		// E.set(1, 1, rt.getR().get(1, 1));
+		// E.set(1, 2, rt.getR().get(1, 2));
+		// E.set(2, 0, rt.getR().get(2, 0));
+		// E.set(2, 1, rt.getR().get(2, 1));
+		// E.set(2, 2, rt.getR().get(2, 2));
+		// E.set(0, 3, rt.getT().get(0, 0));
+		// E.set(1, 3, rt.getT().get(1, 0));
+		// E.set(2, 3, rt.getT().get(2, 0));
+		// this.updatePoseFromCurrent(E);
 	}
 
 	// given a list of correspondences between the current keyframe and the
-	// current frame, triangulate the 3D map points for keyframe entries in the
+	// current frame, triangulate the 3D map points in the
 	// current keyframe using the current keyframe pose and the current system
 	// pose (which must be updated before calling this function)
 	public void triangulateMapPoints(ArrayList<Correspondence2D2D> correspondences) {
@@ -242,22 +237,26 @@ public class MockPipeline extends ARPipeline {
 			Correspondence2D2D corr = correspondences.get(c);
 
 			// isolate the keyframe entry to add a 3D point to
-			KeyFrameEntry keyframeEntry = null;
-			for (int k = 0; k < this.currentKeyFrame.getEntries().size() && keyframeEntry == null; k++) {
-				if (this.currentKeyFrame.getEntries().get(k).getKeypoint().getX() == corr.getU1()
-						&& this.currentKeyFrame.getEntries().get(k).getKeypoint().getY() == corr.getV1()) {
-					keyframeEntry = this.currentKeyFrame.getEntries().get(k);
+			MapPoint mapPoint = null;
+			for (int k = 0; k < this.currentKeyFrame.getMapPoints().size() && mapPoint == null; k++) {
+				if (this.currentKeyFrame.getKeypoints().get(k).getX() == corr.getU1()
+						&& this.currentKeyFrame.getKeypoints().get(k).getY() == corr.getV1()) {
+					mapPoint = this.currentKeyFrame.getMapPoints().get(k);
 				}
 			}
 			Matrix E = this.pose.getHomogeneousMatrix();
 			Matrix pointMatrix = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(), corr);
 
 			Point3D point3D = new Point3D(pointMatrix.get(0, 0), pointMatrix.get(1, 0), pointMatrix.get(2, 0));
-			keyframeEntry.setPoint(point3D);
+			// mock
+			// point3D.setX(this.mock.getWorldCoordinates().get(c).get(0, 0));
+			// point3D.setY(this.mock.getWorldCoordinates().get(c).get(1, 0));
+			// point3D.setZ(this.mock.getWorldCoordinates().get(c).get(2, 0));
+			pl(point3D.getX() + ", " + point3D.getY() + ", " + point3D.getZ());
+			mapPoint.setPoint(point3D);
 		}
 	}
 
-	Mat oldDesc = new Mat();
 	int count = 0;
 
 	protected void mainloop() {
@@ -282,10 +281,8 @@ public class MockPipeline extends ARPipeline {
 			Mat descriptors = this.mock.getDescriptors();
 
 			// if no keyframes exist, generate one
-			if (this.keyframes.size() == 0) {
-				this.currentKeyFrame = generateKeyFrame(descriptors, keypoints);
-				this.keyframes.add(this.currentKeyFrame);
-
+			if (this.map.getKeyframes().size() == 0) {
+				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints);
 			}
 			// b. otherwise,
 			else {
@@ -310,40 +307,17 @@ public class MockPipeline extends ARPipeline {
 					mapInitialized = true;
 				} else {
 
-					/*
-					 * // bundle adjust tests ArrayList<Pose> cameras = new
-					 * ArrayList<Pose>(); ArrayList<Point3D> point3Ds = new
-					 * ArrayList<Point3D>(); ArrayList<ArrayList<Point2D>>
-					 * observations = new ArrayList<ArrayList<Point2D>>();
-					 * 
-					 * for (int i = 0; i < this.keyframes.size(); i++) {
-					 * cameras.add(this.keyframes.get(i).getPose()); for (int j
-					 * = 0; j < this.keyframes.get(i).getEntries().size(); j++)
-					 * { point3Ds.add(this.keyframes.get(i).getEntries().get(j).
-					 * getPoint()); ArrayList<Point2D> obs = new
-					 * ArrayList<Point2D>(); for (int k = 0; k <
-					 * this.keyframes.size() + 1; k++) { obs.add(null); } double
-					 * x = this.mock.getKeypoints(this.frameNum).get(j).x;
-					 * double y =
-					 * this.mock.getKeypoints(this.frameNum).get(j).y; Point2D
-					 * pt = new Point2D(x, y); obs.set(i,
-					 * this.keyframes.get(i).getEntries().get(j).getKeypoint());
-					 * obs.set(i + 1, pt); observations.add(obs); } }
-					 * cameras.add(this.pose);
-					 * 
-					 * ARUtils.bundleAdjust(cameras, point3Ds, observations, 2);
-					 */
 					// Perform PnP to solve
 					ArrayList<Point3D> points3D = new ArrayList<Point3D>();
 					ArrayList<Point2D> points2D = new ArrayList<Point2D>();
 					Random rand = new Random();
 					for (int c = 0; c < correspondences.size(); c++) {
 						Correspondence2D2D corr = correspondences.get(c);
-						KeyFrameEntry keyframeEntry = null;
-						for (int k = 0; k < this.currentKeyFrame.getEntries().size() && keyframeEntry == null; k++) {
-							if (this.currentKeyFrame.getEntries().get(k).getKeypoint().getX() == corr.getU1()
-									&& this.currentKeyFrame.getEntries().get(k).getKeypoint().getY() == corr.getV1()) {
-								keyframeEntry = this.currentKeyFrame.getEntries().get(k);
+						MapPoint mapPoint = null;
+						for (int k = 0; k < this.currentKeyFrame.getMapPoints().size() && mapPoint == null; k++) {
+							if (this.currentKeyFrame.getKeypoints().get(k).getX() == corr.getU1()
+									&& this.currentKeyFrame.getKeypoints().get(k).getY() == corr.getV1()) {
+								mapPoint = this.currentKeyFrame.getMapPoints().get(k);
 							}
 						}
 						// points3D.add(keyframeEntry.getPoint());
@@ -357,9 +331,7 @@ public class MockPipeline extends ARPipeline {
 					}
 
 					Matrix E = ARUtils.PnP(points3D, points2D);
-					Matrix R1 = E.getMatrix(0, 2, 0, 2);
-					Matrix t1 = E.getMatrix(0, 2, 3, 3);
-					this.setPose(R1, t1);
+					this.setPose(E);
 					pl("true E: ");
 					Matrix R = this.mock.getR(this.frameNum);
 					Matrix IC = this.mock.getIC(this.frameNum);

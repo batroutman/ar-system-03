@@ -182,7 +182,7 @@ public class Pose {
 	}
 
 	public void setT(double tx, double ty, double tz) {
-		Matrix RInv = this.getRotationMatrix().getMatrix(0, 0, 2, 2).inverse();
+		Matrix RInv = this.getRotationMatrix().getMatrix(0, 2, 0, 2).inverse();
 		Matrix T = new Matrix(3, 1);
 		T.set(0, 0, tx);
 		T.set(1, 0, ty);

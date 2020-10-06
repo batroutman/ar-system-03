@@ -126,6 +126,7 @@ public class ARUtils {
 		for (int viewID = 0; viewID < cameras.size(); viewID++) {
 			Se3_F64 worldToView = scene.getViews().get(viewID).worldToView;
 			Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(worldToView.getR(), null);
+			q.normalize();
 			Vector3D_F64 t = worldToView.getTranslation();
 			cameras.get(viewID).setQw(q.w);
 			cameras.get(viewID).setQx(q.x);
@@ -389,14 +390,7 @@ public class ARUtils {
 			B.set(2 * i + 1, 11, -point2D.getY());
 		}
 		SingularValueDecomposition svd = B.svd();
-		// pl("V: ");
-		// svd.getV().print(15, 5);
-		// pl("B: ");
-		// B.print(15, 5);
 		Matrix p = svd.getV().getMatrix(0, 11, 11, 11);
-
-		// pl("p: ");
-		// p.print(15, 5);
 		Matrix pi = new Matrix(3, 4);
 
 		pi.set(0, 0, p.get(0, 0));
@@ -412,40 +406,21 @@ public class ARUtils {
 		pi.set(2, 2, p.get(10, 0));
 		pi.set(2, 3, p.get(11, 0));
 
-		// pl("pi: ");
-		// pi.print(15, 5);
-
 		pi = pi.times(1 / pi.getMatrix(2, 2, 0, 2).normF());
+
 		Matrix X = new Matrix(4, 1);
 		X.set(0, 0, points3D.get(0).getX());
 		X.set(1, 0, points3D.get(0).getY());
 		X.set(2, 0, points3D.get(0).getZ());
 		X.set(3, 0, 1);
 		Matrix x = pi.times(X);
-		// pl("x: ");
-		// x.print(15, 5);
-
 		if (x.get(2, 0) < 0) {
 			pi = pi.times(-1);
 		}
 
-		// pl("pi normalized: ");
-		// pi.print(15, 5);
-
 		Matrix E = CameraIntrinsics.getK().inverse().times(pi);
 		pl("E: ");
 		E.print(15, 5);
-
-		// Matrix orthoR = getOrthogonalized(E.getMatrix(0, 2, 0, 2), 10);
-		// E.set(0, 0, orthoR.get(0, 0));
-		// E.set(0, 1, orthoR.get(0, 1));
-		// E.set(0, 2, orthoR.get(0, 2));
-		// E.set(1, 0, orthoR.get(1, 0));
-		// E.set(1, 1, orthoR.get(1, 1));
-		// E.set(1, 2, orthoR.get(1, 2));
-		// E.set(2, 0, orthoR.get(2, 0));
-		// E.set(2, 1, orthoR.get(2, 1));
-		// E.set(2, 2, orthoR.get(2, 2));
 
 		return E;
 	}

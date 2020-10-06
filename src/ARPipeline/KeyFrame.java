@@ -1,28 +1,24 @@
 package ARPipeline;
 
 import java.util.ArrayList;
-import java.util.List;
 
-import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfKeyPoint;
-import org.opencv.core.Point;
 
 public class KeyFrame {
 
 	// pose with respect to origin/identity
 	protected Pose pose = null;
 
+	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
 	protected Mat descriptors = null;
-	protected ArrayList<KeyFrameEntry> entries = new ArrayList<KeyFrameEntry>();
-	protected List<Point> keypoints = new ArrayList<Point>();
+	protected ArrayList<Point2D> keypoints = new ArrayList<Point2D>();
 
 	public KeyFrame() {
 
 	}
 
-	public KeyFrame(ArrayList<KeyFrameEntry> entries) {
-		this.entries = entries;
+	public KeyFrame(ArrayList<MapPoint> mapPoints) {
+		this.mapPoints = mapPoints;
 	}
 
 	public Pose getPose() {
@@ -33,6 +29,14 @@ public class KeyFrame {
 		this.pose = pose;
 	}
 
+	public ArrayList<MapPoint> getMapPoints() {
+		return mapPoints;
+	}
+
+	public void setMapPoints(ArrayList<MapPoint> mapPoints) {
+		this.mapPoints = mapPoints;
+	}
+
 	public Mat getDescriptors() {
 		return descriptors;
 	}
@@ -41,29 +45,12 @@ public class KeyFrame {
 		this.descriptors = descriptors;
 	}
 
-	public ArrayList<KeyFrameEntry> getEntries() {
-		return this.entries;
-	}
-
-	public void setEntries(ArrayList<KeyFrameEntry> entries) {
-		this.entries = entries;
-	}
-
-	public List<Point> getKeypoints() {
+	public ArrayList<Point2D> getKeypoints() {
 		return keypoints;
 	}
 
-	public void setKeypoints(List<Point> keypoints) {
+	public void setKeypoints(ArrayList<Point2D> keypoints) {
 		this.keypoints = keypoints;
-	}
-
-	public void setKeypoints(MatOfKeyPoint keypoints) {
-		List<KeyPoint> listKeypoints = keypoints.toList();
-		List<Point> listPoints = new ArrayList<Point>();
-		for (int i = 0; i < listKeypoints.size(); i++) {
-			listPoints.add(listKeypoints.get(i).pt);
-		}
-		this.keypoints = listPoints;
 	}
 
 }

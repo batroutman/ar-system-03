@@ -11,7 +11,9 @@ import org.ddogleg.optimization.lm.ConfigLevenbergMarquardt;
 import org.opencv.core.Core;
 
 import ARPipeline.ARPipeline;
+import ARPipeline.ARUtils;
 import ARPipeline.CameraIntrinsics;
+import ARPipeline.Correspondence2D2D;
 import ARPipeline.MockPipeline;
 import ARPipeline.MockPointData;
 import ARPipeline.Point2D;
@@ -69,14 +71,8 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		arBootstrapper.start();
-		// arBootstrapper.tests();
-		// try {
-		// arBootstrapper.boof();
-		// } catch (Exception e) {
-		// pl("error in boof");
-		// e.printStackTrace();
-		// }
+		// arBootstrapper.start();
+		arBootstrapper.tests();
 
 	}
 
@@ -118,17 +114,36 @@ public class ARBootstrapper {
 		pose2.setCx(-IC2.get(0, 3));
 		pose2.setCy(-IC2.get(1, 3));
 		pose2.setCz(-IC2.get(2, 3));
+		pl("target");
+		pose2.getHomogeneousMatrix().print(15, 5);
+		double norm = E2.getMatrix(0, 2, 3, 3).normF();
+		pose2.setT(E2.get(0, 3) / norm, E2.get(1, 3) / norm, E2.get(2, 3) / norm);
+		pl("modified");
+		pose2.getHomogeneousMatrix().print(15, 5);
 
 		cameras.add(pose1);
 		cameras.add(pose2);
 
 		Random rand = new Random();
 
+		// triangulate points based on bad pose (with unit translation)
+		ArrayList<Matrix> triangulated = new ArrayList<Matrix>();
+		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
+			Correspondence2D2D c = new Correspondence2D2D();
+			c.setU1(mock.getKeypoints(START_FRAME).get(i).x);
+			c.setV1(mock.getKeypoints(START_FRAME).get(i).y);
+			c.setU2(mock.getKeypoints(END_FRAME).get(i).x);
+			c.setV2(mock.getKeypoints(END_FRAME).get(i).y);
+			triangulated.add(ARUtils.triangulate(pose2.getHomogeneousMatrix(), pose1.getHomogeneousMatrix(), c));
+		}
+
 		// 3D points and 2D points
 		// pl("noise");
 		Matrix pointResBefore = new Matrix(mock.getWorldCoordinates().size(), 1);
 		pl("true points");
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
+
+			// real points with noise
 			Point3D pt3 = new Point3D();
 			double xNoise = rand.nextDouble() * 300 - 150;
 			double yNoise = rand.nextDouble() * 300 - 150;
@@ -149,6 +164,11 @@ public class ARBootstrapper {
 
 			pointResBefore.set(i, 0, Math.sqrt(xRes * xRes + yRes * yRes + zRes * zRes));
 
+			// triangulated points
+			pt3.setX(triangulated.get(i).get(0, 0));
+			pt3.setY(triangulated.get(i).get(1, 0));
+			pt3.setZ(triangulated.get(i).get(2, 0));
+
 			point3Ds.add(pt3);
 
 			ArrayList<Point2D> pts2 = new ArrayList<Point2D>();
@@ -164,6 +184,11 @@ public class ARBootstrapper {
 			pts2.add(pt22);
 			obsv.add(pts2);
 
+		}
+
+		pl("\n\ntriangulated points (being used)");
+		for (int i = 0; i < point3Ds.size(); i++) {
+			pl(point3Ds.get(i).getX() + ", " + point3Ds.get(i).getY() + ", " + point3Ds.get(i).getZ());
 		}
 
 		// boofCV
@@ -229,7 +254,7 @@ public class ARBootstrapper {
 		bundleAdjustment.setVerbose(System.out, 0);
 
 		// Specifies convergence criteria
-		int maxIterations = 100;
+		int maxIterations = 1;
 		bundleAdjustment.configure(1e-12, 1e-12, maxIterations);
 
 		// Scaling each variable type so that it takes on a similar numerical
@@ -247,6 +272,7 @@ public class ARBootstrapper {
 		if (!bundleAdjustment.optimize(scene)) {
 			throw new RuntimeException("Bundle adjustment failed?!?");
 		}
+		// bundleAdjustment.optimize(scene);
 
 		// Print out how much it improved the model
 		System.out.println();
@@ -275,6 +301,7 @@ public class ARBootstrapper {
 		pl("point res after BA");
 		pointResAfter.print(15, 5);
 
+		scene.getViews().get(1).worldToView.getT().print();
 	}
 
 	public void boof() throws IOException {
