@@ -55,7 +55,7 @@ public class ARUtils {
 			worldToCameraGL.T.y = cameras.get(i).getTy();
 			worldToCameraGL.T.z = cameras.get(i).getTz();
 			scene.setCamera(i, true, camera);
-			scene.setView(i, false, worldToCameraGL);
+			scene.setView(i, cameras.get(i).isFixed(), worldToCameraGL);
 			scene.connectViewToCamera(i, i);
 		}
 

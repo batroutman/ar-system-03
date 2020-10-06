@@ -93,6 +93,7 @@ public class ARBootstrapper {
 		Matrix q1 = mock.getQuaternion(START_FRAME);
 
 		Pose pose1 = new Pose();
+		pose1.setFixed(true);
 		pose1.setQw(q1.get(0, 0));
 		pose1.setQx(q1.get(1, 0));
 		pose1.setQy(q1.get(2, 0));
@@ -236,7 +237,8 @@ public class ARBootstrapper {
 			worldToCameraGL.T.y = cameras.get(i).getTy();
 			worldToCameraGL.T.z = cameras.get(i).getTz();
 			scene.setCamera(i, true, camera);
-			scene.setView(i, false, worldToCameraGL);
+			scene.setView(i, cameras.get(i).isFixed(), worldToCameraGL);
+
 			scene.connectViewToCamera(i, i);
 
 		}

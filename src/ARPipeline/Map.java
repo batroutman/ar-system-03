@@ -32,7 +32,9 @@ public class Map {
 	public KeyFrame generateInitialKeyFrame(Mat descriptors, MatOfKeyPoint keypoints) {
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
-		keyframe.setPose(new Pose());
+		Pose pose = new Pose();
+		pose.setFixed(true);
+		keyframe.setPose(pose);
 		keyframe.setDescriptors(descriptors);
 		for (int i = 0; i < keypointList.size(); i++) {
 			Point2D point = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);

@@ -15,6 +15,8 @@ public class Pose {
 	double Cy;
 	double Cz;
 
+	boolean fixed = false;
+
 	public Pose() {
 		timestamp = System.nanoTime();
 
@@ -191,6 +193,14 @@ public class Pose {
 		this.Cx = -C.get(0, 0);
 		this.Cy = -C.get(1, 0);
 		this.Cz = -C.get(2, 0);
+	}
+
+	public boolean isFixed() {
+		return fixed;
+	}
+
+	public void setFixed(boolean fixed) {
+		this.fixed = fixed;
 	}
 
 }
