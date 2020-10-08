@@ -13,7 +13,7 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 100;
+	protected long MAX_FRAMES = 50;
 	protected int NUM_POINTS = 30;
 	protected int START_FRAME = 0;
 	protected int SEED = 1;
@@ -28,10 +28,10 @@ public class MockPointData {
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(15f, 2f, -10f);
+	protected Vector3f translationVelocity = new Vector3f(0.707f, 0f, -0.707f);
 	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
-	protected double rotX = 0.004;
-	protected double rotY = -0.015;
+	protected double rotX = 0.00;
+	protected double rotY = -0.018;
 	protected double rotZ = -0.000;
 	// protected double rotX = 0.5;
 	// protected double rotY = 0.2;
@@ -68,12 +68,12 @@ public class MockPointData {
 
 	protected void initWorldCoordinates() {
 		String output = "";
-		double Z_SPAWN_MIN = 1000;
-		double Z_SPAWN_MAX = 1500;
-		double Y_SPAWN_MIN = -150;
-		double Y_SPAWN_MAX = 150;
-		double X_SPAWN_MIN = -200;
-		double X_SPAWN_MAX = 200;
+		double Z_SPAWN_MIN = 50;
+		double Z_SPAWN_MAX = 100;
+		double Y_SPAWN_MIN = -5;
+		double Y_SPAWN_MAX = 5;
+		double X_SPAWN_MIN = -10;
+		double X_SPAWN_MAX = 10;
 
 		double Z_RANGE = Z_SPAWN_MAX - Z_SPAWN_MIN;
 		double Y_RANGE = Y_SPAWN_MAX - Y_SPAWN_MIN;
@@ -87,10 +87,10 @@ public class MockPointData {
 			point.set(2, 0, random.nextDouble() * Z_RANGE + Z_SPAWN_MIN);
 			point.set(3, 0, 1);
 			this.worldCoordinates.add(point);
-			// output += point.get(0, 0) + ", " + point.get(1, 0) + ", " +
-			// point.get(2, 0) + "\n";
+			output += point.get(0, 0) + ", " + point.get(1, 0) + ", " + point.get(2, 0) + "\n";
 		}
-		// System.out.println(output);
+		System.out.println("true world coords:");
+		System.out.println(output);
 
 	}
 

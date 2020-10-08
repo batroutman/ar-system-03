@@ -419,8 +419,6 @@ public class ARUtils {
 		}
 
 		Matrix E = CameraIntrinsics.getK().inverse().times(pi);
-		pl("E: ");
-		E.print(15, 5);
 
 		return E;
 	}
@@ -668,7 +666,7 @@ public class ARUtils {
 		rt.setT(decomp.getT1());
 
 		// get scale for each combination
-		double scale = 18.1384;
+		double scale = 1;
 
 		// set up extrinsic matrices (both possible options)
 		Matrix E1 = Matrix.identity(4, 4);

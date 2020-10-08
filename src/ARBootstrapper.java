@@ -71,8 +71,8 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		// arBootstrapper.start();
-		arBootstrapper.tests();
+		arBootstrapper.start();
+		// arBootstrapper.tests();
 
 	}
 
@@ -117,8 +117,18 @@ public class ARBootstrapper {
 		pose2.setCz(-IC2.get(2, 3));
 		pl("target");
 		pose2.getHomogeneousMatrix().print(15, 5);
-		double norm = E2.getMatrix(0, 2, 3, 3).normF();
-		pose2.setT(E2.get(0, 3) / norm, E2.get(1, 3) / norm, E2.get(2, 3) / norm);
+
+		// double norm = E2.getMatrix(0, 2, 3, 3).normF();
+		// pose2.setT(E2.get(0, 3) / norm, E2.get(1, 3) / norm, E2.get(2, 3) /
+		// norm);
+
+		pose2.setCx(-0.9424637613408186);
+		pose2.setCy(-0.3296893043726415);
+		pose2.setCz(-0.0553806928595179);
+		pose2.setQw(0.9999745761460241);
+		pose2.setQx(0.0069474887872294725);
+		pose2.setQy(0.0013616471634773399);
+		pose2.setQz(0.0008516913367352718);
 		pl("modified");
 		pose2.getHomogeneousMatrix().print(15, 5);
 
@@ -143,34 +153,22 @@ public class ARBootstrapper {
 		Matrix pointResBefore = new Matrix(mock.getWorldCoordinates().size(), 1);
 		pl("true points");
 		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
-
-			// real points with noise
-			Point3D pt3 = new Point3D();
-			double xNoise = rand.nextDouble() * 300 - 150;
-			double yNoise = rand.nextDouble() * 300 - 150;
-			double zNoise = rand.nextDouble() * 300 - 150;
-			// pl(xNoise);
-			// pl(yNoise);
-			// pl(zNoise);
-			pt3.setX(mock.getWorldCoordinates().get(i).get(0, 0) + xNoise);
-			pt3.setY(mock.getWorldCoordinates().get(i).get(1, 0) + yNoise);
-			pt3.setZ(mock.getWorldCoordinates().get(i).get(2, 0) + zNoise);
-
 			pl(mock.getWorldCoordinates().get(i).get(0, 0) + ", " + mock.getWorldCoordinates().get(i).get(1, 0) + ", "
 					+ mock.getWorldCoordinates().get(i).get(2, 0));
+
+			// triangulated points
+			Point3D pt3 = new Point3D();
+			pt3.setX(triangulated.get(i).get(0, 0));
+			pt3.setY(triangulated.get(i).get(1, 0));
+			pt3.setZ(triangulated.get(i).get(2, 0));
+
+			point3Ds.add(pt3);
 
 			double xRes = mock.getWorldCoordinates().get(i).get(0, 0) - pt3.getX();
 			double yRes = mock.getWorldCoordinates().get(i).get(1, 0) - pt3.getY();
 			double zRes = mock.getWorldCoordinates().get(i).get(2, 0) - pt3.getZ();
 
 			pointResBefore.set(i, 0, Math.sqrt(xRes * xRes + yRes * yRes + zRes * zRes));
-
-			// triangulated points
-			pt3.setX(triangulated.get(i).get(0, 0));
-			pt3.setY(triangulated.get(i).get(1, 0));
-			pt3.setZ(triangulated.get(i).get(2, 0));
-
-			point3Ds.add(pt3);
 
 			ArrayList<Point2D> pts2 = new ArrayList<Point2D>();
 			Point2D pt21 = new Point2D();
@@ -214,10 +212,10 @@ public class ARBootstrapper {
 		}
 
 		// load 3D points into scene
-		for (int i = 0; i < mock.getWorldCoordinates().size(); i++) {
-			float x = (float) mock.getWorldCoordinates().get(i).get(0, 0);
-			float y = (float) mock.getWorldCoordinates().get(i).get(1, 0);
-			float z = (float) mock.getWorldCoordinates().get(i).get(2, 0);
+		for (int i = 0; i < point3Ds.size(); i++) {
+			float x = (float) point3Ds.get(i).getX();
+			float y = (float) point3Ds.get(i).getY();
+			float z = (float) point3Ds.get(i).getZ();
 
 			scene.setPoint(i, x, y, z);
 		}
