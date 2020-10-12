@@ -156,6 +156,45 @@ public class MockPipeline extends ARPipeline {
 
 	}
 
+	public Pose setTemporaryPose(Matrix E) {
+
+		DMatrixRMaj R = new DMatrixRMaj(3, 3);
+		R.add(0, 0, E.get(0, 0));
+		R.add(0, 1, E.get(0, 1));
+		R.add(0, 2, E.get(0, 2));
+		R.add(1, 0, E.get(1, 0));
+		R.add(1, 1, E.get(1, 1));
+		R.add(1, 2, E.get(1, 2));
+		R.add(2, 0, E.get(2, 0));
+		R.add(2, 1, E.get(2, 1));
+		R.add(2, 2, E.get(2, 2));
+
+		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(R, null);
+		q.normalize();
+
+		Pose tempPose = new Pose();
+
+		tempPose.setQw(q.w);
+		tempPose.setQx(q.x);
+		tempPose.setQy(q.y);
+		tempPose.setQz(q.z);
+
+		tempPose.setT(E.get(0, 3), E.get(1, 3), E.get(2, 3));
+
+		return tempPose;
+
+	}
+
+	public void deepReplacePose(Pose newPose) {
+		this.pose.setCx(newPose.getCx());
+		this.pose.setCy(newPose.getCy());
+		this.pose.setCz(newPose.getCz());
+		this.pose.setQw(newPose.getQw());
+		this.pose.setQx(newPose.getQx());
+		this.pose.setQy(newPose.getQy());
+		this.pose.setQz(newPose.getQz());
+	}
+
 	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
@@ -291,6 +330,32 @@ public class MockPipeline extends ARPipeline {
 
 	}
 
+	public void PnPBAOptimize(Pose firstPose, Pose secondPose, ArrayList<Point2D> keypoints1,
+			ArrayList<Point2D> keypoints2, ArrayList<Point3D> point3Ds) {
+		ArrayList<ArrayList<Point2D>> obsv = new ArrayList<ArrayList<Point2D>>();
+		for (int i = 0; i < point3Ds.size(); i++) {
+			ArrayList<Point2D> points = new ArrayList<Point2D>();
+			points.add(keypoints1.get(i));
+			points.add(keypoints2.get(i));
+			obsv.add(points);
+		}
+
+		ArrayList<Pose> cameras = new ArrayList<Pose>();
+		cameras.add(firstPose);
+		cameras.add(secondPose);
+
+		ARUtils.bundleAdjust(cameras, point3Ds, obsv, 1);
+	}
+
+	public ArrayList<Point3D> get3DPoints(ArrayList<Correspondence2D2D> correspondences, KeyFrame keyframe) {
+		ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
+		for (int c = 0; c < correspondences.size(); c++) {
+			point3Ds.add(keyframe.getObsvToMapPoint()
+					.get(correspondences.get(c).getU1() + "," + correspondences.get(c).getV1()).getPoint());
+		}
+		return point3Ds;
+	}
+
 	int count = 0;
 
 	protected void mainloop() {
@@ -350,83 +415,57 @@ public class MockPipeline extends ARPipeline {
 					this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), this.pose, correspondences,
 							point3Ds, 5);
 
-					pl("points after BA");
-					for (Point3D point : point3Ds) {
-						pl(point.getX() + ", " + point.getY() + ", " + point.getZ());
-					}
-
-					double avgX = 0;
-					double avgY = 0;
-					double avgZ = 0;
-					for (int i = 0; i < point3Ds.size(); i++) {
-						avgX += point3Ds.get(i).getX();
-						avgY += point3Ds.get(i).getY();
-						avgZ += point3Ds.get(i).getZ();
-					}
-					avgX /= point3Ds.size();
-					avgY /= point3Ds.size();
-					avgZ /= point3Ds.size();
-
-					pl("CENTROID");
-					pl(avgX + ", " + avgY + ", " + avgZ);
-
 					mapInitialized = true;
 				} else if (mapInitialized) {
 
-					if (correspondences.size() >= 6) {
-						// Try to perform PnP to solve
-						ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
-						ArrayList<Point2D> points2D1 = new ArrayList<Point2D>();
-						ArrayList<Point2D> points2D2 = new ArrayList<Point2D>();
-
-						for (int c = 0; c < correspondences.size(); c++) {
-							Correspondence2D2D corr = correspondences.get(c);
-							MapPoint mapPoint = null;
-							for (int k = 0; k < this.currentKeyFrame.getMapPoints().size() && mapPoint == null; k++) {
-								if (this.currentKeyFrame.getKeypoints().get(k).getX() == corr.getU1()
-										&& this.currentKeyFrame.getKeypoints().get(k).getY() == corr.getV1()) {
-									mapPoint = this.currentKeyFrame.getMapPoints().get(k);
-								}
-							}
-
-							Point3D point3D = mapPoint.getPoint();
-							if (point3D != null) {
-								point3Ds.add(point3D);
-								Point2D point2D1 = new Point2D(corr.getU1(), corr.getV1());
-								points2D1.add(point2D1);
-								Point2D point2D2 = new Point2D(corr.getU2(), corr.getV2());
-								points2D2.add(point2D2);
-							}
-
-						}
-
-						Matrix E = ARUtils.PnP(point3Ds, points2D2);
-						this.setPose(E);
-						pl("true E: ");
-						Matrix R = this.mock.getR(this.frameNum);
-						Matrix IC = this.mock.getIC(this.frameNum);
-						Matrix trueE = R.times(IC);
-						trueE.print(15, 5);
-
-						// bundle adjustment
-						ArrayList<ArrayList<Point2D>> obsv = new ArrayList<ArrayList<Point2D>>();
-						for (int i = 0; i < point3Ds.size(); i++) {
-							ArrayList<Point2D> points = new ArrayList<Point2D>();
-							points.add(points2D1.get(i));
-							points.add(points2D2.get(i));
-							obsv.add(points);
-						}
-
-						ArrayList<Pose> cameras = new ArrayList<Pose>();
-						cameras.add(this.currentKeyFrame.getPose());
-						cameras.add(this.pose);
-
-						ARUtils.bundleAdjust(cameras, point3Ds, obsv, 1);
-
+					// get tracked 3D points
+					ArrayList<Point3D> point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+					int numTracked = 0;
+					for (int i = 0; i < point3Ds.size(); i++) {
+						numTracked += point3Ds.get(i) != null ? 1 : 0;
 					}
 
-				}
+					// General Pipeline Algorithm:
 
+					// if >= 8 correspondences and > 16 tracked points
+					// ---- track pose with PnP
+					// else if >= 8 correspondences and 16 to 6 tracked points
+					// ---- track pose with PnP and create new keyframe
+					// else if >= 8 correspondences and < 6 tracked points
+					// ---- sfm track?
+					// else (< 8 correspondences)
+					// ---- place recognition module
+
+					if (correspondences.size() >= 8 && numTracked > 16) {
+						// PnP
+						ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
+						ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
+						ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
+						for (int p = 0; p < point3Ds.size(); p++) {
+							if (point3Ds.get(p) != null) {
+								tracked3DPoints.add(point3Ds.get(p));
+								Point2D point2D1 = new Point2D();
+								point2D1.setX(correspondences.get(p).getU1());
+								point2D1.setY(correspondences.get(p).getV1());
+								trackedKeypoints1.add(point2D1);
+								Point2D point2D2 = new Point2D();
+								point2D2.setX(correspondences.get(p).getU2());
+								point2D2.setY(correspondences.get(p).getV2());
+								trackedKeypoints2.add(point2D2);
+							}
+						}
+
+						Matrix E = ARUtils.PnP(tracked3DPoints, trackedKeypoints2);
+						Pose tempPose = this.setTemporaryPose(E);
+
+						// bundle adjustment
+						this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1,
+								trackedKeypoints2, tracked3DPoints);
+
+						this.deepReplacePose(tempPose);
+
+					}
+				}
 			}
 
 			synchronized (this.outputPoseBuffer) {

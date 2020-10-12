@@ -89,8 +89,8 @@ public class MockPointData {
 			this.worldCoordinates.add(point);
 			output += point.get(0, 0) + ", " + point.get(1, 0) + ", " + point.get(2, 0) + "\n";
 		}
-		System.out.println("true world coords:");
-		System.out.println(output);
+		// System.out.println("true world coords:");
+		// System.out.println(output);
 
 	}
 

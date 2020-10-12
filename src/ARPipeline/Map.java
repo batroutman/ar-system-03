@@ -48,6 +48,7 @@ public class Map {
 			mp.getObservations().add(observation);
 			this.undeterminedPoints.add(mp);
 			keyframe.getMapPoints().add(mp);
+			keyframe.getObsvToMapPoint().put(point.getX() + "," + point.getY(), mp);
 		}
 		this.keyframes.add(keyframe);
 		return keyframe;
