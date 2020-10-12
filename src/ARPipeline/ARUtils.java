@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.ddogleg.optimization.lm.ConfigLevenbergMarquardt;
+import org.ejml.data.DMatrixRMaj;
 import org.lwjgl.util.vector.Matrix4f;
 import org.opencv.core.CvType;
 import org.opencv.core.KeyPoint;
@@ -26,6 +27,56 @@ import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 
 public class ARUtils {
+
+	public static Matrix sanitizeE(Matrix E) {
+
+		// extract rotation
+		Matrix R = E.copy().getMatrix(0, 2, 0, 2);
+
+		// invert rotation
+		Matrix RInv = R.inverse();
+
+		// get C
+		Matrix C = RInv.times(E.getMatrix(0, 2, 3, 3)).times(-1);
+
+		// convert rotation to quaternion and normalize
+		DMatrixRMaj rotation = new DMatrixRMaj(3, 3);
+		rotation.add(0, 0, R.get(0, 0));
+		rotation.add(0, 1, R.get(0, 1));
+		rotation.add(0, 2, R.get(0, 2));
+		rotation.add(1, 0, R.get(1, 0));
+		rotation.add(1, 1, R.get(1, 1));
+		rotation.add(1, 2, R.get(1, 2));
+		rotation.add(2, 0, R.get(2, 0));
+		rotation.add(2, 1, R.get(2, 1));
+		rotation.add(2, 2, R.get(2, 2));
+
+		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(rotation, null);
+		q.normalize();
+
+		// convert quaternion back to rotation
+		rotation = ConvertRotation3D_F64.quaternionToMatrix(q, null);
+		Matrix newR = Matrix.identity(4, 4);
+		newR.set(0, 0, rotation.get(0, 0));
+		newR.set(0, 1, rotation.get(0, 1));
+		newR.set(0, 2, rotation.get(0, 2));
+		newR.set(1, 0, rotation.get(1, 0));
+		newR.set(1, 1, rotation.get(1, 1));
+		newR.set(1, 2, rotation.get(1, 2));
+		newR.set(2, 0, rotation.get(2, 0));
+		newR.set(2, 1, rotation.get(2, 1));
+		newR.set(2, 2, rotation.get(2, 2));
+
+		Matrix IC = Matrix.identity(4, 4);
+		IC.set(0, 3, -C.get(0, 0));
+		IC.set(1, 3, -C.get(1, 0));
+		IC.set(2, 3, -C.get(2, 0));
+
+		// multiply homogeneous rotation with IC
+		Matrix newE = newR.times(IC);
+		return newE;
+
+	}
 
 	// observations is a list of size n (points) with inner lists of size m
 	// (cameras). If 3 cameras and 10 points, observations is a list of size
@@ -419,6 +470,8 @@ public class ARUtils {
 		}
 
 		Matrix E = CameraIntrinsics.getK().inverse().times(pi);
+
+		E = sanitizeE(E);
 
 		return E;
 	}

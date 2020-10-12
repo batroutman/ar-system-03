@@ -90,8 +90,12 @@ public class OpenGLARDisplay {
 		RawModel tModel = this.loader.loadToVAO(vertices, textureCoords, indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,
 				new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0, 0, 50), 0, 0, 0, 2f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0.51537f, -0.1132f, 13.1957f), 0, 0, 0, 1f);
 		this.entities.add(tEntity);
+
+		for (int i = 0; i < 100; i++) {
+			this.entities.add(new Entity(tStaticModel, new Vector3f(50f, 0f, (i - 50) * 10), 0, 0, 0, 1f));
+		}
 
 		// create camera
 		this.camera = new Camera();

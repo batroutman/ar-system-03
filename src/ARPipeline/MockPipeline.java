@@ -151,7 +151,7 @@ public class MockPipeline extends ARPipeline {
 		this.pose.setQz(q.z);
 
 		this.pose.setT(E.get(0, 3), E.get(1, 3), E.get(2, 3));
-		pl("E: ");
+		pl("E (setPose()): ");
 		this.pose.getHomogeneousMatrix().print(15, 5);
 
 	}
@@ -229,6 +229,9 @@ public class MockPipeline extends ARPipeline {
 		E.set(0, 3, rt.getT().get(0, 0));
 		E.set(1, 3, rt.getT().get(1, 0));
 		E.set(2, 3, rt.getT().get(2, 0));
+
+		E = ARUtils.sanitizeE(E);
+
 		this.updatePoseFromCurrent(E);
 	}
 
@@ -329,7 +332,7 @@ public class MockPipeline extends ARPipeline {
 				pl("num correspondences: " + correspondences.size());
 
 				// initialize the map (for mock purposes)
-				if (!mapInitialized) {
+				if (!mapInitialized && this.frameNum >= 10) {
 					this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints, correspondences);
 
 					pl("pose");
@@ -352,8 +355,23 @@ public class MockPipeline extends ARPipeline {
 						pl(point.getX() + ", " + point.getY() + ", " + point.getZ());
 					}
 
+					double avgX = 0;
+					double avgY = 0;
+					double avgZ = 0;
+					for (int i = 0; i < point3Ds.size(); i++) {
+						avgX += point3Ds.get(i).getX();
+						avgY += point3Ds.get(i).getY();
+						avgZ += point3Ds.get(i).getZ();
+					}
+					avgX /= point3Ds.size();
+					avgY /= point3Ds.size();
+					avgZ /= point3Ds.size();
+
+					pl("CENTROID");
+					pl(avgX + ", " + avgY + ", " + avgZ);
+
 					mapInitialized = true;
-				} else {
+				} else if (mapInitialized) {
 
 					if (correspondences.size() >= 6) {
 						// Try to perform PnP to solve
@@ -403,13 +421,8 @@ public class MockPipeline extends ARPipeline {
 						cameras.add(this.currentKeyFrame.getPose());
 						cameras.add(this.pose);
 
-						// ARUtils.bundleAdjust(cameras, point3Ds, obsv, 1);
-						// pl("bundle adjusted");
-						// for (int i = 0; i < point3Ds.size(); i++) {
-						// pl(point3Ds.get(i).getX() + ", " +
-						// point3Ds.get(i).getY() + ", " +
-						// point3Ds.get(i).getZ());
-						// }
+						ARUtils.bundleAdjust(cameras, point3Ds, obsv, 1);
+
 					}
 
 				}
@@ -434,7 +447,7 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(100);
 			} catch (Exception e) {
 
 			}
