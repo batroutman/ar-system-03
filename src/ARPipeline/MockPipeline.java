@@ -306,6 +306,32 @@ public class MockPipeline extends ARPipeline {
 		return point3Ds;
 	}
 
+	// given a list of correspondences between the current keyframe and the
+	// current frame, triangulate the untracked 3D map points in the
+	// current keyframe using the current keyframe pose and the current system
+	// pose (which must be updated before calling this function)
+	public void triangulateUntrackedMapPoints(ArrayList<Correspondence2D2D> correspondences) {
+		for (int c = 0; c < correspondences.size(); c++) {
+			Correspondence2D2D corr = correspondences.get(c);
+
+			// get the map point corresponding to the point
+			MapPoint mapPoint = this.currentKeyFrame.getObsvToMapPoint()
+					.get(correspondences.get(c).getU1().intValue() + "," + correspondences.get(c).getV1().intValue());
+
+			// ignore if this point has already been triangulated
+			if (mapPoint.getPoint() != null) {
+				continue;
+			}
+
+			// triangulate point, create 3D point, add to map point
+			Matrix E = this.pose.getHomogeneousMatrix();
+			Matrix pointMatrix = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(), corr);
+			Point3D point3D = new Point3D(pointMatrix.get(0, 0), pointMatrix.get(1, 0), pointMatrix.get(2, 0));
+			pl(point3D.getX() + ", " + point3D.getY() + ", " + point3D.getZ());
+			mapPoint.setPoint(point3D);
+		}
+	}
+
 	// given 2 poses, their correspondences, and the corresponding 3D point
 	// locations, perform a BA to correct large errors in triangulation and
 	// scale
@@ -351,9 +377,47 @@ public class MockPipeline extends ARPipeline {
 		ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
 		for (int c = 0; c < correspondences.size(); c++) {
 			point3Ds.add(keyframe.getObsvToMapPoint()
-					.get(correspondences.get(c).getU1() + "," + correspondences.get(c).getV1()).getPoint());
+					.get(correspondences.get(c).getU1().intValue() + "," + correspondences.get(c).getV1().intValue())
+					.getPoint());
 		}
 		return point3Ds;
+	}
+
+	public ArrayList<MapPoint> getMapPoints(ArrayList<Correspondence2D2D> correspondences, KeyFrame keyframe) {
+		ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
+		for (int c = 0; c < correspondences.size(); c++) {
+			mapPoints.add(keyframe.getObsvToMapPoint()
+					.get(correspondences.get(c).getU1().intValue() + "," + correspondences.get(c).getV1().intValue()));
+		}
+		return mapPoints;
+	}
+
+	public void PnPUpdate(ArrayList<Point3D> point3Ds, ArrayList<Correspondence2D2D> correspondences) {
+		ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
+		ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
+		ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
+		for (int p = 0; p < point3Ds.size(); p++) {
+			if (point3Ds.get(p) != null) {
+				tracked3DPoints.add(point3Ds.get(p));
+				Point2D point2D1 = new Point2D();
+				point2D1.setX(correspondences.get(p).getU1());
+				point2D1.setY(correspondences.get(p).getV1());
+				trackedKeypoints1.add(point2D1);
+				Point2D point2D2 = new Point2D();
+				point2D2.setX(correspondences.get(p).getU2());
+				point2D2.setY(correspondences.get(p).getV2());
+				trackedKeypoints2.add(point2D2);
+			}
+		}
+
+		Matrix E = ARUtils.PnP(tracked3DPoints, trackedKeypoints2);
+		Pose tempPose = this.setTemporaryPose(E);
+
+		// bundle adjustment
+		this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1, trackedKeypoints2,
+				tracked3DPoints);
+
+		this.deepReplacePose(tempPose);
 	}
 
 	int count = 0;
@@ -429,6 +493,7 @@ public class MockPipeline extends ARPipeline {
 
 					// if >= 8 correspondences and > 16 tracked points
 					// ---- track pose with PnP
+					// ---- triangulate untracked points
 					// else if >= 8 correspondences and 16 to 6 tracked points
 					// ---- track pose with PnP and create new keyframe
 					// else if >= 8 correspondences and < 6 tracked points
@@ -438,32 +503,20 @@ public class MockPipeline extends ARPipeline {
 
 					if (correspondences.size() >= 8 && numTracked > 16) {
 						// PnP
-						ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
-						ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
-						ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
-						for (int p = 0; p < point3Ds.size(); p++) {
-							if (point3Ds.get(p) != null) {
-								tracked3DPoints.add(point3Ds.get(p));
-								Point2D point2D1 = new Point2D();
-								point2D1.setX(correspondences.get(p).getU1());
-								point2D1.setY(correspondences.get(p).getV1());
-								trackedKeypoints1.add(point2D1);
-								Point2D point2D2 = new Point2D();
-								point2D2.setX(correspondences.get(p).getU2());
-								point2D2.setY(correspondences.get(p).getV2());
-								trackedKeypoints2.add(point2D2);
-							}
-						}
+						this.PnPUpdate(point3Ds, correspondences);
 
-						Matrix E = ARUtils.PnP(tracked3DPoints, trackedKeypoints2);
-						Pose tempPose = this.setTemporaryPose(E);
+						// Triangulate untracked map points
+						this.triangulateUntrackedMapPoints(correspondences);
+					} else if (correspondences.size() >= 8 && numTracked <= 16 && numTracked >= 6) {
+						// PnP
+						this.PnPUpdate(point3Ds, correspondences);
 
-						// bundle adjustment
-						this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1,
-								trackedKeypoints2, tracked3DPoints);
+						// Triangulate untracked map points
+						this.triangulateUntrackedMapPoints(correspondences);
 
-						this.deepReplacePose(tempPose);
-
+						// Create new keyframe
+						this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
+								correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 					}
 				}
 			}
