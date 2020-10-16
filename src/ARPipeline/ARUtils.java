@@ -762,8 +762,21 @@ public class ARUtils {
 		E4.set(1, 3, -E4.get(1, 3));
 		E4.set(2, 3, -E4.get(2, 3));
 
+		pl("E1:");
+		E1.print(15, 5);
+		pl("E2:");
+		E2.print(15, 5);
+		pl("E3:");
+		E3.print(15, 5);
+		pl("E4:");
+		E4.print(15, 5);
+
 		// pick a correspondence
 		Correspondence2D2D c = correspondences.get(0);
+
+		pl("correspondence:");
+		pl(c.getU1() + ", " + c.getV1());
+		pl(c.getU2() + ", " + c.getV2());
 
 		Matrix X1 = triangulate(E1, pose, c);
 		Matrix X2 = triangulate(E2, pose, c);
@@ -786,8 +799,19 @@ public class ARUtils {
 		Matrix b4 = CameraIntrinsics.getK4x4().times(E4).times(pose).times(X4);
 		int numSet = 0;
 
+		pl("b1: ");
+		b1.print(15, 5);
+		pl("b2: ");
+		b2.print(15, 5);
+		pl("b3: ");
+		b3.print(15, 5);
+		pl("b4: ");
+		b4.print(15, 5);
+
 		if (b1.get(2, 0) > 0) {
 			Matrix a1 = pose.times(X1);
+			pl("a1:");
+			a1.print(15, 5);
 			if (a1.get(2, 0) > 0) {
 				rt.setR(decomp.getR1());
 				rt.setT(decomp.getT1().times(scale));
@@ -797,6 +821,8 @@ public class ARUtils {
 
 		if (b2.get(2, 0) > 0) {
 			Matrix a2 = pose.times(X2);
+			pl("a2:");
+			a2.print(15, 5);
 			if (a2.get(2, 0) > 0) {
 				rt.setR(decomp.getR2());
 				rt.setT(decomp.getT1().times(scale));
@@ -806,6 +832,8 @@ public class ARUtils {
 
 		if (b3.get(2, 0) > 0) {
 			Matrix a3 = pose.times(X3);
+			pl("a3:");
+			a3.print(15, 5);
 			if (a3.get(2, 0) > 0) {
 				rt.setR(decomp.getR1());
 				rt.setT(decomp.getT1().times(scale).times(-1));
@@ -814,7 +842,9 @@ public class ARUtils {
 		}
 
 		if (b4.get(2, 0) > 0) {
-			Matrix a4 = pose.times(X3);
+			Matrix a4 = pose.times(X4);
+			pl("a4:");
+			a4.print(15, 5);
 			if (a4.get(2, 0) > 0) {
 				rt.setR(decomp.getR2());
 				rt.setT(decomp.getT1().times(scale).times(-1));

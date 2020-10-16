@@ -14,7 +14,7 @@ public class MockPointData {
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
 	protected long MAX_FRAMES = 70;
-	protected int NUM_POINTS = 30;
+	protected int NUM_POINTS = 1000;
 	protected int START_FRAME = 0;
 	protected int SEED = 1;
 	protected Matrix K = new Matrix(3, 3);
@@ -68,12 +68,12 @@ public class MockPointData {
 
 	protected void initWorldCoordinates() {
 		String output = "";
-		double Z_SPAWN_MIN = 50;
+		double Z_SPAWN_MIN = -100;
 		double Z_SPAWN_MAX = 100;
-		double Y_SPAWN_MIN = -5;
-		double Y_SPAWN_MAX = 5;
-		double X_SPAWN_MIN = -10;
-		double X_SPAWN_MAX = 10;
+		double Y_SPAWN_MIN = -20;
+		double Y_SPAWN_MAX = 20;
+		double X_SPAWN_MIN = -30;
+		double X_SPAWN_MAX = 30;
 
 		double Z_RANGE = Z_SPAWN_MAX - Z_SPAWN_MIN;
 		double Y_RANGE = Y_SPAWN_MAX - Y_SPAWN_MIN;
@@ -166,8 +166,8 @@ public class MockPointData {
 
 	}
 
-	public ArrayList<Point> getKeypoints(long frameNumber) {
-		ArrayList<Point> keypoints = new ArrayList<Point>();
+	public Mat getKeypointsAndDescriptors(long frameNumber, ArrayList<Point> outKeyPoints) {
+		outKeyPoints.clear();
 
 		Matrix R = this.getR(frameNumber);
 		Matrix C = this.getIC(frameNumber);
@@ -175,14 +175,68 @@ public class MockPointData {
 
 		Matrix cameraMatrix = this.K.times(E.getMatrix(0, 2, 0, 3));
 
+		ArrayList<Integer> validPoints = new ArrayList<Integer>();
+
 		for (int i = 0; i < this.worldCoordinates.size(); i++) {
+			// initial projection calculation
 			Matrix point = cameraMatrix.times(this.worldCoordinates.get(i));
-			point = point.times(1 / point.get(2, 0));
-			Point pt = new Point(Math.round(point.get(0, 0)), Math.round(point.get(1, 0)));
-			keypoints.add(pt);
+			double w = point.get(2, 0);
+
+			// homogenize
+			if (w != 0) {
+				point = point.times(1 / w);
+			}
+
+			// check if point is in front of camera and is projected onto the
+			// limited screen space
+			if (w > 0 && point.get(0, 0) >= 0 && point.get(0, 0) < this.WIDTH && point.get(1, 0) >= 0
+					&& point.get(1, 0) < this.HEIGHT) {
+				Point pt = new Point(Math.round(point.get(0, 0)), Math.round(point.get(1, 0)));
+				outKeyPoints.add(pt);
+				validPoints.add(i);
+				if (pt.x == 404 && pt.y == 231) {
+					this.worldCoordinates.get(i).print(15, 5);
+				}
+			}
+
 		}
 
-		return keypoints;
+		double avgNoiseRange = 0.0;
+		double extremeNoiseRange = 0.0;
+		double proportionBroken = 0.0;
+		Mat descriptors = this.createDescriptors(frameNumber, validPoints, avgNoiseRange, extremeNoiseRange,
+				proportionBroken);
+
+		return descriptors;
+	}
+
+	public Mat createDescriptors(long frameNumber, ArrayList<Integer> validPoints, double avgNoiseRange,
+			double extremeNoiseRange, double proportionBroken) {
+
+		Random rand1 = new Random(frameNumber + 102);
+		Random rand2 = new Random(frameNumber + 103);
+
+		Matrix trueDescriptorMatrix = ARUtils.MatToMatrix(this.descriptors);
+		Matrix newDescriptorMatrix = new Matrix(validPoints.size(), 32);
+
+		for (int row = 0; row < validPoints.size(); row++) {
+
+			double noiseRange = rand1.nextDouble() < proportionBroken ? extremeNoiseRange : avgNoiseRange;
+			double offset = noiseRange / 2;
+
+			for (int col = 0; col < 32; col++) {
+
+				int newValue = (int) Math.round(trueDescriptorMatrix.get(validPoints.get(row), col)
+						+ (rand2.nextDouble() * noiseRange - offset));
+				newValue = newValue > 255 ? 255 : newValue;
+				newValue = newValue < 0 ? 0 : newValue;
+				newDescriptorMatrix.set(row, col, newValue);
+
+			}
+		}
+
+		return ARUtils.MatrixToMat(newDescriptorMatrix);
+
 	}
 
 	public void generateDescriptors() {

@@ -1,6 +1,7 @@
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Random;
 
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
@@ -90,11 +91,27 @@ public class OpenGLARDisplay {
 		RawModel tModel = this.loader.loadToVAO(vertices, textureCoords, indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,
 				new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0.51537f, -0.1132f, 13.1957f), 0, 0, 0, 1f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0.211f, -0.047f, 7.234f), 0, 0, 0, 0.2f);
 		this.entities.add(tEntity);
 
+		Random rand = new Random(100);
+
+		// right line of boxes
 		for (int i = 0; i < 100; i++) {
-			this.entities.add(new Entity(tStaticModel, new Vector3f(50f, 0f, (i - 50) * 10), 0, 0, 0, 1f));
+			// this.entities.add(new Entity(tStaticModel, new Vector3f(50f, 0f,
+			// (i - 50) * 10), 0, 0, 0, 1f));
+		}
+
+		// left line of boxes
+		for (int i = 0; i < 100; i++) {
+			// this.entities.add(new Entity(tStaticModel, new Vector3f(-50f, 0f,
+			// (i - 50) * 10), 0, 0, 0, 1f));
+		}
+
+		// bottom plane of boxes
+		for (int i = 0; i < 100; i++) {
+			this.entities.add(new Entity(tStaticModel,
+					new Vector3f(rand.nextFloat() * 250 - 125, 10f, rand.nextFloat() * 250 - 125), 0, 0, 0, 1f));
 		}
 
 		// create camera
