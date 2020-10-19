@@ -752,15 +752,9 @@ public class ARUtils {
 		E2.set(1, 3, decomp.getT1().get(1, 0) * scale);
 		E2.set(2, 3, decomp.getT1().get(2, 0) * scale);
 
-		E3 = E1.copy();
-		E3.set(0, 3, -E3.get(0, 3));
-		E3.set(1, 3, -E3.get(1, 3));
-		E3.set(2, 3, -E3.get(2, 3));
+		E3 = E1.copy().times(-1);
 
-		E4 = E2.copy();
-		E4.set(0, 3, -E4.get(0, 3));
-		E4.set(1, 3, -E4.get(1, 3));
-		E4.set(2, 3, -E4.get(2, 3));
+		E4 = E2.copy().times(-1);
 
 		pl("E1:");
 		E1.print(15, 5);
@@ -835,7 +829,7 @@ public class ARUtils {
 			pl("a3:");
 			a3.print(15, 5);
 			if (a3.get(2, 0) > 0) {
-				rt.setR(decomp.getR1());
+				rt.setR(decomp.getR1().times(-1));
 				rt.setT(decomp.getT1().times(scale).times(-1));
 				numSet++;
 			}
@@ -846,7 +840,7 @@ public class ARUtils {
 			pl("a4:");
 			a4.print(15, 5);
 			if (a4.get(2, 0) > 0) {
-				rt.setR(decomp.getR2());
+				rt.setR(decomp.getR2().times(-1));
 				rt.setT(decomp.getT1().times(scale).times(-1));
 				numSet++;
 			}
