@@ -6,8 +6,7 @@ public class EssentialDecomposition {
 
 	protected Matrix R1 = null;
 	protected Matrix R2 = null;
-	protected Matrix t1 = null;
-	protected Matrix t2 = null;
+	protected Matrix t = null;
 
 	public EssentialDecomposition() {
 
@@ -29,20 +28,12 @@ public class EssentialDecomposition {
 		R2 = r2;
 	}
 
-	public Matrix getT1() {
-		return t1;
+	public Matrix getT() {
+		return t;
 	}
 
-	public void setT1(Matrix t1) {
-		this.t1 = t1;
-	}
-
-	public Matrix getT2() {
-		return t2;
-	}
-
-	public void setT2(Matrix t2) {
-		this.t2 = t2;
+	public void setT(Matrix t) {
+		this.t = t;
 	}
 
 }

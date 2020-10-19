@@ -111,7 +111,7 @@ public class OpenGLARDisplay {
 		// bottom plane of boxes
 		for (int i = 0; i < 100; i++) {
 			this.entities.add(new Entity(tStaticModel,
-					new Vector3f(rand.nextFloat() * 250 - 125, 10f, rand.nextFloat() * 250 - 125), 0, 0, 0, 1f));
+					new Vector3f(rand.nextFloat() * 250 - 125, 2f, rand.nextFloat() * 250 - 125), 0, 0, 0, 0.5f));
 		}
 
 		// create camera

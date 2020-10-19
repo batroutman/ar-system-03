@@ -340,6 +340,7 @@ public class MockPipeline extends ARPipeline {
 	// current keyframe using the current keyframe pose and the current system
 	// pose (which must be updated before calling this function)
 	public void triangulateUntrackedMapPoints(ArrayList<Correspondence2D2D> correspondences) {
+		pl("\n\n\nYEET\n\n\n");
 		for (int c = 0; c < correspondences.size(); c++) {
 			Correspondence2D2D corr = correspondences.get(c);
 
@@ -359,6 +360,31 @@ public class MockPipeline extends ARPipeline {
 			pl(point3D.getX() + ", " + point3D.getY() + ", " + point3D.getZ());
 			mapPoint.setPoint(point3D);
 		}
+	}
+
+	// given a list of correspondences, evaluate if there is sufficient
+	// intra-correspondence difference to warrant triangulation
+	public boolean sufficientMovement(ArrayList<Correspondence2D2D> correspondences) {
+
+		// required average pixel difference to return a true value
+		double REQ_DIST = 15;
+
+		if (correspondences.size() == 0) {
+			return false;
+		}
+
+		double sumDistance = 0.0;
+		ArrayList<Double> distances = new ArrayList<Double>();
+		for (int i = 0; i < correspondences.size(); i++) {
+			Correspondence2D2D c = correspondences.get(i);
+			double distance = Math.sqrt(Math.pow(c.getU1() - c.getU2(), 2) + Math.pow(c.getV1() - c.getV2(), 2));
+			distances.add(distance);
+			sumDistance += distance;
+		}
+		double avgDistance = sumDistance / correspondences.size();
+		pl("avgDistance: " + avgDistance);
+
+		return avgDistance > REQ_DIST;
 	}
 
 	// given 2 poses, their correspondences, and the corresponding 3D point
@@ -439,21 +465,22 @@ public class MockPipeline extends ARPipeline {
 			}
 		}
 
-		Matrix E = ARUtils.PnP(tracked3DPoints, trackedKeypoints2);
+		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2);
 		Pose tempPose = this.setTemporaryPose(E);
 
 		// debug
 		pl("this.currentKeyframe.getPose(): ");
 		this.currentKeyFrame.getPose().getHomogeneousMatrix().print(15, 5);
-		pl("tempPose: ");
+		pl("PnP pose: ");
 		tempPose.getHomogeneousMatrix().print(15, 5);
 		pl("trackedKeypoints1 size: " + trackedKeypoints1.size());
 		pl("trackedKeypoints2 size: " + trackedKeypoints2.size());
 		pl("tracked3DPoints size: " + tracked3DPoints.size());
 
 		// bundle adjustment
-		this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1, trackedKeypoints2,
-				tracked3DPoints);
+		// this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose,
+		// trackedKeypoints1, trackedKeypoints2,
+		// tracked3DPoints);
 
 		this.deepReplacePose(tempPose);
 	}
@@ -560,13 +587,18 @@ public class MockPipeline extends ARPipeline {
 						this.PnPUpdate(point3Ds, correspondences);
 
 						// Triangulate untracked map points
-						this.triangulateUntrackedMapPoints(correspondences);
+						if (this.sufficientMovement(correspondences)) {
+							this.triangulateUntrackedMapPoints(correspondences);
+						}
+
 					} else if (correspondences.size() >= 8 && numTracked <= 16 && numTracked >= 6) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
 						// Triangulate untracked map points
-						this.triangulateUntrackedMapPoints(correspondences);
+						if (this.sufficientMovement(correspondences)) {
+							this.triangulateUntrackedMapPoints(correspondences);
+						}
 
 						// Create new keyframe
 						this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,

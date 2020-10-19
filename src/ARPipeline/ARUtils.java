@@ -6,11 +6,16 @@ import java.util.List;
 import org.ddogleg.optimization.lm.ConfigLevenbergMarquardt;
 import org.ejml.data.DMatrixRMaj;
 import org.lwjgl.util.vector.Matrix4f;
+import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfKeyPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.MatOfPoint3f;
 import org.opencv.core.Point;
+import org.opencv.core.Point3;
 
 import Jama.Matrix;
 import Jama.SingularValueDecomposition;
@@ -153,8 +158,34 @@ public class ARUtils {
 		// about 3 minutes on my computer
 		long startTime = System.currentTimeMillis();
 		double errorBefore = bundleAdjustment.getFitScore();
+		pl("error before: " + errorBefore);
 		if (!bundleAdjustment.optimize(scene)) {
-			throw new RuntimeException("Bundle adjustment failed?!?");
+			// throw new RuntimeException("Bundle adjustment failed?!?");
+			pl("***************************  ERROR  ****************************");
+			pl("NOTE: Bundle Adjustment failed!");
+			pl("fit score: " + bundleAdjustment.getFitScore());
+			bundleScale.undoScale(scene, observations);
+
+			pl("original 3D points ==> scene 3D points: ");
+			for (int i = 0; i < point3Ds.size(); i++) {
+				p(point3Ds.get(i).getX() + ",\t");
+				p(point3Ds.get(i).getY() + ",\t");
+				p(point3Ds.get(i).getZ() + "\t ====> \t\t");
+				p(scene.getPoints().get(i).getX() + ",\t");
+				p(scene.getPoints().get(i).getY() + ",\t");
+				p(scene.getPoints().get(i).getZ() + "\n");
+			}
+
+			pl("original cameras: ");
+			for (int i = 0; i < cameras.size(); i++) {
+				pl("");
+				cameras.get(i).getHomogeneousMatrix().print(15, 7);
+				pl("");
+			}
+
+			pl("****************************************************************");
+
+			return;
 		}
 
 		// Print out how much it improved the model
@@ -415,7 +446,50 @@ public class ARUtils {
 		return Q;
 	}
 
-	public static Matrix PnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
+	public static Matrix OpenCVPnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
+		ArrayList<Point3> p3Points3D = new ArrayList<Point3>();
+		ArrayList<Point> p2Points2D = new ArrayList<Point>();
+		for (int i = 0; i < points3D.size(); i++) {
+			Point3 point3 = new Point3();
+			point3.x = points3D.get(i).getX();
+			point3.y = points3D.get(i).getY();
+			point3.z = points3D.get(i).getZ();
+			p3Points3D.add(point3);
+			Point point2 = new Point();
+			point2.x = points2D.get(i).getX();
+			point2.y = points2D.get(i).getY();
+			p2Points2D.add(point2);
+		}
+		MatOfPoint3f objectPoints = new MatOfPoint3f();
+		objectPoints.fromList(p3Points3D);
+		MatOfPoint2f imagePoints = new MatOfPoint2f();
+		imagePoints.fromList(p2Points2D);
+		Mat cameraMatrix = MatrixToMat(CameraIntrinsics.getK());
+		Mat rvec = new Mat();
+		Mat tvec = new Mat();
+		Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec, false,
+				Calib3d.SOLVEPNP_ITERATIVE);
+		Mat RMat = new Mat();
+		Calib3d.Rodrigues(rvec, RMat);
+
+		Matrix E = Matrix.identity(4, 4);
+		E.set(0, 0, RMat.get(0, 0)[0]);
+		E.set(0, 1, RMat.get(0, 1)[0]);
+		E.set(0, 2, RMat.get(0, 2)[0]);
+		E.set(1, 0, RMat.get(1, 0)[0]);
+		E.set(1, 1, RMat.get(1, 1)[0]);
+		E.set(1, 2, RMat.get(1, 2)[0]);
+		E.set(2, 0, RMat.get(2, 0)[0]);
+		E.set(2, 1, RMat.get(2, 1)[0]);
+		E.set(2, 2, RMat.get(2, 2)[0]);
+		E.set(0, 3, tvec.get(0, 0)[0]);
+		E.set(1, 3, tvec.get(1, 0)[0]);
+		E.set(2, 3, tvec.get(2, 0)[0]);
+
+		return E;
+	}
+
+	public static Matrix PnPNULLIFIED(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
 		Matrix B = new Matrix(2 * points3D.size(), 12);
 
 		for (int i = 0; i < points3D.size(); i++) {
@@ -716,7 +790,7 @@ public class ARUtils {
 			ArrayList<Correspondence2D2D> correspondences) {
 		Rt rt = new Rt();
 		rt.setR(decomp.getR1());
-		rt.setT(decomp.getT1());
+		rt.setT(decomp.getT());
 
 		// get scale for each combination
 		double scale = 1;
@@ -735,9 +809,9 @@ public class ARUtils {
 		E1.set(2, 0, decomp.getR1().get(2, 0));
 		E1.set(2, 1, decomp.getR1().get(2, 1));
 		E1.set(2, 2, decomp.getR1().get(2, 2));
-		E1.set(0, 3, decomp.getT1().get(0, 0) * scale);
-		E1.set(1, 3, decomp.getT1().get(1, 0) * scale);
-		E1.set(2, 3, decomp.getT1().get(2, 0) * scale);
+		E1.set(0, 3, decomp.getT().get(0, 0) * scale);
+		E1.set(1, 3, decomp.getT().get(1, 0) * scale);
+		E1.set(2, 3, decomp.getT().get(2, 0) * scale);
 
 		E2.set(0, 0, decomp.getR2().get(0, 0));
 		E2.set(0, 1, decomp.getR2().get(0, 1));
@@ -748,13 +822,19 @@ public class ARUtils {
 		E2.set(2, 0, decomp.getR2().get(2, 0));
 		E2.set(2, 1, decomp.getR2().get(2, 1));
 		E2.set(2, 2, decomp.getR2().get(2, 2));
-		E2.set(0, 3, decomp.getT1().get(0, 0) * scale);
-		E2.set(1, 3, decomp.getT1().get(1, 0) * scale);
-		E2.set(2, 3, decomp.getT1().get(2, 0) * scale);
+		E2.set(0, 3, decomp.getT().get(0, 0) * scale);
+		E2.set(1, 3, decomp.getT().get(1, 0) * scale);
+		E2.set(2, 3, decomp.getT().get(2, 0) * scale);
 
-		E3 = E1.copy().times(-1);
+		E3 = E1.copy();
+		E3.set(0, 3, -E3.get(0, 3));
+		E3.set(1, 3, -E3.get(1, 3));
+		E3.set(2, 3, -E3.get(2, 3));
 
-		E4 = E2.copy().times(-1);
+		E4 = E2.copy();
+		E4.set(0, 3, -E4.get(0, 3));
+		E4.set(1, 3, -E4.get(1, 3));
+		E4.set(2, 3, -E4.get(2, 3));
 
 		pl("E1:");
 		E1.print(15, 5);
@@ -808,7 +888,7 @@ public class ARUtils {
 			a1.print(15, 5);
 			if (a1.get(2, 0) > 0) {
 				rt.setR(decomp.getR1());
-				rt.setT(decomp.getT1().times(scale));
+				rt.setT(decomp.getT().times(scale));
 				numSet++;
 			}
 		}
@@ -819,7 +899,7 @@ public class ARUtils {
 			a2.print(15, 5);
 			if (a2.get(2, 0) > 0) {
 				rt.setR(decomp.getR2());
-				rt.setT(decomp.getT1().times(scale));
+				rt.setT(decomp.getT().times(scale));
 				numSet++;
 			}
 		}
@@ -829,8 +909,8 @@ public class ARUtils {
 			pl("a3:");
 			a3.print(15, 5);
 			if (a3.get(2, 0) > 0) {
-				rt.setR(decomp.getR1().times(-1));
-				rt.setT(decomp.getT1().times(scale).times(-1));
+				rt.setR(decomp.getR1());
+				rt.setT(decomp.getT().times(scale).times(-1));
 				numSet++;
 			}
 		}
@@ -840,8 +920,8 @@ public class ARUtils {
 			pl("a4:");
 			a4.print(15, 5);
 			if (a4.get(2, 0) > 0) {
-				rt.setR(decomp.getR2().times(-1));
-				rt.setT(decomp.getT1().times(scale).times(-1));
+				rt.setR(decomp.getR2());
+				rt.setT(decomp.getT().times(scale).times(-1));
 				numSet++;
 			}
 		}
@@ -877,36 +957,31 @@ public class ARUtils {
 	}
 
 	public static EssentialDecomposition decomposeEssentialMat(Matrix essentialMatrix) {
+
 		EssentialDecomposition decomp = new EssentialDecomposition();
 		SingularValueDecomposition svd = essentialMatrix.svd();
+		Matrix U = svd.getU();
+		Matrix V = svd.getV();
+
+		if (U.det() < 0) {
+			U = U.times(-1);
+		}
+		if (V.transpose().det() < 0) {
+			V = V.times(-1);
+		}
 
 		Matrix W = new Matrix(3, 3);
 		W.set(0, 1, -1);
 		W.set(1, 0, 1);
 		W.set(2, 2, 1);
 
-		Matrix Z = new Matrix(3, 3);
-		Z.set(0, 1, 1);
-		Z.set(1, 0, -1);
-
-		Matrix t1 = svd.getU().getMatrix(0, 2, 2, 2);
-		Matrix t2 = t1.times(-1);
-		Matrix R1 = svd.getU().times(W.transpose()).times(svd.getV().transpose());
-		Matrix R2 = svd.getU().times(W).times(svd.getV().transpose());
+		Matrix t = U.getMatrix(0, 2, 2, 2);
+		Matrix R1 = U.times(W.transpose()).times(V.transpose());
+		Matrix R2 = U.times(W).times(V.transpose());
 
 		decomp.setR1(R1);
 		decomp.setR2(R2);
-		decomp.setT1(t1);
-		decomp.setT2(t2);
-
-		pl("R1: ");
-		R1.print(15, 5);
-		pl("R2: ");
-		R2.print(15, 5);
-		pl("t1: ");
-		t1.print(15, 5);
-		pl("t2: ");
-		t2.print(15, 5);
+		decomp.setT(t);
 
 		return decomp;
 	}
