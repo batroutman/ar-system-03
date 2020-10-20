@@ -13,7 +13,7 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 100;
+	protected long MAX_FRAMES = 250;
 	protected int NUM_POINTS = 1000;
 	protected int START_FRAME = 0;
 	protected int SEED = 1;

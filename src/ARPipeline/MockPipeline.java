@@ -19,6 +19,8 @@ import georegression.struct.so.Quaternion_F64;
 
 public class MockPipeline extends ARPipeline {
 
+	long lastTime = System.nanoTime();
+
 	MockPointData mock = new MockPointData();
 	long frameNum = 0;
 	boolean mapInitialized = false;
@@ -367,7 +369,7 @@ public class MockPipeline extends ARPipeline {
 	public boolean sufficientMovement(ArrayList<Correspondence2D2D> correspondences) {
 
 		// required average pixel difference to return a true value
-		double REQ_DIST = 15;
+		double REQ_DIST = 10;
 
 		if (correspondences.size() == 0) {
 			return false;
@@ -478,9 +480,8 @@ public class MockPipeline extends ARPipeline {
 		pl("tracked3DPoints size: " + tracked3DPoints.size());
 
 		// bundle adjustment
-		// this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose,
-		// trackedKeypoints1, trackedKeypoints2,
-		// tracked3DPoints);
+		this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1, trackedKeypoints2,
+				tracked3DPoints);
 
 		this.deepReplacePose(tempPose);
 	}
@@ -598,11 +599,11 @@ public class MockPipeline extends ARPipeline {
 						// Triangulate untracked map points
 						if (this.sufficientMovement(correspondences)) {
 							this.triangulateUntrackedMapPoints(correspondences);
+							// Create new keyframe
+							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
+									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 						}
 
-						// Create new keyframe
-						this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
-								correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 					}
 				}
 			}
@@ -626,10 +627,17 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				Thread.sleep(10);
+				// Thread.sleep(1);
 			} catch (Exception e) {
 
 			}
+
+			// record framerate
+			long newTime = System.nanoTime();
+			double frameTime = (newTime - lastTime) / 1000000000.0;
+			double framerate = 1 / frameTime;
+			lastTime = newTime;
+			pl("framerate:\t\t" + (int) framerate);
 		}
 	}
 

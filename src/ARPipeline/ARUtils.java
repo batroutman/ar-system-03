@@ -142,7 +142,7 @@ public class ARUtils {
 		BundleAdjustment<SceneStructureMetric> bundleAdjustment = FactoryMultiView.bundleSparseMetric(configSBA);
 
 		// debug
-		bundleAdjustment.setVerbose(System.out, 0);
+		// bundleAdjustment.setVerbose(System.out, 0);
 
 		// Specifies convergence criteria
 		bundleAdjustment.configure(1e-12, 1e-12, maxIterations);
