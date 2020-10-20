@@ -4,13 +4,14 @@ import java.util.HashMap;
 import org.opencv.core.Core;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.MockPipeline;
 import ARPipeline.MockPointData;
+import ARPipeline.OfflineFrameBuffer;
 import ARPipeline.Point2D;
 import ARPipeline.Point3D;
 import ARPipeline.Pose;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
+import ARPipeline.TestPipeline;
 import Jama.Matrix;
 
 public class ARBootstrapper {
@@ -24,11 +25,11 @@ public class ARBootstrapper {
 
 	public void start() {
 
-		// OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, false);
+		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, false);
 		SingletonPoseBuffer spb = new SingletonPoseBuffer();
 		SingletonFrameBuffer sfb = new SingletonFrameBuffer();
-		// ARPipeline pipeline = new TestPipeline(ofb, spb, sfb);
-		ARPipeline pipeline = new MockPipeline(sfb, spb, sfb);
+		ARPipeline pipeline = new TestPipeline(ofb, spb, sfb);
+		// ARPipeline pipeline = new MockPipeline(sfb, spb, sfb);
 		OpenGLARDisplay ARDisplay = new OpenGLARDisplay(sfb, spb);
 
 		pipeline.start();

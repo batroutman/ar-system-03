@@ -1058,6 +1058,52 @@ public class ARUtils {
 		boxHighlight(frame, keypoints, RGB, boxSize);
 	}
 
+	public static ArrayList<Byte[]> generateColors(Mat descriptors) {
+		ArrayList<Byte[]> colors = new ArrayList<Byte[]>();
+		for (int i = 0; i < descriptors.rows(); i++) {
+			colors.add(getColor(descriptors.row(i)));
+		}
+		return colors;
+	}
+
+	public static Byte[] getColor(Mat descriptor) {
+		double r = 0;
+		double g = 0;
+		double b = 0;
+		for (int i = 0; i < descriptor.cols(); i++) {
+			if (i / 11 == 0) {
+				r += descriptor.get(0, i)[0];
+			} else if (i / 11 == 1) {
+				g += descriptor.get(0, i)[0];
+			} else {
+				b += descriptor.get(0, i)[0];
+			}
+		}
+		r /= 2805.0;
+		g /= 2805.0;
+		b /= 2550.0;
+
+		r *= 255;
+		g *= 255;
+		b *= 255;
+		Byte[] rgb = { (byte) r, (byte) g, (byte) b };
+		return rgb;
+	}
+
+	public static void boxHighlight(Frame frame, MatOfKeyPoint keypoints, Mat descriptors, int boxSize) {
+		ArrayList<Byte[]> colors = generateColors(descriptors);
+		boxHighlightColored(frame, keypoints, colors, boxSize);
+	}
+
+	public static void boxHighlightColored(Frame frame, MatOfKeyPoint keypoints, ArrayList<Byte[]> keypointColors,
+			int boxSize) {
+		List<KeyPoint> keypointList = keypoints.toList();
+		for (int i = 0; i < keypointList.size(); i++) {
+			byte[] rgb = { keypointColors.get(i)[0], keypointColors.get(i)[1], keypointColors.get(i)[2] };
+			boxHighlight(frame, (int) keypointList.get(i).pt.x, (int) keypointList.get(i).pt.y, rgb, boxSize);
+		}
+	}
+
 	public static void boxHighlight(Frame frame, KeyPoint keypoint, byte[][] RGB, int boxSize) {
 
 		int x = (int) keypoint.pt.x;

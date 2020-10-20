@@ -223,7 +223,7 @@ public class MockPipeline extends ARPipeline {
 	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
-		double DIST_THRESH = 100;
+		double DIST_THRESH = 120;
 		FlannBasedMatcher flann = FlannBasedMatcher.create();
 		ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
 		flann.knnMatch(descriptors, currentKeyFrame.getDescriptors(), matches, 1);
