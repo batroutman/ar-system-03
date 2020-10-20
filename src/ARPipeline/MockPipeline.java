@@ -170,15 +170,6 @@ public class MockPipeline extends ARPipeline {
 		Quaternion_F64 q = ConvertRotation3D_F64.matrixToQuaternion(R, null);
 		q.normalize();
 
-		// this.pose.setQw(this.mock.getQuaternion(this.frameNum).get(0, 0));
-		// this.pose.setQx(this.mock.getQuaternion(this.frameNum).get(1, 0));
-		// this.pose.setQy(this.mock.getQuaternion(this.frameNum).get(2, 0));
-		// this.pose.setQz(this.mock.getQuaternion(this.frameNum).get(3, 0));
-		//
-		// this.pose.setCx(-this.mock.getIC(frameNum).get(0, 3));
-		// this.pose.setCy(-this.mock.getIC(frameNum).get(1, 3));
-		// this.pose.setCz(-this.mock.getIC(frameNum).get(2, 3));
-
 		this.pose.setQw(q.w);
 		this.pose.setQx(q.x);
 		this.pose.setQy(q.y);
@@ -232,7 +223,7 @@ public class MockPipeline extends ARPipeline {
 	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
-		double DIST_THRESH = 150;
+		double DIST_THRESH = 100;
 		FlannBasedMatcher flann = FlannBasedMatcher.create();
 		ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
 		flann.knnMatch(descriptors, currentKeyFrame.getDescriptors(), matches, 1);
@@ -325,12 +316,6 @@ public class MockPipeline extends ARPipeline {
 			Matrix pointMatrix = ARUtils.triangulate(E, this.currentKeyFrame.getPose().getHomogeneousMatrix(), corr);
 
 			Point3D point3D = new Point3D(pointMatrix.get(0, 0), pointMatrix.get(1, 0), pointMatrix.get(2, 0));
-			// mock
-			// point3D.setX(this.mock.getWorldCoordinates().get(c).get(0, 0));
-			// point3D.setY(this.mock.getWorldCoordinates().get(c).get(1, 0));
-			// point3D.setZ(this.mock.getWorldCoordinates().get(c).get(2, 0));
-			// pl(point3D.getX() + ", " + point3D.getY() + ", " +
-			// point3D.getZ());
 			mapPoint.setPoint(point3D);
 			point3Ds.add(point3D);
 		}
@@ -342,7 +327,6 @@ public class MockPipeline extends ARPipeline {
 	// current keyframe using the current keyframe pose and the current system
 	// pose (which must be updated before calling this function)
 	public void triangulateUntrackedMapPoints(ArrayList<Correspondence2D2D> correspondences) {
-		pl("\n\n\nYEET\n\n\n");
 		for (int c = 0; c < correspondences.size(); c++) {
 			Correspondence2D2D corr = correspondences.get(c);
 
@@ -527,7 +511,7 @@ public class MockPipeline extends ARPipeline {
 				pl("num correspondences: " + correspondences.size());
 
 				// initialize the map (for mock purposes)
-				if (!mapInitialized && this.frameNum >= 10) {
+				if (!mapInitialized && this.sufficientMovement(correspondences)) {
 					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
@@ -539,25 +523,9 @@ public class MockPipeline extends ARPipeline {
 					// single round BA to greatly correct poor results from sfm
 					// and triangulation
 					this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), newPose, correspondences, point3Ds,
-							5);
+							1);
 
 					this.deepReplacePose(newPose);
-
-					// double avgX = 0;
-					// double avgY = 0;
-					// double avgZ = 0;
-					//
-					// for (int i = 0; i < point3Ds.size(); i++) {
-					// avgX += point3Ds.get(i).getX();
-					// avgY += point3Ds.get(i).getY();
-					// avgZ += point3Ds.get(i).getZ();
-					// }
-					//
-					// avgX /= point3Ds.size();
-					// avgY /= point3Ds.size();
-					// avgZ /= point3Ds.size();
-					//
-					// pl("CENTROID: " + avgX + ", " + avgY + ", " + avgZ);
 
 					mapInitialized = true;
 				} else if (mapInitialized) {
@@ -627,7 +595,10 @@ public class MockPipeline extends ARPipeline {
 			this.frameNum++;
 
 			try {
-				// Thread.sleep(1);
+				if (frameNum > 180) {
+					// Thread.sleep(1000);
+				}
+
 			} catch (Exception e) {
 
 			}

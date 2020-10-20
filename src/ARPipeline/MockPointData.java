@@ -13,7 +13,7 @@ public class MockPointData {
 
 	protected int HEIGHT = 270;
 	protected int WIDTH = 480;
-	protected long MAX_FRAMES = 250;
+	protected long MAX_FRAMES = 800;
 	protected int NUM_POINTS = 1000;
 	protected int START_FRAME = 0;
 	protected int SEED = 1;
@@ -28,10 +28,11 @@ public class MockPointData {
 
 	// Amount to update R and t by each frame
 	// NOTE: translations should be negative (-C)
-	protected Vector3f translationVelocity = new Vector3f(0.05f, 0f, -0.2f);
-	// protected Vector3f translationVelocity = new Vector3f(5f, 3f, -10f);
-	protected double rotX = 0.00;
-	protected double rotY = -0.01;
+	// protected Vector3f translationVelocity = new Vector3f(0.00f, 0.002f,
+	// -0.2f);
+	protected Vector3f translationVelocity = new Vector3f(0.1f, 0f, 0f);
+	protected double rotX = 0.000;
+	protected double rotY = -0.002;
 	protected double rotZ = -0.000;
 	// protected double rotX = 0.5;
 	// protected double rotY = 0.2;
@@ -201,7 +202,7 @@ public class MockPointData {
 
 		}
 
-		double avgNoiseRange = 0.0;
+		double avgNoiseRange = 30;
 		double extremeNoiseRange = 0.0;
 		double proportionBroken = 0.0;
 		Mat descriptors = this.createDescriptors(frameNumber, validPoints, avgNoiseRange, extremeNoiseRange,
