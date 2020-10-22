@@ -1,11 +1,13 @@
 package ARPipeline;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.ejml.data.DMatrixRMaj;
 import org.opencv.calib3d.Calib3d;
-import org.opencv.core.CvType;
+import org.opencv.core.Core;
 import org.opencv.core.DMatch;
+import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDMatch;
 import org.opencv.core.MatOfKeyPoint;
@@ -224,32 +226,89 @@ public class TestPipeline extends ARPipeline {
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
 		double DIST_THRESH = 150;
-		double KEYPOINT_DIST = 50;
+		double LOWE_RATIO = 0.8;
 		FlannBasedMatcher flann = FlannBasedMatcher.create();
 		ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
 		flann.knnMatch(descriptors, currentKeyFrame.getDescriptors(), matches, 2);
 		for (int i = 0; i < matches.size(); i++) {
-			DMatch match = matches.get(i).toList().get(0);
-			if (match.distance < DIST_THRESH) {
+			DMatch match1 = matches.get(i).toList().get(0);
+			DMatch match2 = matches.get(i).toList().get(1);
+			if (match1.distance < DIST_THRESH && match1.distance < LOWE_RATIO * match2.distance) {
 				Correspondence2D2D c = new Correspondence2D2D();
-				c.setU1(currentKeyFrame.getKeypoints().get(match.trainIdx).getX());
-				c.setV1(currentKeyFrame.getKeypoints().get(match.trainIdx).getY());
-				c.setU2(keypoints.toList().get(match.queryIdx).pt.x);
-				c.setV2(keypoints.toList().get(match.queryIdx).pt.y);
-				c.setDescriptor1(currentKeyFrame.getDescriptors().row(match.trainIdx));
-				c.setDescriptor2(descriptors.row(match.queryIdx));
-				double distance = Math.sqrt(Math.pow(c.getU1() - c.getU2(), 2) + Math.pow(c.getV1() - c.getV2(), 2));
-				if (distance < KEYPOINT_DIST) {
-					correspondences.add(c);
-					Point pt = new Point();
-					pt.x = currentKeyFrame.getKeypoints().get(match.trainIdx).getX();
-					pt.y = currentKeyFrame.getKeypoints().get(match.trainIdx).getY();
-					matchedKeyframePoints.add(pt);
-					matchedPoints.add(keypoints.toList().get(match.queryIdx).pt);
-				}
+				c.setU1(currentKeyFrame.getKeypoints().get(match1.trainIdx).getX());
+				c.setV1(currentKeyFrame.getKeypoints().get(match1.trainIdx).getY());
+				c.setU2(keypoints.toList().get(match1.queryIdx).pt.x);
+				c.setV2(keypoints.toList().get(match1.queryIdx).pt.y);
+				c.setDescriptor1(currentKeyFrame.getDescriptors().row(match1.trainIdx));
+				c.setDescriptor2(descriptors.row(match1.queryIdx));
+
+				correspondences.add(c);
+				Point pt = new Point();
+				pt.x = currentKeyFrame.getKeypoints().get(match1.trainIdx).getX();
+				pt.y = currentKeyFrame.getKeypoints().get(match1.trainIdx).getY();
+				matchedKeyframePoints.add(pt);
+				matchedPoints.add(keypoints.toList().get(match1.queryIdx).pt);
 
 			}
 		}
+	}
+
+	public static void matchBinaryDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
+			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
+			ArrayList<Point> matchedPoints) {
+
+		double LOWE_RATIO = 0.75;
+		double DIST_THRESH = 25;
+
+		// indices of currentKeyFrame descriptors that describe the nearest
+		// neighbor to the i'th descriptor in descriptors
+		ArrayList<Integer> matchIndices = new ArrayList<Integer>();
+
+		ArrayList<Double> bestDistances = new ArrayList<Double>();
+		ArrayList<Double> secondBestDistances = new ArrayList<Double>();
+
+		correspondences.clear();
+		matchedKeyframePoints.clear();
+		matchedPoints.clear();
+		List<KeyPoint> keypointList = keypoints.toList();
+
+		for (int i = 0; i < descriptors.rows(); i++) {
+
+			int bestDesc = 0;
+			double bestDist = 257;
+			double secondBestDist = 258;
+			for (int j = 0; j < currentKeyFrame.getDescriptors().rows(); j++) {
+				double hamm = Core.norm(descriptors.row(i), currentKeyFrame.getDescriptors().row(j), Core.NORM_HAMMING);
+				if (hamm < bestDist) {
+					secondBestDist = bestDist;
+					bestDist = hamm;
+					bestDesc = j;
+				} else if (hamm < secondBestDist) {
+					secondBestDist = hamm;
+				}
+			}
+			matchIndices.add(bestDesc);
+			bestDistances.add(bestDist);
+			secondBestDistances.add(secondBestDist);
+
+			// if it's a good match, register a correspondence for it
+			if (bestDist <= DIST_THRESH && bestDist < LOWE_RATIO * secondBestDist) {
+				Correspondence2D2D c = new Correspondence2D2D();
+				c.setDescriptor1(currentKeyFrame.getDescriptors().row(bestDesc));
+				c.setU1(currentKeyFrame.getKeypoints().get(bestDesc).getX());
+				c.setV1(currentKeyFrame.getKeypoints().get(bestDesc).getY());
+				c.setDescriptor2(descriptors.row(i));
+				c.setU2(keypointList.get(i).pt.x);
+				c.setV2(keypointList.get(i).pt.y);
+				correspondences.add(c);
+
+				Point pt = new Point(c.getU1(), c.getV1());
+				matchedKeyframePoints.add(pt);
+				matchedPoints.add(keypointList.get(i).pt);
+			}
+
+		}
+
 	}
 
 	public Pose structureFromMotionUpdate(ArrayList<Point> matchedKeyframePoints, ArrayList<Point> matchedPoints,
@@ -486,25 +545,23 @@ public class TestPipeline extends ARPipeline {
 			}
 
 			// find ORB features
-			int patchSize = 10;
+			int patchSize = 15;
 			ORB orb = ORB.create(100);
+
 			orb.setScoreType(ORB.FAST_SCORE);
 			orb.setPatchSize(patchSize);
 			orb.setNLevels(1);
+			orb.setScaleFactor(1.5);
 			MatOfKeyPoint keypoints = new MatOfKeyPoint();
 			Mat descriptors = new Mat();
 			Mat image = ARUtils.frameToMat(currentFrame);
-			orb.detectAndCompute(image, new Mat(), keypoints, descriptors);
-			descriptors.convertTo(descriptors, CvType.CV_32F);
-			// ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
-			ARUtils.boxHighlight(currentFrame, keypoints, descriptors, patchSize);
+			orb.detect(image, keypoints);
+			ARUtils.pruneKeypoints(keypoints, 80);
+			orb.compute(image, keypoints, descriptors);
+			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
+			// ARUtils.boxHighlight(currentFrame, keypoints, descriptors,
+			// patchSize);
 			oldDesc = descriptors;
-			// for (int i = 0; i < descriptors.rows(); i++) {
-			// for (int j = 0; j < descriptors.cols(); j++) {
-			// System.out.print(descriptors.get(i, j)[0] + ", ");
-			// }
-			// System.out.print("\n");
-			// }
 
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
@@ -519,12 +576,20 @@ public class TestPipeline extends ARPipeline {
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				ArrayList<Point> matchedKeyframePoints = new ArrayList<Point>();
 				ArrayList<Point> matchedPoints = new ArrayList<Point>();
-				matchDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences, matchedKeyframePoints,
-						matchedPoints);
+				matchBinaryDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences,
+						matchedKeyframePoints, matchedPoints);
 				pl("num correspondences: " + correspondences.size());
+				for (int i = 0; i < correspondences.size(); i++) {
+					Correspondence2D2D c = correspondences.get(i);
+					pl("sample correspondence:\t\t" + c.getU1() + ", " + c.getV1() + "  ==>  " + c.getU2() + ", "
+							+ c.getV2());
+				}
+
+				// ARUtils.boxHighlight(currentFrame, correspondences,
+				// patchSize);
 
 				// initialize the map (for mock purposes)
-				if (!mapInitialized && frameNum > 30) {
+				if (!mapInitialized && frameNum > 60) {
 					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
@@ -536,7 +601,7 @@ public class TestPipeline extends ARPipeline {
 					// single round BA to greatly correct poor results from sfm
 					// and triangulation
 					this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), newPose, correspondences, point3Ds,
-							1);
+							10);
 
 					this.deepReplacePose(newPose);
 
@@ -610,7 +675,7 @@ public class TestPipeline extends ARPipeline {
 
 			try {
 				if (frameNum > 0) {
-					Thread.sleep(100);
+					Thread.sleep(1);
 				}
 
 			} catch (Exception e) {

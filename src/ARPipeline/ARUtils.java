@@ -142,7 +142,7 @@ public class ARUtils {
 		BundleAdjustment<SceneStructureMetric> bundleAdjustment = FactoryMultiView.bundleSparseMetric(configSBA);
 
 		// debug
-		// bundleAdjustment.setVerbose(System.out, 0);
+		bundleAdjustment.setVerbose(System.out, 0);
 
 		// Specifies convergence criteria
 		bundleAdjustment.configure(1e-12, 1e-12, maxIterations);
@@ -1041,7 +1041,7 @@ public class ARUtils {
 		List<KeyPoint> keypointList = keypoints.toList();
 		for (KeyPoint keypoint : keypointList) {
 			if (true) {
-				boxHighlight(frame, keypoint, RGB, boxSize * (int) Math.pow(2, keypoint.octave));
+				boxHighlight(frame, keypoint, RGB, boxSize * (int) Math.pow(1.5, keypoint.octave));
 			}
 		}
 	}
@@ -1111,6 +1111,14 @@ public class ARUtils {
 		byte[] color = getRGB(RGB, keypoint.octave);
 		boxHighlight(frame, x, y, color, boxSize);
 
+	}
+
+	public static void boxHighlight(Frame frame, List<Correspondence2D2D> correspondences, int boxSize) {
+		for (int i = 0; i < correspondences.size(); i++) {
+			Correspondence2D2D c = correspondences.get(i);
+			byte[] rgb = { (byte) (c.getU1().intValue() % 256), (byte) (c.getV1().intValue() % 256), 0 };
+			boxHighlight(frame, c.getU2().intValue(), c.getV2().intValue(), rgb, boxSize);
+		}
 	}
 
 	public static void boxHighlight(Frame frame, int x, int y, byte[] RGB, int boxSize) {
@@ -1226,6 +1234,17 @@ public class ARUtils {
 			}
 		}
 		keypoints.fromList(keypointList);
+	}
+
+	public static void pruneKeypoints(MatOfKeyPoint keypoints, int responseThreshold) {
+		List<KeyPoint> keypointList = keypoints.toList();
+		List<KeyPoint> newKeypoints = new ArrayList<KeyPoint>();
+		for (int i = 0; i < keypointList.size(); i++) {
+			if (keypointList.get(i).response >= responseThreshold) {
+				newKeypoints.add(keypointList.get(i));
+			}
+		}
+		keypoints.fromList(newKeypoints);
 	}
 
 	public static Double min(ArrayList<Double> list) {
