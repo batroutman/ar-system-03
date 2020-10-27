@@ -161,7 +161,7 @@ public class ARUtils {
 		pl("error before: " + errorBefore);
 		if (!bundleAdjustment.optimize(scene)) {
 			// throw new RuntimeException("Bundle adjustment failed?!?");
-			pl("***************************  ERROR  ****************************");
+			pl("\n\n\n\n***************************  ERROR  ****************************");
 			pl("NOTE: Bundle Adjustment failed!");
 			pl("fit score: " + bundleAdjustment.getFitScore());
 			bundleScale.undoScale(scene, observations);
@@ -183,7 +183,7 @@ public class ARUtils {
 				pl("");
 			}
 
-			pl("****************************************************************");
+			pl("****************************************************************\n\n\n\n");
 
 			return;
 		}
@@ -936,6 +936,181 @@ public class ARUtils {
 		return rt;
 	}
 
+	public static Rt selectHomographySolution(List<Mat> rotations, List<Mat> translations, Matrix pose,
+			ArrayList<Correspondence2D2D> correspondences) {
+		Rt rt = new Rt();
+
+		Matrix R1 = MatToMatrix(rotations.get(0));
+		Matrix R2 = MatToMatrix(rotations.get(1));
+		Matrix R3 = MatToMatrix(rotations.get(2));
+		Matrix R4 = MatToMatrix(rotations.get(3));
+
+		Matrix t1 = MatToMatrix(translations.get(0));
+		Matrix t2 = MatToMatrix(translations.get(1));
+		Matrix t3 = MatToMatrix(translations.get(2));
+		Matrix t4 = MatToMatrix(translations.get(3));
+
+		rt.setR(R1);
+		rt.setT(t1);
+
+		// set up extrinsic matrices (all possible options)
+		Matrix E1 = Matrix.identity(4, 4);
+		Matrix E2 = Matrix.identity(4, 4);
+		Matrix E3 = Matrix.identity(4, 4);
+		Matrix E4 = Matrix.identity(4, 4);
+
+		E1.set(0, 0, R1.get(0, 0));
+		E1.set(0, 1, R1.get(0, 1));
+		E1.set(0, 2, R1.get(0, 2));
+		E1.set(1, 0, R1.get(1, 0));
+		E1.set(1, 1, R1.get(1, 1));
+		E1.set(1, 2, R1.get(1, 2));
+		E1.set(2, 0, R1.get(2, 0));
+		E1.set(2, 1, R1.get(2, 1));
+		E1.set(2, 2, R1.get(2, 2));
+		E1.set(0, 3, t1.get(0, 0));
+		E1.set(1, 3, t1.get(1, 0));
+		E1.set(2, 3, t1.get(2, 0));
+
+		E2.set(0, 0, R2.get(0, 0));
+		E2.set(0, 1, R2.get(0, 1));
+		E2.set(0, 2, R2.get(0, 2));
+		E2.set(1, 0, R2.get(1, 0));
+		E2.set(1, 1, R2.get(1, 1));
+		E2.set(1, 2, R2.get(1, 2));
+		E2.set(2, 0, R2.get(2, 0));
+		E2.set(2, 1, R2.get(2, 1));
+		E2.set(2, 2, R2.get(2, 2));
+		E2.set(0, 3, t2.get(0, 0));
+		E2.set(1, 3, t2.get(1, 0));
+		E2.set(2, 3, t2.get(2, 0));
+
+		E3.set(0, 0, R3.get(0, 0));
+		E3.set(0, 1, R3.get(0, 1));
+		E3.set(0, 2, R3.get(0, 2));
+		E3.set(1, 0, R3.get(1, 0));
+		E3.set(1, 1, R3.get(1, 1));
+		E3.set(1, 2, R3.get(1, 2));
+		E3.set(2, 0, R3.get(2, 0));
+		E3.set(2, 1, R3.get(2, 1));
+		E3.set(2, 2, R3.get(2, 2));
+		E3.set(0, 3, t3.get(0, 0));
+		E3.set(1, 3, t3.get(1, 0));
+		E3.set(2, 3, t3.get(2, 0));
+
+		E4.set(0, 0, R4.get(0, 0));
+		E4.set(0, 1, R4.get(0, 1));
+		E4.set(0, 2, R4.get(0, 2));
+		E4.set(1, 0, R4.get(1, 0));
+		E4.set(1, 1, R4.get(1, 1));
+		E4.set(1, 2, R4.get(1, 2));
+		E4.set(2, 0, R4.get(2, 0));
+		E4.set(2, 1, R4.get(2, 1));
+		E4.set(2, 2, R4.get(2, 2));
+		E4.set(0, 3, t4.get(0, 0));
+		E4.set(1, 3, t4.get(1, 0));
+		E4.set(2, 3, t4.get(2, 0));
+
+		pl("E1:");
+		E1.print(15, 5);
+		pl("E2:");
+		E2.print(15, 5);
+		pl("E3:");
+		E3.print(15, 5);
+		pl("E4:");
+		E4.print(15, 5);
+
+		// pick a correspondence
+		Correspondence2D2D c = correspondences.get(0);
+
+		pl("correspondence:");
+		pl(c.getU1() + ", " + c.getV1());
+		pl(c.getU2() + ", " + c.getV2());
+
+		Matrix X1 = triangulate(E1, pose, c);
+		Matrix X2 = triangulate(E2, pose, c);
+		Matrix X3 = triangulate(E3, pose, c);
+		Matrix X4 = triangulate(E4, pose, c);
+
+		pl("X1: ");
+		X1.print(10, 5);
+		pl("X2: ");
+		X2.print(10, 5);
+		pl("X3: ");
+		X3.print(10, 5);
+		pl("X4: ");
+		X4.print(10, 5);
+
+		// fix this
+		Matrix b1 = CameraIntrinsics.getK4x4().times(E1).times(pose).times(X1);
+		Matrix b2 = CameraIntrinsics.getK4x4().times(E2).times(pose).times(X2);
+		Matrix b3 = CameraIntrinsics.getK4x4().times(E3).times(pose).times(X3);
+		Matrix b4 = CameraIntrinsics.getK4x4().times(E4).times(pose).times(X4);
+		int numSet = 0;
+
+		pl("b1: ");
+		b1.print(15, 5);
+		pl("b2: ");
+		b2.print(15, 5);
+		pl("b3: ");
+		b3.print(15, 5);
+		pl("b4: ");
+		b4.print(15, 5);
+
+		if (b1.get(2, 0) > 0) {
+			Matrix a1 = pose.times(X1);
+			pl("a1:");
+			a1.print(15, 5);
+			if (a1.get(2, 0) > 0) {
+				rt.setR(R1);
+				rt.setT(t1);
+				numSet++;
+			}
+		}
+
+		if (b2.get(2, 0) > 0) {
+			Matrix a2 = pose.times(X2);
+			pl("a2:");
+			a2.print(15, 5);
+			if (a2.get(2, 0) > 0) {
+				rt.setR(R2);
+				rt.setT(t2);
+				numSet++;
+			}
+		}
+
+		if (b3.get(2, 0) > 0) {
+			Matrix a3 = pose.times(X3);
+			pl("a3:");
+			a3.print(15, 5);
+			if (a3.get(2, 0) > 0) {
+				rt.setR(R3);
+				rt.setT(t3);
+				numSet++;
+			}
+		}
+
+		if (b4.get(2, 0) > 0) {
+			Matrix a4 = pose.times(X4);
+			pl("a4:");
+			a4.print(15, 5);
+			if (a4.get(2, 0) > 0) {
+				rt.setR(R4);
+				rt.setT(t4);
+				numSet++;
+			}
+		}
+
+		pl("numSet = " + numSet);
+
+		pl("chosen R: ");
+		rt.getR().print(15, 5);
+		pl("chosen t: ");
+		rt.getT().print(15, 5);
+
+		return rt;
+	}
+
 	public static Matrix transformPose(Matrix R, Matrix t, Matrix pose) {
 		// make homogeneous
 		Matrix homogeneousE = Matrix.identity(4, 4);
@@ -1245,6 +1420,102 @@ public class ARUtils {
 			}
 		}
 		keypoints.fromList(newKeypoints);
+	}
+
+	// given a keyframe, go through its map points and project its 3D points
+	// onto the image
+	public static void projectMapPoints(KeyFrame keyframe, Frame frame, Pose pose, Matrix K4x4) {
+		Matrix E = pose.getHomogeneousMatrix();
+		byte[] RGB = { (byte) 255, 0, (byte) 127 };
+		int boxSize = 3;
+		for (int i = 0; i < keyframe.getMapPoints().size(); i++) {
+			Point3D point = keyframe.getMapPoints().get(i).getPoint();
+
+			if (point == null) {
+				continue;
+			}
+
+			// project 3D point to this pose
+			Matrix point3D = new Matrix(4, 1);
+			point3D.set(0, 0, point.getX());
+			point3D.set(1, 0, point.getY());
+			point3D.set(2, 0, point.getZ());
+			point3D.set(3, 0, 1);
+
+			Matrix projection = K4x4.times(E).times(point3D);
+			projection = projection.times(1 / projection.get(2, 0));
+
+			// if point is on screen, paint it
+			int x = (int) projection.get(0, 0);
+			int y = (int) projection.get(1, 0);
+			if (x < frame.getWidth() && x >= 0 && y < frame.getHeight() && y >= 0) {
+				boxHighlight(frame, x, y, RGB, boxSize);
+			}
+		}
+	}
+
+	public static void trackCorrespondences(Frame frame, ArrayList<Correspondence2D2D> correspondences) {
+		byte[] RGB = { 0, (byte) 255, 0 };
+		for (int i = 0; i < correspondences.size(); i++) {
+			Correspondence2D2D c = correspondences.get(i);
+			int x1 = c.getU1().intValue();
+			int y1 = c.getV1().intValue();
+			int x2 = c.getU2().intValue();
+			int y2 = c.getV2().intValue();
+
+			int currentX = x1;
+			int currentY = y1;
+
+			int xDiff = x2 > x1 ? 1 : -1;
+			int yDiff = y2 > y1 ? 1 : -1;
+
+			int y2minusy1 = y2 - y1;
+			int x2minusx1 = x2 - x1;
+			int x2y1 = x2 * y1;
+			int y2x1 = y2 * x1;
+			double baseDist = Math.sqrt(y2minusy1 * y2minusy1 + x2minusx1 * x2minusx1);
+
+			boolean keepGoing = true;
+			while (keepGoing) {
+
+				if (currentX == x2 && currentY == y2) {
+					keepGoing = false;
+				}
+
+				paintPixel(frame, currentX, currentY, RGB, 1);
+
+				// evaluate 3 hypotheses and pick best one
+				double distX = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * currentY + x2y1 - y2x1) / baseDist;
+				double distY = Math.abs(y2minusy1 * currentX - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1) / baseDist;
+				double distXY = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1)
+						/ baseDist;
+
+				if (distXY < distX && distXY < distY) {
+					currentX += xDiff;
+					currentY += yDiff;
+				} else if (distX < distY) {
+					currentX += xDiff;
+				} else {
+					currentY += yDiff;
+				}
+			}
+
+		}
+	}
+
+	public static void paintPixel(Frame frame, int x, int y, byte[] RGB, int thickness) {
+		for (int i = x - thickness; i < x + thickness; i++) {
+			for (int j = y - thickness; j < y + thickness; j++) {
+
+				// if this point is on screen, paint it
+				if (i >= 0 && i < frame.getWidth() && j >= 0 && j < frame.getHeight()) {
+					frame.getR()[frame.getWidth() * j + i] = RGB[0];
+					frame.getG()[frame.getWidth() * j + i] = RGB[1];
+					frame.getB()[frame.getWidth() * j + i] = RGB[2];
+				}
+
+			}
+		}
 	}
 
 	public static Double min(ArrayList<Double> list) {

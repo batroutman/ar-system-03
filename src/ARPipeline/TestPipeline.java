@@ -360,6 +360,61 @@ public class TestPipeline extends ARPipeline {
 		return this.updateTemporaryPoseFromCurrent(E);
 	}
 
+	public Pose structureFromMotionUpdateHomography(ArrayList<Point> matchedKeyframePoints,
+			ArrayList<Point> matchedPoints, ArrayList<Correspondence2D2D> correspondences) {
+		// compute homography
+		Mat intrinsics = ARUtils.MatrixToMat(K);
+		MatOfPoint2f keyframeMat = new MatOfPoint2f();
+		MatOfPoint2f matKeypoints = new MatOfPoint2f();
+		keyframeMat.fromList(matchedKeyframePoints);
+		matKeypoints.fromList(matchedPoints);
+		Mat homography = Calib3d.findHomography(keyframeMat, matKeypoints);
+		List<Mat> rotations = new ArrayList<Mat>();
+		List<Mat> translations = new ArrayList<Mat>();
+		List<Mat> normals = new ArrayList<Mat>();
+		Calib3d.decomposeHomographyMat(homography, intrinsics, rotations, translations, normals);
+
+		pl("Homography: ");
+		ARUtils.MatToMatrix(homography).print(15, 5);
+
+		pl("Homography rotations: ");
+		for (int i = 0; i < rotations.size(); i++) {
+			ARUtils.MatToMatrix(rotations.get(i)).print(15, 5);
+		}
+
+		pl("Homography translations: ");
+		for (int i = 0; i < translations.size(); i++) {
+			ARUtils.MatToMatrix(translations.get(i)).print(15, 5);
+		}
+
+		pl("Homography normals: ");
+		for (int i = 0; i < normals.size(); i++) {
+			ARUtils.MatToMatrix(normals.get(i)).print(15, 5);
+		}
+
+		Rt rt = ARUtils.selectHomographySolution(rotations, translations,
+				this.currentKeyFrame.getPose().getHomogeneousMatrix(), correspondences);
+
+		// TRUE PURPOSE
+		Matrix E = new Matrix(4, 4);
+		E.set(0, 0, rt.getR().get(0, 0));
+		E.set(0, 1, rt.getR().get(0, 1));
+		E.set(0, 2, rt.getR().get(0, 2));
+		E.set(1, 0, rt.getR().get(1, 0));
+		E.set(1, 1, rt.getR().get(1, 1));
+		E.set(1, 2, rt.getR().get(1, 2));
+		E.set(2, 0, rt.getR().get(2, 0));
+		E.set(2, 1, rt.getR().get(2, 1));
+		E.set(2, 2, rt.getR().get(2, 2));
+		E.set(0, 3, rt.getT().get(0, 0));
+		E.set(1, 3, rt.getT().get(1, 0));
+		E.set(2, 3, rt.getT().get(2, 0));
+
+		E = ARUtils.sanitizeE(E);
+
+		return this.updateTemporaryPoseFromCurrent(E);
+	}
+
 	// given a list of correspondences between the current keyframe and the
 	// current frame, triangulate the 3D map points in the
 	// current keyframe using the current keyframe pose and the current system
@@ -414,7 +469,7 @@ public class TestPipeline extends ARPipeline {
 	public boolean sufficientMovement(ArrayList<Correspondence2D2D> correspondences) {
 
 		// required average pixel difference to return a true value
-		double REQ_DIST = 10;
+		double REQ_DIST = 20;
 
 		if (correspondences.size() == 0) {
 			return false;
@@ -579,18 +634,22 @@ public class TestPipeline extends ARPipeline {
 				matchBinaryDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences,
 						matchedKeyframePoints, matchedPoints);
 				pl("num correspondences: " + correspondences.size());
-				for (int i = 0; i < correspondences.size(); i++) {
-					Correspondence2D2D c = correspondences.get(i);
-					pl("sample correspondence:\t\t" + c.getU1() + ", " + c.getV1() + "  ==>  " + c.getU2() + ", "
-							+ c.getV2());
-				}
+				// for (int i = 0; i < correspondences.size(); i++) {
+				// Correspondence2D2D c = correspondences.get(i);
+				// pl("sample correspondence:\t\t" + c.getU1() + ", " +
+				// c.getV1() + " ==> " + c.getU2() + ", "
+				// + c.getV2());
+				// }
 
 				// ARUtils.boxHighlight(currentFrame, correspondences,
 				// patchSize);
 
+				// painting correspondences connected by lines
+				ARUtils.trackCorrespondences(currentFrame, correspondences);
+
 				// initialize the map (for mock purposes)
-				if (!mapInitialized && frameNum > 60) {
-					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
+				if (!mapInitialized && frameNum > 100) {
+					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
 					this.pose.getHomogeneousMatrix().print(15, 5);
@@ -633,9 +692,22 @@ public class TestPipeline extends ARPipeline {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
-						// Triangulate untracked map points
+						// Triangulate untracked map points and bundle adjust
 						if (this.sufficientMovement(correspondences)) {
+
+							// track points
 							this.triangulateUntrackedMapPoints(correspondences);
+
+							// bundle adjust
+							// Pose tempPose =
+							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							// ArrayList<Point3D> newTrackedPoints =
+							// this.get3DPoints(correspondences,
+							// this.currentKeyFrame);
+							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
+							// tempPose, correspondences,
+							// newTrackedPoints, 10);
+							// this.deepReplacePose(tempPose);
 						}
 
 					} else if (correspondences.size() >= 8 && numTracked <= 16 && numTracked >= 6) {
@@ -644,7 +716,21 @@ public class TestPipeline extends ARPipeline {
 
 						// Triangulate untracked map points
 						if (this.sufficientMovement(correspondences)) {
+
+							// track points
 							this.triangulateUntrackedMapPoints(correspondences);
+
+							// bundle adjust
+							// Pose tempPose =
+							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							// ArrayList<Point3D> newTrackedPoints =
+							// this.get3DPoints(correspondences,
+							// this.currentKeyFrame);
+							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
+							// tempPose, correspondences,
+							// newTrackedPoints, 10);
+							// this.deepReplacePose(tempPose);
+
 							// Create new keyframe
 							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
 									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
@@ -653,6 +739,9 @@ public class TestPipeline extends ARPipeline {
 					}
 				}
 			}
+
+			// print keyframe mappoints onto frame for visualization
+			ARUtils.projectMapPoints(this.currentKeyFrame, currentFrame, this.pose, CameraIntrinsics.getK4x4());
 
 			pl("num keyframes: " + this.map.getKeyframes().size());
 			synchronized (this.outputPoseBuffer) {
@@ -674,8 +763,8 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 0) {
-					Thread.sleep(1);
+				if (frameNum > 90) {
+					Thread.sleep(1000);
 				}
 
 			} catch (Exception e) {

@@ -12,7 +12,7 @@ public class OfflineFrameBuffer implements FrameBuffer {
 	protected VideoCapture vc = new VideoCapture();
 	protected String filename = "";
 	public int targetChunkSize = 1000;
-	public long MAX_FRAMES_LOADED = 70;
+	public long MAX_FRAMES_LOADED = 106;
 	public long numFramesLoaded = 0;
 
 	public OfflineFrameBuffer() {
