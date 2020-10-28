@@ -14,7 +14,6 @@ import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 import org.opencv.features2d.FlannBasedMatcher;
-import org.opencv.features2d.ORB;
 
 import Jama.Matrix;
 import georegression.geometry.ConvertRotation3D_F64;
@@ -257,7 +256,7 @@ public class TestPipeline extends ARPipeline {
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
 
-		double LOWE_RATIO = 0.75;
+		double LOWE_RATIO = 0.7;
 		double DIST_THRESH = 25;
 
 		// indices of currentKeyFrame descriptors that describe the nearest
@@ -438,6 +437,33 @@ public class TestPipeline extends ARPipeline {
 		return point3Ds;
 	}
 
+	// given a list of correspondences, calculate fundamental matrix using
+	// current pose and check epipolar constraint to remove correspondences that
+	// do not satisfy some threshold
+	public void pruneCorrespondenceOutliers(ArrayList<Correspondence2D2D> correspondences) {
+		for (int c = 0; c < correspondences.size(); c++) {
+			Correspondence2D2D corr = correspondences.get(c);
+
+			// remove outliers with epipolar constraint
+			Matrix x1 = new Matrix(3, 1);
+			Matrix x2 = new Matrix(3, 1);
+			x1.set(2, 0, 1);
+			x2.set(2, 0, 1);
+			x1.set(0, 0, corr.getU1());
+			x1.set(1, 0, corr.getV1());
+			x2.set(0, 0, corr.getU2());
+			x2.set(1, 0, corr.getV2());
+			Matrix F = ARUtils.fundamentalMatrix(this.pose, K);
+
+			double epipolarDist = Math.abs(x2.transpose().times(F).times(x1).get(0, 0));
+
+			if (epipolarDist > 0.001) {
+				correspondences.remove(c);
+				c--;
+			}
+		}
+	}
+
 	// given a list of correspondences between the current keyframe and the
 	// current frame, triangulate the untracked 3D map points in the
 	// current keyframe using the current keyframe pose and the current system
@@ -469,7 +495,7 @@ public class TestPipeline extends ARPipeline {
 	public boolean sufficientMovement(ArrayList<Correspondence2D2D> correspondences) {
 
 		// required average pixel difference to return a true value
-		double REQ_DIST = 20;
+		double REQ_DIST = 10;
 
 		if (correspondences.size() == 0) {
 			return false;
@@ -550,6 +576,7 @@ public class TestPipeline extends ARPipeline {
 	}
 
 	public void PnPUpdate(ArrayList<Point3D> point3Ds, ArrayList<Correspondence2D2D> correspondences) {
+
 		ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
 		ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
 		ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
@@ -566,6 +593,14 @@ public class TestPipeline extends ARPipeline {
 				trackedKeypoints2.add(point2D2);
 			}
 		}
+
+		pl("");
+		pl("3D points used in PnP: ");
+		for (int i = 0; i < tracked3DPoints.size(); i++) {
+			pl(tracked3DPoints.get(i).getX() + ", " + tracked3DPoints.get(i).getY() + ", "
+					+ tracked3DPoints.get(i).getZ());
+		}
+		pl("");
 
 		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2);
 		Pose tempPose = this.setTemporaryPose(E);
@@ -589,6 +624,8 @@ public class TestPipeline extends ARPipeline {
 	Mat oldDesc = new Mat();
 	int count = 0;
 
+	List<KeyPoint> oldKeypointList = null;
+
 	protected void mainloop() {
 		Frame currentFrame = this.inputFrameBuffer.getCurrentFrame();
 		boolean keepGoing = true;
@@ -599,24 +636,10 @@ public class TestPipeline extends ARPipeline {
 				continue;
 			}
 
-			// find ORB features
-			int patchSize = 15;
-			ORB orb = ORB.create(100);
-
-			orb.setScoreType(ORB.FAST_SCORE);
-			orb.setPatchSize(patchSize);
-			orb.setNLevels(1);
-			orb.setScaleFactor(1.5);
+			// get refined features
 			MatOfKeyPoint keypoints = new MatOfKeyPoint();
 			Mat descriptors = new Mat();
-			Mat image = ARUtils.frameToMat(currentFrame);
-			orb.detect(image, keypoints);
-			ARUtils.pruneKeypoints(keypoints, 80);
-			orb.compute(image, keypoints, descriptors);
-			ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
-			// ARUtils.boxHighlight(currentFrame, keypoints, descriptors,
-			// patchSize);
-			oldDesc = descriptors;
+			ARUtils.extractFeatures(currentFrame, keypoints, descriptors);
 
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
@@ -644,17 +667,15 @@ public class TestPipeline extends ARPipeline {
 				// ARUtils.boxHighlight(currentFrame, correspondences,
 				// patchSize);
 
-				// painting correspondences connected by lines
-				ARUtils.trackCorrespondences(currentFrame, correspondences);
-
-				// initialize the map (for mock purposes)
+				// initialize the map
 				if (!mapInitialized && frameNum > 100) {
-					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
+					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
 					this.pose.getHomogeneousMatrix().print(15, 5);
 
 					// triangulate points in map
+					this.pruneCorrespondenceOutliers(correspondences);
 					ArrayList<Point3D> point3Ds = this.triangulateMapPoints(correspondences, newPose);
 
 					// single round BA to greatly correct poor results from sfm
@@ -688,7 +709,7 @@ public class TestPipeline extends ARPipeline {
 					pl("numCorrespondences: " + correspondences.size());
 					pl("numTracked: " + numTracked);
 
-					if (correspondences.size() >= 8 && numTracked > 16) {
+					if (correspondences.size() >= 8 && numTracked > 24) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
@@ -696,6 +717,7 @@ public class TestPipeline extends ARPipeline {
 						if (this.sufficientMovement(correspondences)) {
 
 							// track points
+							this.pruneCorrespondenceOutliers(correspondences);
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
@@ -710,7 +732,7 @@ public class TestPipeline extends ARPipeline {
 							// this.deepReplacePose(tempPose);
 						}
 
-					} else if (correspondences.size() >= 8 && numTracked <= 16 && numTracked >= 6) {
+					} else if (correspondences.size() >= 8 && numTracked <= 24 && numTracked >= 6) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
@@ -718,6 +740,7 @@ public class TestPipeline extends ARPipeline {
 						if (this.sufficientMovement(correspondences)) {
 
 							// track points
+							this.pruneCorrespondenceOutliers(correspondences);
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
@@ -738,6 +761,8 @@ public class TestPipeline extends ARPipeline {
 
 					}
 				}
+				// painting correspondences connected by lines
+				ARUtils.trackCorrespondences(currentFrame, correspondences);
 			}
 
 			// print keyframe mappoints onto frame for visualization
@@ -763,7 +788,7 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 90) {
+				if (frameNum > 99) {
 					Thread.sleep(1000);
 				}
 

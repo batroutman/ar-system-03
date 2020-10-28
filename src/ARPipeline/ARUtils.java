@@ -16,6 +16,7 @@ import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.MatOfPoint3f;
 import org.opencv.core.Point;
 import org.opencv.core.Point3;
+import org.opencv.features2d.ORB;
 
 import Jama.Matrix;
 import Jama.SingularValueDecomposition;
@@ -32,6 +33,95 @@ import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 
 public class ARUtils {
+
+	public static Matrix fundamentalMatrix(Pose pose, Matrix K) {
+		Matrix R = pose.getRotationMatrix().getMatrix(0, 2, 0, 2);
+		Matrix tx = new Matrix(3, 3);
+		tx.set(0, 1, -pose.getTz());
+		tx.set(0, 2, pose.getTy());
+		tx.set(1, 0, pose.getTz());
+		tx.set(1, 2, -pose.getTx());
+		tx.set(2, 0, -pose.getTy());
+		tx.set(2, 1, pose.getTx());
+
+		Matrix essential = tx.times(R);
+
+		Matrix KInv = K.getMatrix(0, 2, 0, 2).inverse();
+
+		Matrix fundamental = KInv.transpose().times(essential).times(KInv);
+
+		return fundamental;
+	}
+
+	public static void extractFeatures(Frame currentFrame, MatOfKeyPoint keypoints, Mat descriptors) {
+
+		Mat image = ARUtils.frameToMat(currentFrame);
+
+		// ORB parameters
+		int patchSize = 15;
+		ORB orb = ORB.create(100);
+		orb.setScoreType(ORB.FAST_SCORE);
+		orb.setPatchSize(patchSize);
+		orb.setNLevels(1);
+		orb.setScaleFactor(1.5);
+
+		// cell parameters
+		int GRID_DIM_X = 1;
+		int GRID_DIM_Y = 1;
+		int CELL_WIDTH = (int) Math.floor(currentFrame.getWidth() / GRID_DIM_X);
+		int CELL_HEIGHT = (int) Math.floor(currentFrame.getHeight() / GRID_DIM_Y);
+
+		ArrayList<ArrayList<MatOfKeyPoint>> allKeypoints = new ArrayList<ArrayList<MatOfKeyPoint>>();
+
+		// extract ORB features in each cell
+		for (int i = 0; i < GRID_DIM_X; i++) {
+
+			allKeypoints.add(new ArrayList<MatOfKeyPoint>());
+
+			for (int j = 0; j < GRID_DIM_Y; j++) {
+				Mat mask = generateMask(i * CELL_WIDTH, (i + 1) * CELL_WIDTH, j * CELL_HEIGHT, (j + 1) * CELL_HEIGHT,
+						currentFrame.getWidth(), currentFrame.getHeight());
+
+				// find ORB features
+				MatOfKeyPoint tempKeypoints = new MatOfKeyPoint();
+				orb.detect(image, tempKeypoints, mask);
+
+				allKeypoints.get(i).add(tempKeypoints);
+			}
+		}
+
+		// merge keypoints into single list
+		List<KeyPoint> keypointList = new ArrayList<KeyPoint>();
+		for (int i = 0; i < allKeypoints.size(); i++) {
+			for (int j = 0; j < allKeypoints.get(i).size(); j++) {
+				List<KeyPoint> tempKeypointList = allKeypoints.get(i).get(j).toList();
+				for (int k = 0; k < tempKeypointList.size(); k++) {
+					keypointList.add(tempKeypointList.get(k));
+				}
+			}
+		}
+
+		keypoints.fromList(keypointList);
+
+		ARUtils.pruneKeypoints(keypoints, 80);
+		orb.compute(image, keypoints, descriptors);
+
+		ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
+		// ARUtils.boxHighlight(currentFrame, keypoints, descriptors,
+		// patchSize);
+	}
+
+	public static Mat generateMask(int startX, int endX, int startY, int endY, int frameWidth, int frameHeight) {
+
+		Mat mask = Mat.zeros(frameHeight, frameWidth, CvType.CV_8U);
+		for (int i = startX; i < endX; i++) {
+			for (int j = startY; j < endY; j++) {
+				mask.put(j, i, 255);
+			}
+		}
+
+		return mask;
+	}
 
 	public static Matrix sanitizeE(Matrix E) {
 
