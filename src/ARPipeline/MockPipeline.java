@@ -495,7 +495,7 @@ public class MockPipeline extends ARPipeline {
 
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
-				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints);
+				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints, frameNum);
 			}
 			// b. otherwise,
 			else {
@@ -568,7 +568,7 @@ public class MockPipeline extends ARPipeline {
 						if (this.sufficientMovement(correspondences)) {
 							this.triangulateUntrackedMapPoints(correspondences);
 							// Create new keyframe
-							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
+							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, frameNum, this.pose,
 									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 						}
 

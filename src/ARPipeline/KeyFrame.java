@@ -12,6 +12,7 @@ public class KeyFrame {
 	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
 	protected Mat descriptors = null;
 	protected ArrayList<Point2D> keypoints = new ArrayList<Point2D>();
+	protected long frameNumber = 0;
 
 	// hashtable that will take a point observation in comma-separated string
 	// form (for example,
@@ -65,6 +66,14 @@ public class KeyFrame {
 
 	public void setObsvToMapPoint(java.util.Map<String, MapPoint> obsvToMapPoint) {
 		this.obsvToMapPoint = obsvToMapPoint;
+	}
+
+	public long getFrameNumber() {
+		return frameNumber;
+	}
+
+	public void setFrameNumber(long frameNumber) {
+		this.frameNumber = frameNumber;
 	}
 
 }

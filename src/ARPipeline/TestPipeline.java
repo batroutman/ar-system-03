@@ -441,6 +441,7 @@ public class TestPipeline extends ARPipeline {
 	// current pose and check epipolar constraint to remove correspondences that
 	// do not satisfy some threshold
 	public void pruneCorrespondenceOutliers(ArrayList<Correspondence2D2D> correspondences) {
+		int numPruned = 0;
 		for (int c = 0; c < correspondences.size(); c++) {
 			Correspondence2D2D corr = correspondences.get(c);
 
@@ -457,11 +458,12 @@ public class TestPipeline extends ARPipeline {
 
 			double epipolarDist = Math.abs(x2.transpose().times(F).times(x1).get(0, 0));
 
-			if (epipolarDist > 0.001) {
+			if (epipolarDist > 0.01) {
 				correspondences.remove(c);
 				c--;
 			}
 		}
+		pl("number of correspondences pruned: " + numPruned);
 	}
 
 	// given a list of correspondences between the current keyframe and the
@@ -478,6 +480,10 @@ public class TestPipeline extends ARPipeline {
 
 			// ignore if this point has already been triangulated
 			if (mapPoint.getPoint() != null) {
+				// pl("point already trianguilated: " +
+				// mapPoint.getPoint().getX() + ", " +
+				// mapPoint.getPoint().getY()
+				// + ", " + mapPoint.getPoint().getZ());
 				continue;
 			}
 
@@ -621,6 +627,38 @@ public class TestPipeline extends ARPipeline {
 		this.deepReplacePose(tempPose);
 	}
 
+	public void pruneCorrespondencesByDistance(ArrayList<Correspondence2D2D> correspondences) {
+		ArrayList<Double> distances = new ArrayList<Double>();
+
+		// calculate average and record lengths of correspondences
+		double total = 0;
+		for (int i = 0; i < correspondences.size(); i++) {
+			Correspondence2D2D c = correspondences.get(i);
+			double distance = Math.sqrt(Math.pow(c.getU1() - c.getU2(), 2) + Math.pow(c.getV1() - c.getV2(), 2));
+			distances.add(distance);
+			total += distance;
+		}
+		double avg = total / correspondences.size();
+
+		// calculate variance of correspondence lengths
+		double variance = 0;
+		for (int i = 0; i < distances.size(); i++) {
+			variance += Math.pow(distances.get(i) - avg, 2);
+		}
+		variance /= distances.size();
+		double stdDev = Math.sqrt(variance);
+
+		// prune correspondences that fall out of some threshold of standard
+		// deviations
+		for (int i = 0; i < correspondences.size(); i++) {
+			if (Math.abs(avg - distances.get(i)) > stdDev * 1.75) {
+				correspondences.remove(i);
+				distances.remove(i);
+				i--;
+			}
+		}
+	}
+
 	Mat oldDesc = new Mat();
 	int count = 0;
 
@@ -643,7 +681,7 @@ public class TestPipeline extends ARPipeline {
 
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
-				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints);
+				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints, frameNum);
 			}
 			// b. otherwise,
 			else {
@@ -656,19 +694,19 @@ public class TestPipeline extends ARPipeline {
 				ArrayList<Point> matchedPoints = new ArrayList<Point>();
 				matchBinaryDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences,
 						matchedKeyframePoints, matchedPoints);
+				byte[] red = { (byte) 255, 0, 0 };
+				byte[] cyan = { 0, (byte) 255, (byte) 255 };
+				ARUtils.trackCorrespondences(currentFrame, correspondences, cyan);
+				this.pruneCorrespondencesByDistance(correspondences);
+				ARUtils.trackCorrespondences(currentFrame, correspondences, red);
+
 				pl("num correspondences: " + correspondences.size());
-				// for (int i = 0; i < correspondences.size(); i++) {
-				// Correspondence2D2D c = correspondences.get(i);
-				// pl("sample correspondence:\t\t" + c.getU1() + ", " +
-				// c.getV1() + " ==> " + c.getU2() + ", "
-				// + c.getV2());
-				// }
 
 				// ARUtils.boxHighlight(currentFrame, correspondences,
 				// patchSize);
 
 				// initialize the map
-				if (!mapInitialized && frameNum > 100) {
+				if (!mapInitialized && frameNum > 60) {
 					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
@@ -709,7 +747,8 @@ public class TestPipeline extends ARPipeline {
 					pl("numCorrespondences: " + correspondences.size());
 					pl("numTracked: " + numTracked);
 
-					if (correspondences.size() >= 8 && numTracked > 24) {
+					if (correspondences.size() >= 8 && numTracked > 24
+							|| this.currentKeyFrame.getFrameNumber() > frameNum - 15) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
@@ -718,6 +757,16 @@ public class TestPipeline extends ARPipeline {
 
 							// track points
 							this.pruneCorrespondenceOutliers(correspondences);
+
+							// debug
+							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+							numTracked = 0;
+							for (int i = 0; i < point3Ds.size(); i++) {
+								numTracked += point3Ds.get(i) != null ? 1 : 0;
+							}
+							pl("numCorrespondences before triangulation: " + correspondences.size());
+							pl("numTracked before triangulation: " + numTracked);
+
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
@@ -741,6 +790,16 @@ public class TestPipeline extends ARPipeline {
 
 							// track points
 							this.pruneCorrespondenceOutliers(correspondences);
+
+							// debug
+							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+							numTracked = 0;
+							for (int i = 0; i < point3Ds.size(); i++) {
+								numTracked += point3Ds.get(i) != null ? 1 : 0;
+							}
+							pl("numCorrespondences before triangulation: " + correspondences.size());
+							pl("numTracked before triangulation: " + numTracked);
+
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
@@ -755,7 +814,7 @@ public class TestPipeline extends ARPipeline {
 							// this.deepReplacePose(tempPose);
 
 							// Create new keyframe
-							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, this.pose,
+							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, frameNum, this.pose,
 									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 						}
 
@@ -769,14 +828,33 @@ public class TestPipeline extends ARPipeline {
 			ARUtils.projectMapPoints(this.currentKeyFrame, currentFrame, this.pose, CameraIntrinsics.getK4x4());
 
 			pl("num keyframes: " + this.map.getKeyframes().size());
+
+			// base pose for map visualization and debugging
+			Pose basePose = new Pose();
+
+			// down at a 45 degree angle
+			basePose.setQw(0.9238792);
+			basePose.setQx(0.3826843);
+
+			// straight down
+			// basePose.setQw(0.707);
+			// basePose.setQx(0.707);
+
+			basePose.setCy(-40);
+			basePose.setCz(-10);
+
 			synchronized (this.outputPoseBuffer) {
-				this.outputPoseBuffer.pushPose(pose);
+				this.outputPoseBuffer.pushPose(this.pose);
 			}
 
 			// for demo, just push the unaltered frame along to the output
 			// buffer
 			synchronized (this.outputFrameBuffer) {
 				this.outputFrameBuffer.pushFrame(currentFrame);
+
+				// this.outputFrameBuffer.pushFrame(this.map.getMapVisualizationFrame(basePose,
+				// K, currentFrame.getWidth(),
+				// currentFrame.getHeight()));
 			}
 
 			currentFrame = this.inputFrameBuffer.getCurrentFrame();
@@ -788,7 +866,7 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 99) {
+				if (frameNum > 9999) {
 					Thread.sleep(1000);
 				}
 

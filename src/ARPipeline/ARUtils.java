@@ -58,8 +58,8 @@ public class ARUtils {
 		Mat image = ARUtils.frameToMat(currentFrame);
 
 		// ORB parameters
-		int patchSize = 15;
-		ORB orb = ORB.create(100);
+		int patchSize = 12;
+		ORB orb = ORB.create(200);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
@@ -103,12 +103,73 @@ public class ARUtils {
 
 		keypoints.fromList(keypointList);
 
-		ARUtils.pruneKeypoints(keypoints, 80);
+		// pruneScaleDependentFeatures(keypoints, 2, 5);
+
+		ARUtils.pruneKeypoints(keypoints, 70);
 		orb.compute(image, keypoints, descriptors);
 
 		ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 		// ARUtils.boxHighlight(currentFrame, keypoints, descriptors,
 		// patchSize);
+	}
+
+	//
+	public static void pruneScaleDependentFeatures(MatOfKeyPoint keypoints, int NUM_SCALES_REQ, int RANGE) {
+		List<KeyPoint> keypointList = keypoints.toList();
+
+		// many features will show up at several levels. When finding these
+		// features, group them up with their entries at all levels they show
+		// up.
+		ArrayList<ArrayList<KeyPoint>> goodKeypointGroupings = new ArrayList<ArrayList<KeyPoint>>();
+
+		// to make it faster to find close keypoints, load them into hashmap
+		java.util.HashMap<String, ArrayList<KeyPoint>> keypointMap = new java.util.HashMap<String, ArrayList<KeyPoint>>();
+		for (KeyPoint keypoint : keypointList) {
+			ArrayList<KeyPoint> keypointsHere = keypointMap.get((int) keypoint.pt.x + "," + (int) keypoint.pt.y);
+			if (keypointsHere == null) {
+				keypointsHere = new ArrayList<KeyPoint>();
+				keypointMap.put((int) keypoint.pt.x + "," + (int) keypoint.pt.y, keypointsHere);
+			}
+			keypointsHere.add(keypoint);
+		}
+
+		// go through every keypoint and find any other keypoints that are close
+		// to it and group them up
+		for (KeyPoint keypoint : keypointList) {
+			ArrayList<KeyPoint> group = new ArrayList<KeyPoint>();
+			for (int i = (int) keypoint.pt.x - RANGE; i <= (int) keypoint.pt.x + RANGE; i++) {
+				for (int j = (int) keypoint.pt.y - RANGE; j <= (int) keypoint.pt.y + RANGE; j++) {
+					ArrayList<KeyPoint> entries = keypointMap.get(i + "," + j);
+					if (entries == null) {
+						continue;
+					}
+					for (KeyPoint entry : entries) {
+						group.add(entry);
+					}
+				}
+			}
+			if (group.size() >= NUM_SCALES_REQ) {
+				goodKeypointGroupings.add(group);
+			}
+		}
+
+		// pick and retain the best keypoint from each group
+		ArrayList<KeyPoint> prunedKeypoints = new ArrayList<KeyPoint>();
+		for (int i = 0; i < goodKeypointGroupings.size(); i++) {
+			KeyPoint bestKeypoint = goodKeypointGroupings.get(i).get(0);
+			double bestResponse = goodKeypointGroupings.get(i).get(0).response;
+			for (int j = 1; j < goodKeypointGroupings.get(i).size(); j++) {
+				if (goodKeypointGroupings.get(i).get(j).response < bestResponse) {
+					bestKeypoint = goodKeypointGroupings.get(i).get(j);
+					bestResponse = bestKeypoint.response;
+				}
+			}
+			prunedKeypoints.add(bestKeypoint);
+		}
+
+		pl("keypointList.size(): " + keypointList.size());
+		pl("prunedKeypoints.size(): " + prunedKeypoints.size());
+		keypoints.fromList(prunedKeypoints);
 	}
 
 	public static Mat generateMask(int startX, int endX, int startY, int endY, int frameWidth, int frameHeight) {
@@ -1546,6 +1607,10 @@ public class ARUtils {
 
 	public static void trackCorrespondences(Frame frame, ArrayList<Correspondence2D2D> correspondences) {
 		byte[] RGB = { 0, (byte) 255, 0 };
+		trackCorrespondences(frame, correspondences, RGB);
+	}
+
+	public static void trackCorrespondences(Frame frame, ArrayList<Correspondence2D2D> correspondences, byte[] RGB) {
 		for (int i = 0; i < correspondences.size(); i++) {
 			Correspondence2D2D c = correspondences.get(i);
 			int x1 = c.getU1().intValue();
