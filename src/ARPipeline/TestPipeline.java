@@ -714,7 +714,7 @@ public class TestPipeline extends ARPipeline {
 
 				// initialize the map
 				if (!mapInitialized && frameNum > 60) {
-					Pose newPose = this.structureFromMotionUpdate(matchedKeyframePoints, matchedPoints,
+					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
 					this.pose.getHomogeneousMatrix().print(15, 5);

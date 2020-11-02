@@ -1171,88 +1171,107 @@ public class ARUtils {
 		pl("E4:");
 		E4.print(15, 5);
 
-		// pick a correspondence
-		Correspondence2D2D c = correspondences.get(0);
+		int[] scores = { 0, 0, 0, 0 };
+		double[] reprojErrors = { 0, 0, 0, 0 };
 
-		pl("correspondence:");
-		pl(c.getU1() + ", " + c.getV1());
-		pl(c.getU2() + ", " + c.getV2());
+		for (Correspondence2D2D c : correspondences) {
 
-		Matrix X1 = triangulate(E1, pose, c);
-		Matrix X2 = triangulate(E2, pose, c);
-		Matrix X3 = triangulate(E3, pose, c);
-		Matrix X4 = triangulate(E4, pose, c);
+			// triangulated points
+			Matrix X1 = triangulate(E1, pose, c);
+			Matrix X2 = triangulate(E2, pose, c);
+			Matrix X3 = triangulate(E3, pose, c);
+			Matrix X4 = triangulate(E4, pose, c);
 
-		pl("X1: ");
-		X1.print(10, 5);
-		pl("X2: ");
-		X2.print(10, 5);
-		pl("X3: ");
-		X3.print(10, 5);
-		pl("X4: ");
-		X4.print(10, 5);
+			// reprojected to second frame
+			Matrix b1 = CameraIntrinsics.getK4x4().times(E1).times(pose).times(X1);
+			Matrix b2 = CameraIntrinsics.getK4x4().times(E2).times(pose).times(X2);
+			Matrix b3 = CameraIntrinsics.getK4x4().times(E3).times(pose).times(X3);
+			Matrix b4 = CameraIntrinsics.getK4x4().times(E4).times(pose).times(X4);
 
-		// fix this
-		Matrix b1 = CameraIntrinsics.getK4x4().times(E1).times(pose).times(X1);
-		Matrix b2 = CameraIntrinsics.getK4x4().times(E2).times(pose).times(X2);
-		Matrix b3 = CameraIntrinsics.getK4x4().times(E3).times(pose).times(X3);
-		Matrix b4 = CameraIntrinsics.getK4x4().times(E4).times(pose).times(X4);
-		int numSet = 0;
+			// get reprojection errors
+			Matrix b1Normalized = b1.times(1 / b1.get(2, 0)).getMatrix(0, 1, 0, 0);
+			Matrix b2Normalized = b2.times(1 / b2.get(2, 0)).getMatrix(0, 1, 0, 0);
+			Matrix b3Normalized = b3.times(1 / b3.get(2, 0)).getMatrix(0, 1, 0, 0);
+			Matrix b4Normalized = b4.times(1 / b4.get(2, 0)).getMatrix(0, 1, 0, 0);
+			Matrix trueProj = new Matrix(2, 1);
+			trueProj.set(0, 0, c.getU2());
+			trueProj.set(1, 0, c.getV2());
+			reprojErrors[0] += trueProj.minus(b1Normalized).normF();
+			reprojErrors[1] += trueProj.minus(b2Normalized).normF();
+			reprojErrors[2] += trueProj.minus(b3Normalized).normF();
+			reprojErrors[3] += trueProj.minus(b4Normalized).normF();
 
-		pl("b1: ");
-		b1.print(15, 5);
-		pl("b2: ");
-		b2.print(15, 5);
-		pl("b3: ");
-		b3.print(15, 5);
-		pl("b4: ");
-		b4.print(15, 5);
+			if (b1.get(2, 0) > 0) {
+				Matrix a1 = pose.times(X1);
+				if (a1.get(2, 0) > 0) {
+					rt.setR(R1);
+					rt.setT(t1);
+					scores[0]++;
+				}
+			}
 
-		if (b1.get(2, 0) > 0) {
-			Matrix a1 = pose.times(X1);
-			pl("a1:");
-			a1.print(15, 5);
-			if (a1.get(2, 0) > 0) {
-				rt.setR(R1);
-				rt.setT(t1);
-				numSet++;
+			if (b2.get(2, 0) > 0) {
+				Matrix a2 = pose.times(X2);
+				if (a2.get(2, 0) > 0) {
+					rt.setR(R2);
+					rt.setT(t2);
+					scores[1]++;
+				}
+			}
+
+			if (b3.get(2, 0) > 0) {
+				Matrix a3 = pose.times(X3);
+				if (a3.get(2, 0) > 0) {
+					rt.setR(R3);
+					rt.setT(t3);
+					scores[2]++;
+				}
+			}
+
+			if (b4.get(2, 0) > 0) {
+				Matrix a4 = pose.times(X4);
+				if (a4.get(2, 0) > 0) {
+					rt.setR(R4);
+					rt.setT(t4);
+					scores[3]++;
+				}
 			}
 		}
 
-		if (b2.get(2, 0) > 0) {
-			Matrix a2 = pose.times(X2);
-			pl("a2:");
-			a2.print(15, 5);
-			if (a2.get(2, 0) > 0) {
-				rt.setR(R2);
-				rt.setT(t2);
-				numSet++;
+		// narrow down options based on chirality (should have 2 hypotheses
+		// remaining)
+		ArrayList<Integer> bestHypothesesInd = new ArrayList<Integer>();
+		double avgScore = (scores[0] + scores[1] + scores[2] + scores[3]) / 4.0;
+
+		for (int i = 0; i < scores.length; i++) {
+			int score = scores[i];
+			if (score > avgScore) {
+				bestHypothesesInd.add(i);
 			}
 		}
 
-		if (b3.get(2, 0) > 0) {
-			Matrix a3 = pose.times(X3);
-			pl("a3:");
-			a3.print(15, 5);
-			if (a3.get(2, 0) > 0) {
-				rt.setR(R3);
-				rt.setT(t3);
-				numSet++;
+		// pick hypothesis based on reprojection error
+		int lowestReprojInd = bestHypothesesInd.get(0);
+		for (int i = 1; i < bestHypothesesInd.size(); i++) {
+			if (reprojErrors[bestHypothesesInd.get(i)] < reprojErrors[lowestReprojInd]) {
+				lowestReprojInd = bestHypothesesInd.get(i);
 			}
 		}
 
-		if (b4.get(2, 0) > 0) {
-			Matrix a4 = pose.times(X4);
-			pl("a4:");
-			a4.print(15, 5);
-			if (a4.get(2, 0) > 0) {
-				rt.setR(R4);
-				rt.setT(t4);
-				numSet++;
-			}
+		// finally, set the correct decomposition
+		if (lowestReprojInd == 0) {
+			rt.setR(R1);
+			rt.setT(t1);
+		} else if (lowestReprojInd == 1) {
+			rt.setR(R2);
+			rt.setT(t2);
+		} else if (lowestReprojInd == 2) {
+			rt.setR(R3);
+			rt.setT(t3);
+		} else if (lowestReprojInd == 3) {
+			rt.setR(R4);
+			rt.setT(t4);
 		}
-
-		pl("numSet = " + numSet);
 
 		pl("chosen R: ");
 		rt.getR().print(15, 5);
