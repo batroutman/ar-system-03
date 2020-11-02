@@ -20,6 +20,12 @@ import georegression.geometry.ConvertRotation3D_F64;
 import georegression.struct.so.Quaternion_F64;
 
 public class TestPipeline extends ARPipeline {
+
+	final int AR_VIEW = 0;
+	final int MAP_VIEW = 1;
+
+	int viewType = AR_VIEW;
+
 	long lastTime = System.nanoTime();
 	long frameNum = 0;
 	boolean mapInitialized = false;
@@ -471,6 +477,7 @@ public class TestPipeline extends ARPipeline {
 	// current keyframe using the current keyframe pose and the current system
 	// pose (which must be updated before calling this function)
 	public void triangulateUntrackedMapPoints(ArrayList<Correspondence2D2D> correspondences) {
+		pl("Triangulating untracked map points: ");
 		for (int c = 0; c < correspondences.size(); c++) {
 			Correspondence2D2D corr = correspondences.get(c);
 
@@ -480,7 +487,7 @@ public class TestPipeline extends ARPipeline {
 
 			// ignore if this point has already been triangulated
 			if (mapPoint.getPoint() != null) {
-				// pl("point already trianguilated: " +
+				// pl("point already triangulated: " +
 				// mapPoint.getPoint().getX() + ", " +
 				// mapPoint.getPoint().getY()
 				// + ", " + mapPoint.getPoint().getZ());
@@ -747,7 +754,7 @@ public class TestPipeline extends ARPipeline {
 					pl("numCorrespondences: " + correspondences.size());
 					pl("numTracked: " + numTracked);
 
-					if (correspondences.size() >= 8 && numTracked > 24
+					if (correspondences.size() >= 8 && numTracked > 20
 							|| this.currentKeyFrame.getFrameNumber() > frameNum - 15) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
@@ -756,7 +763,7 @@ public class TestPipeline extends ARPipeline {
 						if (this.sufficientMovement(correspondences)) {
 
 							// track points
-							this.pruneCorrespondenceOutliers(correspondences);
+							// this.pruneCorrespondenceOutliers(correspondences);
 
 							// debug
 							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
@@ -770,18 +777,15 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							// Pose tempPose =
-							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							// ArrayList<Point3D> newTrackedPoints =
-							// this.get3DPoints(correspondences,
-							// this.currentKeyFrame);
-							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
-							// tempPose, correspondences,
-							// newTrackedPoints, 10);
-							// this.deepReplacePose(tempPose);
+							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+									this.currentKeyFrame);
+							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
+									newTrackedPoints, 10);
+							this.deepReplacePose(tempPose);
 						}
 
-					} else if (correspondences.size() >= 8 && numTracked <= 24 && numTracked >= 6) {
+					} else if (correspondences.size() >= 8 && numTracked <= 20 && numTracked >= 6) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
@@ -789,7 +793,7 @@ public class TestPipeline extends ARPipeline {
 						if (this.sufficientMovement(correspondences)) {
 
 							// track points
-							this.pruneCorrespondenceOutliers(correspondences);
+							// this.pruneCorrespondenceOutliers(correspondences);
 
 							// debug
 							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
@@ -803,15 +807,12 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							// Pose tempPose =
-							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							// ArrayList<Point3D> newTrackedPoints =
-							// this.get3DPoints(correspondences,
-							// this.currentKeyFrame);
-							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
-							// tempPose, correspondences,
-							// newTrackedPoints, 10);
-							// this.deepReplacePose(tempPose);
+							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+									this.currentKeyFrame);
+							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
+									newTrackedPoints, 10);
+							this.deepReplacePose(tempPose);
 
 							// Create new keyframe
 							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, frameNum, this.pose,
@@ -833,28 +834,37 @@ public class TestPipeline extends ARPipeline {
 			Pose basePose = new Pose();
 
 			// down at a 45 degree angle
-			basePose.setQw(0.9238792);
-			basePose.setQx(0.3826843);
+			// basePose.setQw(0.9238792);
+			// basePose.setQx(0.3826843);
 
 			// straight down
-			// basePose.setQw(0.707);
-			// basePose.setQx(0.707);
+			basePose.setQw(0.707);
+			basePose.setQx(0.707);
 
-			basePose.setCy(-40);
-			basePose.setCz(-10);
+			basePose.setCy(-80);
+			basePose.setCz(10);
 
 			synchronized (this.outputPoseBuffer) {
-				this.outputPoseBuffer.pushPose(this.pose);
+
+				if (this.viewType == AR_VIEW) {
+					this.outputPoseBuffer.pushPose(this.pose);
+				} else if (this.viewType == MAP_VIEW) {
+					this.outputPoseBuffer.pushPose(basePose);
+				}
+
 			}
 
 			// for demo, just push the unaltered frame along to the output
 			// buffer
 			synchronized (this.outputFrameBuffer) {
-				this.outputFrameBuffer.pushFrame(currentFrame);
 
-				// this.outputFrameBuffer.pushFrame(this.map.getMapVisualizationFrame(basePose,
-				// K, currentFrame.getWidth(),
-				// currentFrame.getHeight()));
+				if (this.viewType == AR_VIEW) {
+					this.outputFrameBuffer.pushFrame(currentFrame);
+				} else if (this.viewType == MAP_VIEW) {
+					this.outputFrameBuffer.pushFrame(this.map.getMapVisualizationFrame(basePose, K,
+							currentFrame.getWidth(), currentFrame.getHeight()));
+				}
+
 			}
 
 			currentFrame = this.inputFrameBuffer.getCurrentFrame();
