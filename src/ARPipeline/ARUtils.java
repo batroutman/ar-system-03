@@ -618,8 +618,10 @@ public class ARUtils {
 		Mat cameraMatrix = MatrixToMat(CameraIntrinsics.getK());
 		Mat rvec = new Mat();
 		Mat tvec = new Mat();
-		Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec, false,
+		Calib3d.solvePnPRansac(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec);
+		Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec, true,
 				Calib3d.SOLVEPNP_ITERATIVE);
+
 		Mat RMat = new Mat();
 		Calib3d.Rodrigues(rvec, RMat);
 
@@ -1271,6 +1273,16 @@ public class ARUtils {
 		} else if (lowestReprojInd == 3) {
 			rt.setR(R4);
 			rt.setT(t4);
+		}
+
+		pl("scores:");
+		for (int score : scores) {
+			pl(score);
+		}
+
+		pl("reprojection errors:");
+		for (double error : reprojErrors) {
+			pl(error);
 		}
 
 		pl("chosen R: ");

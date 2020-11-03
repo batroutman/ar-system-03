@@ -713,7 +713,7 @@ public class TestPipeline extends ARPipeline {
 				// patchSize);
 
 				// initialize the map
-				if (!mapInitialized && frameNum > 60) {
+				if (!mapInitialized && frameNum >= 59) {
 					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
@@ -731,6 +731,7 @@ public class TestPipeline extends ARPipeline {
 					this.deepReplacePose(newPose);
 
 					mapInitialized = true;
+					// this.currentKeyFrame.setFrameNumber(frameNum);
 				} else if (mapInitialized) {
 
 					// get tracked 3D points
