@@ -434,6 +434,11 @@ public class MockPipeline extends ARPipeline {
 	}
 
 	public void PnPUpdate(ArrayList<Point3D> point3Ds, ArrayList<Correspondence2D2D> correspondences) {
+
+		Mat rvec = new Mat();
+		Mat tvec = new Mat();
+		ARUtils.PnPRANSACPrune(correspondences, point3Ds, rvec, tvec);
+
 		ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
 		ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
 		ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
@@ -451,7 +456,15 @@ public class MockPipeline extends ARPipeline {
 			}
 		}
 
-		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2);
+		pl("");
+		pl("3D points used in PnP: ");
+		for (int i = 0; i < tracked3DPoints.size(); i++) {
+			pl(tracked3DPoints.get(i).getX() + ", " + tracked3DPoints.get(i).getY() + ", "
+					+ tracked3DPoints.get(i).getZ());
+		}
+		pl("");
+
+		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2, rvec, tvec, true);
 		Pose tempPose = this.setTemporaryPose(E);
 
 		// debug

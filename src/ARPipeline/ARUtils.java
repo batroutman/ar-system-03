@@ -597,7 +597,8 @@ public class ARUtils {
 		return Q;
 	}
 
-	public static Matrix OpenCVPnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {
+	public static Matrix OpenCVPnP(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D, Mat rvec, Mat tvec,
+			boolean useInitialGuess) {
 		ArrayList<Point3> p3Points3D = new ArrayList<Point3>();
 		ArrayList<Point> p2Points2D = new ArrayList<Point>();
 		for (int i = 0; i < points3D.size(); i++) {
@@ -616,10 +617,8 @@ public class ARUtils {
 		MatOfPoint2f imagePoints = new MatOfPoint2f();
 		imagePoints.fromList(p2Points2D);
 		Mat cameraMatrix = MatrixToMat(CameraIntrinsics.getK());
-		Mat rvec = new Mat();
-		Mat tvec = new Mat();
-		Calib3d.solvePnPRansac(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec);
-		Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec, true,
+
+		Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), rvec, tvec, useInitialGuess,
 				Calib3d.SOLVEPNP_ITERATIVE);
 
 		Mat RMat = new Mat();
@@ -640,6 +639,59 @@ public class ARUtils {
 		E.set(2, 3, tvec.get(2, 0)[0]);
 
 		return E;
+	}
+
+	// perform PnP pose estimation using RANSAC to come up with an initial guess
+	// (outRvec and outTvec) and also prune out the outliers from
+	// correspondences and points3D
+	public static void PnPRANSACPrune(ArrayList<Correspondence2D2D> correspondences, ArrayList<Point3D> points3D,
+			Mat outRvec, Mat outTvec) {
+
+		ArrayList<Point3> p3Points3D = new ArrayList<Point3>();
+		ArrayList<Point> p2Points2D = new ArrayList<Point>();
+		ArrayList<Integer> originalIndices = new ArrayList<Integer>();
+		for (int i = 0; i < points3D.size(); i++) {
+			if (points3D.get(i) != null) {
+				Point3 point3 = new Point3();
+				point3.x = points3D.get(i).getX();
+				point3.y = points3D.get(i).getY();
+				point3.z = points3D.get(i).getZ();
+				p3Points3D.add(point3);
+				Point point2 = new Point();
+				point2.x = correspondences.get(i).getU2();
+				point2.y = correspondences.get(i).getV2();
+				p2Points2D.add(point2);
+				originalIndices.add(i);
+			}
+		}
+		MatOfPoint3f objectPoints = new MatOfPoint3f();
+		objectPoints.fromList(p3Points3D);
+		MatOfPoint2f imagePoints = new MatOfPoint2f();
+		imagePoints.fromList(p2Points2D);
+		Mat cameraMatrix = MatrixToMat(CameraIntrinsics.getK());
+		Mat inliers = new Mat();
+
+		// perform the RANSAC fitting
+		Calib3d.solvePnPRansac(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), outRvec, outTvec, false, 100,
+				5, 0.95, inliers);
+
+		// prune out the outliers
+		// create list of outlier indices, then for each outlier, find it in
+		// correspondences and remove from points3D and correspondences
+		ArrayList<Integer> outlierIndices = new ArrayList<Integer>();
+		for (int i = 0, j = 0; i < p2Points2D.size() && j < inliers.rows(); i++) {
+			if (inliers.get(j, 0)[0] > i) {
+				outlierIndices.add(i);
+				continue;
+			}
+			j++;
+		}
+
+		for (int i = 0; i < outlierIndices.size(); i++) {
+			correspondences.remove(originalIndices.get(outlierIndices.get(i)) - i);
+			points3D.remove(originalIndices.get(outlierIndices.get(i)) - i);
+		}
+
 	}
 
 	public static Matrix PnPNULLIFIED(ArrayList<Point3D> points3D, ArrayList<Point2D> points2D) {

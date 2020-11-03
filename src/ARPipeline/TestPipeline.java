@@ -590,6 +590,10 @@ public class TestPipeline extends ARPipeline {
 
 	public void PnPUpdate(ArrayList<Point3D> point3Ds, ArrayList<Correspondence2D2D> correspondences) {
 
+		Mat rvec = new Mat();
+		Mat tvec = new Mat();
+		ARUtils.PnPRANSACPrune(correspondences, point3Ds, rvec, tvec);
+
 		ArrayList<Point3D> tracked3DPoints = new ArrayList<Point3D>();
 		ArrayList<Point2D> trackedKeypoints1 = new ArrayList<Point2D>();
 		ArrayList<Point2D> trackedKeypoints2 = new ArrayList<Point2D>();
@@ -607,15 +611,16 @@ public class TestPipeline extends ARPipeline {
 			}
 		}
 
-		pl("");
-		pl("3D points used in PnP: ");
-		for (int i = 0; i < tracked3DPoints.size(); i++) {
-			pl(tracked3DPoints.get(i).getX() + ", " + tracked3DPoints.get(i).getY() + ", "
-					+ tracked3DPoints.get(i).getZ());
-		}
-		pl("");
+		// pl("");
+		// pl("3D points used in PnP: ");
+		// for (int i = 0; i < tracked3DPoints.size(); i++) {
+		// pl(tracked3DPoints.get(i).getX() + ", " +
+		// tracked3DPoints.get(i).getY() + ", "
+		// + tracked3DPoints.get(i).getZ());
+		// }
+		// pl("");
 
-		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2);
+		Matrix E = ARUtils.OpenCVPnP(tracked3DPoints, trackedKeypoints2, rvec, tvec, true);
 		Pose tempPose = this.setTemporaryPose(E);
 
 		// debug
@@ -713,10 +718,11 @@ public class TestPipeline extends ARPipeline {
 				// patchSize);
 
 				// initialize the map
-				if (!mapInitialized && frameNum >= 59) {
+				if (!mapInitialized && frameNum >= 60) {
 					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
 							correspondences);
 
+					pl("sfm pose: ");
 					this.pose.getHomogeneousMatrix().print(15, 5);
 
 					// triangulate points in map
