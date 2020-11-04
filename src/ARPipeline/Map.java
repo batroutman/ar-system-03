@@ -18,7 +18,12 @@ public class Map {
 
 	}
 
-	public KeyFrame generateInitialKeyFrame(Mat descriptors, MatOfKeyPoint keypoints, long frameNum) {
+	public KeyFrame generateInitialKeyFrame(Frame frame, long frameNum) {
+		// extract features across entire frame
+		Mat descriptors = new Mat();
+		MatOfKeyPoint keypoints = new MatOfKeyPoint();
+		ARUtils.extractFeatures(frame, keypoints, descriptors);
+
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
 		keyframe.setFrameNumber(frameNum);
@@ -27,12 +32,24 @@ public class Map {
 		keyframe.setPose(pose);
 		keyframe.setDescriptors(descriptors);
 		for (int i = 0; i < keypointList.size(); i++) {
+			// register 2D point location
 			Point2D point = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
 			keyframe.getKeypoints().add(point);
+			keyframe.getLastKeypointLocations().add(point);
+
+			// register the corresponding descriptor and last time this was seen
+			// (now)
+			keyframe.getLastKeypointDescriptors().add(descriptors.row(i));
+			keyframe.getLastFrameObserved().add(frameNum);
+
+			// register official keyframe observation for this keypoint and
+			// descriptor
 			Observation observation = new Observation();
 			observation.setDescriptor(descriptors.row(i));
 			observation.setPoint(point);
 			observation.setKeyframe(keyframe);
+
+			// finally, create map point for this feature
 			MapPoint mp = new MapPoint();
 			mp.setPrincipalDescriptor(descriptors.row(i));
 			mp.getObservations().add(observation);
@@ -44,8 +61,14 @@ public class Map {
 		return keyframe;
 	}
 
-	public KeyFrame registerNewKeyframe(Mat descriptors, MatOfKeyPoint keypoints, long frameNum, Pose currentPose,
+	public KeyFrame registerNewKeyframe(Frame frame, long frameNum, Pose currentPose,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<MapPoint> existingMapPoints) {
+
+		// extract features across entire frame
+		Mat descriptors = new Mat();
+		MatOfKeyPoint keypoints = new MatOfKeyPoint();
+		ARUtils.extractFeatures(frame, keypoints, descriptors);
+
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
 		keyframe.setFrameNumber(frameNum);

@@ -7,6 +7,7 @@ import org.ddogleg.optimization.lm.ConfigLevenbergMarquardt;
 import org.ejml.data.DMatrixRMaj;
 import org.lwjgl.util.vector.Matrix4f;
 import org.opencv.calib3d.Calib3d;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
@@ -83,6 +84,68 @@ public class ARUtils {
 		return fundamental;
 	}
 
+	public static Integer matchDescriptor(Mat baseDescriptor, MatOfKeyPoint keypoints, Mat descriptors) {
+		if (keypoints.rows() == 0)
+			return null;
+
+		double LOWE_RATIO = 0.9;
+		double DIST_THRESH = 25;
+
+		double[] hammingDistances = new double[descriptors.rows()];
+
+		// get hamming distances for each descriptor
+		for (int i = 0; i < descriptors.rows(); i++) {
+			hammingDistances[i] = Core.norm(descriptors.row(i), baseDescriptor, Core.NORM_HAMMING);
+		}
+
+		// get best and second best distances
+		double bestDistance = 256;
+		int bestIndex = -1;
+		double secondDistance = 257;
+
+		for (int i = 0; i < hammingDistances.length; i++) {
+			if (hammingDistances[i] < bestDistance) {
+				secondDistance = bestDistance;
+				bestDistance = hammingDistances[i];
+				bestIndex = i;
+			} else if (hammingDistances[i] < secondDistance) {
+				secondDistance = hammingDistances[i];
+			}
+		}
+
+		// evaluate Lowe ratio and absolute distance
+		if (bestDistance < LOWE_RATIO * secondDistance && bestDistance < DIST_THRESH) {
+			return bestIndex;
+		}
+
+		// no sufficient match
+		return null;
+	}
+
+	public static void getFeaturesInWindow(Frame frame, Mat image, int x, int y, int windowSize,
+			MatOfKeyPoint oKeypoints, Mat oDescriptors) {
+
+		// ORB parameters
+		int patchSize = 12;
+		ORB orb = ORB.create(5);
+		orb.setScoreType(ORB.FAST_SCORE);
+		orb.setPatchSize(patchSize);
+		orb.setNLevels(1);
+		orb.setScaleFactor(1.5);
+
+		// create window
+		int startX = x - windowSize < 0 ? 0 : x - windowSize;
+		int endX = x + windowSize > frame.getWidth() - 1 ? frame.getWidth() - 1 : x + windowSize;
+		int startY = y - windowSize < 0 ? 0 : y - windowSize;
+		int endY = y + windowSize > frame.getHeight() - 1 ? frame.getHeight() - 1 : y + windowSize;
+
+		Mat mask = generateMask(startX, endX, startY, endY, frame.getWidth(), frame.getHeight());
+
+		// find ORB features
+		orb.detectAndCompute(image, mask, oKeypoints, oDescriptors);
+
+	}
+
 	public static void extractFeatures(Frame currentFrame, MatOfKeyPoint keypoints, Mat descriptors) {
 
 		Mat image = ARUtils.frameToMat(currentFrame);
@@ -134,7 +197,7 @@ public class ARUtils {
 		keypoints.fromList(keypointList);
 
 		// pruneScaleDependentFeatures(keypoints, 2, 5);
-		nonMaximumSuppression(keypoints, patchSize);
+		// nonMaximumSuppression(keypoints, patchSize);
 
 		ARUtils.pruneKeypoints(keypoints, 70);
 		orb.compute(image, keypoints, descriptors);

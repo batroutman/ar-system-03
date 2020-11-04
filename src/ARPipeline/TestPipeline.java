@@ -7,14 +7,11 @@ import org.ejml.data.DMatrixRMaj;
 import org.lwjgl.input.Keyboard;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Core;
-import org.opencv.core.DMatch;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfDMatch;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
-import org.opencv.features2d.FlannBasedMatcher;
 
 import Jama.Matrix;
 import georegression.geometry.ConvertRotation3D_F64;
@@ -25,7 +22,7 @@ public class TestPipeline extends ARPipeline {
 	final int AR_VIEW = 0;
 	final int MAP_VIEW = 1;
 
-	int viewType = MAP_VIEW;
+	int viewType = AR_VIEW;
 
 	long lastTime = System.nanoTime();
 	long frameNum = 0;
@@ -232,43 +229,12 @@ public class TestPipeline extends ARPipeline {
 		}
 	}
 
-	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
-			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
-			ArrayList<Point> matchedPoints) {
-		double DIST_THRESH = 150;
-		double LOWE_RATIO = 0.8;
-		FlannBasedMatcher flann = FlannBasedMatcher.create();
-		ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
-		flann.knnMatch(descriptors, currentKeyFrame.getDescriptors(), matches, 2);
-		for (int i = 0; i < matches.size(); i++) {
-			DMatch match1 = matches.get(i).toList().get(0);
-			DMatch match2 = matches.get(i).toList().get(1);
-			if (match1.distance < DIST_THRESH && match1.distance < LOWE_RATIO * match2.distance) {
-				Correspondence2D2D c = new Correspondence2D2D();
-				c.setU1(currentKeyFrame.getKeypoints().get(match1.trainIdx).getX());
-				c.setV1(currentKeyFrame.getKeypoints().get(match1.trainIdx).getY());
-				c.setU2(keypoints.toList().get(match1.queryIdx).pt.x);
-				c.setV2(keypoints.toList().get(match1.queryIdx).pt.y);
-				c.setDescriptor1(currentKeyFrame.getDescriptors().row(match1.trainIdx));
-				c.setDescriptor2(descriptors.row(match1.queryIdx));
-
-				correspondences.add(c);
-				Point pt = new Point();
-				pt.x = currentKeyFrame.getKeypoints().get(match1.trainIdx).getX();
-				pt.y = currentKeyFrame.getKeypoints().get(match1.trainIdx).getY();
-				matchedKeyframePoints.add(pt);
-				matchedPoints.add(keypoints.toList().get(match1.queryIdx).pt);
-
-			}
-		}
-	}
-
 	public static void matchBinaryDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
 			ArrayList<Point> matchedPoints) {
 
-		double LOWE_RATIO = 0.7;
-		double DIST_THRESH = 25;
+		double LOWE_RATIO = 0.9;
+		double DIST_THRESH = 5;
 
 		// indices of currentKeyFrame descriptors that describe the nearest
 		// neighbor to the i'th descriptor in descriptors
@@ -370,8 +336,23 @@ public class TestPipeline extends ARPipeline {
 		return this.updateTemporaryPoseFromCurrent(E);
 	}
 
-	public Pose structureFromMotionUpdateHomography(ArrayList<Point> matchedKeyframePoints,
-			ArrayList<Point> matchedPoints, ArrayList<Correspondence2D2D> correspondences) {
+	public Pose structureFromMotionUpdateHomography(ArrayList<Correspondence2D2D> correspondences) {
+
+		ArrayList<Point> matchedKeyframePoints = new ArrayList<Point>();
+		ArrayList<Point> matchedPoints = new ArrayList<Point>();
+
+		for (int i = 0; i < correspondences.size(); i++) {
+			Correspondence2D2D c = correspondences.get(i);
+			Point point1 = new Point();
+			Point point2 = new Point();
+			point1.x = c.getU1();
+			point1.y = c.getV1();
+			point2.x = c.getU2();
+			point2.y = c.getV2();
+			matchedKeyframePoints.add(point1);
+			matchedPoints.add(point2);
+		}
+
 		// compute homography
 		Mat intrinsics = ARUtils.MatrixToMat(K);
 		MatOfPoint2f keyframeMat = new MatOfPoint2f();
@@ -694,14 +675,9 @@ public class TestPipeline extends ARPipeline {
 			this.frameHeight = currentFrame.getHeight();
 			this.frameWidth = currentFrame.getWidth();
 
-			// get refined features
-			MatOfKeyPoint keypoints = new MatOfKeyPoint();
-			Mat descriptors = new Mat();
-			ARUtils.extractFeatures(currentFrame, keypoints, descriptors);
-
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
-				this.currentKeyFrame = this.map.generateInitialKeyFrame(descriptors, keypoints, frameNum);
+				this.currentKeyFrame = this.map.generateInitialKeyFrame(currentFrame, frameNum);
 			}
 			// b. otherwise,
 			else {
@@ -709,26 +685,23 @@ public class TestPipeline extends ARPipeline {
 						+ "   ===================================");
 
 				// match descriptors to those in currentKeyframe
-				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
-				ArrayList<Point> matchedKeyframePoints = new ArrayList<Point>();
-				ArrayList<Point> matchedPoints = new ArrayList<Point>();
-				matchBinaryDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences,
-						matchedKeyframePoints, matchedPoints);
+				pl("before correspondences");
+				ArrayList<Correspondence2D2D> correspondences = this.currentKeyFrame.getCorrespondences(currentFrame,
+						this.frameNum);
+				pl("after correspondences");
+
 				byte[] red = { (byte) 255, 0, 0 };
 				byte[] cyan = { 0, (byte) 255, (byte) 255 };
 				ARUtils.trackCorrespondences(currentFrame, correspondences, cyan);
-				this.pruneCorrespondencesByDistance(correspondences);
-				ARUtils.trackCorrespondences(currentFrame, correspondences, red);
+				// this.pruneCorrespondencesByDistance(correspondences);
+				// ARUtils.trackCorrespondences(currentFrame, correspondences,
+				// red);
 
 				pl("num correspondences: " + correspondences.size());
 
-				// ARUtils.boxHighlight(currentFrame, correspondences,
-				// patchSize);
-
 				// initialize the map
 				if (!mapInitialized && frameNum >= 59) {
-					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
-							correspondences);
+					Pose newPose = this.structureFromMotionUpdateHomography(correspondences);
 
 					// triangulate points in map
 					this.pruneCorrespondenceOutliers(correspondences);
@@ -833,7 +806,7 @@ public class TestPipeline extends ARPipeline {
 							// this.deepReplacePose(tempPose);
 
 							// Create new keyframe
-							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, frameNum, this.pose,
+							this.currentKeyFrame = map.registerNewKeyframe(currentFrame, frameNum, this.pose,
 									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 						}
 
@@ -856,11 +829,11 @@ public class TestPipeline extends ARPipeline {
 			// basePose.setQx(0.3826843);
 
 			// straight down
-			basePose.setQw(0.707);
-			basePose.setQx(0.707);
-
-			basePose.setCy(-80);
-			basePose.setCz(10);
+			// basePose.setQw(0.707);
+			// basePose.setQx(0.707);
+			//
+			// basePose.setCy(-80);
+			// basePose.setCz(10);
 
 			synchronized (this.outputPoseBuffer) {
 
@@ -907,73 +880,77 @@ public class TestPipeline extends ARPipeline {
 		// debug
 		keepGoing = true;
 		while (keepGoing) {
-			double rotationAmount = 0.02;
-			double moveSpeed = 1;
+			double rotationAmount = 0.01;
+			double moveSpeed = 0.25;
 			if (Keyboard.isKeyDown(Keyboard.KEY_UP)) {
-				pl("UP PRESSED");
+				// pl("UP PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					this.outputPoseBuffer.getCurrentPose().rotateEuler(-rotationAmount, 0, 0);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_RIGHT)) {
-				pl("RIGHT PRESSED");
+				// pl("RIGHT PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					this.outputPoseBuffer.getCurrentPose().rotateEuler(0, -rotationAmount, 0);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
-				pl("LEFT PRESSED");
+				// pl("LEFT PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					this.outputPoseBuffer.getCurrentPose().rotateEuler(0, rotationAmount, 0);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_DOWN)) {
-				pl("DOWN PRESSED");
+				// pl("DOWN PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					this.outputPoseBuffer.getCurrentPose().rotateEuler(rotationAmount, 0, 0);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
-				pl("W PRESSED");
+				// pl("W PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy(), p.getTz() - moveSpeed);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
-				pl("S PRESSED");
+				// pl("S PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy(), p.getTz() + moveSpeed);
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
-				pl("A PRESSED");
+				// pl("A PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx() + moveSpeed, p.getTy(), p.getTz());
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
-				pl("D PRESSED");
+				// pl("D PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx() - moveSpeed, p.getTy(), p.getTz());
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
-				pl("SPACE PRESSED");
+				// pl("SPACE PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy() + moveSpeed, p.getTz());
 				}
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)) {
-				pl("LSHIFT PRESSED");
+				// pl("LSHIFT PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {
 					Pose p = this.outputPoseBuffer.getCurrentPose();
 					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy() - moveSpeed, p.getTz());
 				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_BACK)) {
+				// pl("BACK PRESSED");
+				keepGoing = false;
 			}
 
 			if (this.viewType == MAP_VIEW) {
