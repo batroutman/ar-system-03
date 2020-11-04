@@ -80,18 +80,20 @@ public class Camera {
 	}
 
 	public void setMatrix(Pose pose) {
-		this.r00 = (float) pose.getR00();
-		this.r01 = (float) pose.getR01();
-		this.r02 = (float) pose.getR02();
-		this.r10 = (float) pose.getR10();
-		this.r11 = (float) pose.getR11();
-		this.r12 = (float) pose.getR12();
-		this.r20 = (float) pose.getR20();
-		this.r21 = (float) pose.getR21();
-		this.r22 = (float) pose.getR22();
-		this.tx = (float) pose.getTx();
-		this.ty = (float) pose.getTy();
-		this.tz = (float) pose.getTz();
+		synchronized (pose) {
+			this.r00 = (float) pose.getR00();
+			this.r01 = (float) pose.getR01();
+			this.r02 = (float) pose.getR02();
+			this.r10 = (float) pose.getR10();
+			this.r11 = (float) pose.getR11();
+			this.r12 = (float) pose.getR12();
+			this.r20 = (float) pose.getR20();
+			this.r21 = (float) pose.getR21();
+			this.r22 = (float) pose.getR22();
+			this.tx = (float) pose.getTx();
+			this.ty = (float) pose.getTy();
+			this.tz = (float) pose.getTz();
+		}
 
 	}
 

@@ -203,4 +203,38 @@ public class Pose {
 		this.fixed = fixed;
 	}
 
+	public void rotateEuler(double x, double y, double z) {
+		double yaw = z;
+		double pitch = y;
+		double roll = x;
+
+		double cy = Math.cos(yaw * 0.5);
+		double sy = Math.sin(yaw * 0.5);
+		double cp = Math.cos(pitch * 0.5);
+		double sp = Math.sin(pitch * 0.5);
+		double cr = Math.cos(roll * 0.5);
+		double sr = Math.sin(roll * 0.5);
+
+		double qw = cr * cp * cy + sr * sp * sy;
+		double qx = sr * cp * cy - cr * sp * sy;
+		double qy = cr * sp * cy + sr * cp * sy;
+		double qz = cr * cp * sy - sr * sp * cy;
+
+		Matrix q2 = new Matrix(4, 1);
+		q2.set(0, 0, qw);
+		q2.set(1, 0, qx);
+		q2.set(2, 0, qy);
+		q2.set(3, 0, qz);
+
+		// Matrix newQ = ARUtils.quatMult(q2, this.getQuaternion());
+		Matrix newQ = ARUtils.quatMult(this.getQuaternion(), q2);
+
+		this.qw = newQ.get(0, 0);
+		this.qx = newQ.get(1, 0);
+		this.qy = newQ.get(2, 0);
+		this.qz = newQ.get(3, 0);
+
+		this.normalize();
+	}
+
 }

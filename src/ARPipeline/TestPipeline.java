@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.ejml.data.DMatrixRMaj;
+import org.lwjgl.input.Keyboard;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.Core;
 import org.opencv.core.DMatch;
@@ -24,7 +25,7 @@ public class TestPipeline extends ARPipeline {
 	final int AR_VIEW = 0;
 	final int MAP_VIEW = 1;
 
-	int viewType = AR_VIEW;
+	int viewType = MAP_VIEW;
 
 	long lastTime = System.nanoTime();
 	long frameNum = 0;
@@ -33,6 +34,8 @@ public class TestPipeline extends ARPipeline {
 	double SEARCH_BOX_WIDTH = 60.0;
 
 	Matrix K = new Matrix(3, 3);
+	int frameWidth;
+	int frameHeight;
 
 	Map map = new Map();
 	KeyFrame currentKeyFrame = null;
@@ -218,13 +221,15 @@ public class TestPipeline extends ARPipeline {
 	}
 
 	public void deepReplacePose(Pose newPose) {
-		this.pose.setCx(newPose.getCx());
-		this.pose.setCy(newPose.getCy());
-		this.pose.setCz(newPose.getCz());
-		this.pose.setQw(newPose.getQw());
-		this.pose.setQx(newPose.getQx());
-		this.pose.setQy(newPose.getQy());
-		this.pose.setQz(newPose.getQz());
+		synchronized (this.pose) {
+			this.pose.setCx(newPose.getCx());
+			this.pose.setCy(newPose.getCy());
+			this.pose.setCz(newPose.getCz());
+			this.pose.setQw(newPose.getQw());
+			this.pose.setQx(newPose.getQx());
+			this.pose.setQy(newPose.getQy());
+			this.pose.setQz(newPose.getQz());
+		}
 	}
 
 	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
@@ -633,8 +638,9 @@ public class TestPipeline extends ARPipeline {
 		pl("tracked3DPoints size: " + tracked3DPoints.size());
 
 		// bundle adjustment
-		this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1, trackedKeypoints2,
-				tracked3DPoints);
+		// this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose,
+		// trackedKeypoints1, trackedKeypoints2,
+		// tracked3DPoints);
 
 		this.deepReplacePose(tempPose);
 	}
@@ -685,6 +691,8 @@ public class TestPipeline extends ARPipeline {
 				keepGoing = false;
 				continue;
 			}
+			this.frameHeight = currentFrame.getHeight();
+			this.frameWidth = currentFrame.getWidth();
 
 			// get refined features
 			MatOfKeyPoint keypoints = new MatOfKeyPoint();
@@ -718,12 +726,9 @@ public class TestPipeline extends ARPipeline {
 				// patchSize);
 
 				// initialize the map
-				if (!mapInitialized && frameNum >= 60) {
+				if (!mapInitialized && frameNum >= 59) {
 					Pose newPose = this.structureFromMotionUpdateHomography(matchedKeyframePoints, matchedPoints,
 							correspondences);
-
-					pl("sfm pose: ");
-					this.pose.getHomogeneousMatrix().print(15, 5);
 
 					// triangulate points in map
 					this.pruneCorrespondenceOutliers(correspondences);
@@ -737,7 +742,7 @@ public class TestPipeline extends ARPipeline {
 					this.deepReplacePose(newPose);
 
 					mapInitialized = true;
-					// this.currentKeyFrame.setFrameNumber(frameNum);
+					this.currentKeyFrame.setFrameNumber(frameNum);
 				} else if (mapInitialized) {
 
 					// get tracked 3D points
@@ -784,12 +789,15 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
-									this.currentKeyFrame);
-							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
-									newTrackedPoints, 10);
-							this.deepReplacePose(tempPose);
+							// Pose tempPose =
+							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							// ArrayList<Point3D> newTrackedPoints =
+							// this.get3DPoints(correspondences,
+							// this.currentKeyFrame);
+							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
+							// tempPose, correspondences,
+							// newTrackedPoints, 10);
+							// this.deepReplacePose(tempPose);
 						}
 
 					} else if (correspondences.size() >= 8 && numTracked <= 20 && numTracked >= 6) {
@@ -814,12 +822,15 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
-									this.currentKeyFrame);
-							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
-									newTrackedPoints, 10);
-							this.deepReplacePose(tempPose);
+							// Pose tempPose =
+							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							// ArrayList<Point3D> newTrackedPoints =
+							// this.get3DPoints(correspondences,
+							// this.currentKeyFrame);
+							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
+							// tempPose, correspondences,
+							// newTrackedPoints, 10);
+							// this.deepReplacePose(tempPose);
 
 							// Create new keyframe
 							this.currentKeyFrame = map.registerNewKeyframe(descriptors, keypoints, frameNum, this.pose,
@@ -883,7 +894,7 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 9999) {
+				if (frameNum > 58) {
 					Thread.sleep(1000);
 				}
 
@@ -891,6 +902,90 @@ public class TestPipeline extends ARPipeline {
 
 			}
 			frameNum++;
+		}
+
+		// debug
+		keepGoing = true;
+		while (keepGoing) {
+			double rotationAmount = 0.02;
+			double moveSpeed = 1;
+			if (Keyboard.isKeyDown(Keyboard.KEY_UP)) {
+				pl("UP PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					this.outputPoseBuffer.getCurrentPose().rotateEuler(-rotationAmount, 0, 0);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_RIGHT)) {
+				pl("RIGHT PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					this.outputPoseBuffer.getCurrentPose().rotateEuler(0, -rotationAmount, 0);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
+				pl("LEFT PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					this.outputPoseBuffer.getCurrentPose().rotateEuler(0, rotationAmount, 0);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_DOWN)) {
+				pl("DOWN PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					this.outputPoseBuffer.getCurrentPose().rotateEuler(rotationAmount, 0, 0);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
+				pl("W PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy(), p.getTz() - moveSpeed);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_S)) {
+				pl("S PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy(), p.getTz() + moveSpeed);
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
+				pl("A PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx() + moveSpeed, p.getTy(), p.getTz());
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_D)) {
+				pl("D PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx() - moveSpeed, p.getTy(), p.getTz());
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
+				pl("SPACE PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy() + moveSpeed, p.getTz());
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)) {
+				pl("LSHIFT PRESSED");
+				synchronized (this.outputPoseBuffer.getCurrentPose()) {
+					Pose p = this.outputPoseBuffer.getCurrentPose();
+					this.outputPoseBuffer.getCurrentPose().setT(p.getTx(), p.getTy() - moveSpeed, p.getTz());
+				}
+			}
+
+			if (this.viewType == MAP_VIEW) {
+				this.outputFrameBuffer.pushFrame(this.map
+						.getMapVisualizationFrame(this.outputPoseBuffer.getCurrentPose(), K, frameWidth, frameHeight));
+			}
+			try {
+				Thread.sleep(16);
+
+			} catch (Exception e) {
+
+			}
 		}
 	}
 

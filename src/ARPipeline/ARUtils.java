@@ -34,6 +34,36 @@ import georegression.struct.so.Quaternion_F64;
 
 public class ARUtils {
 
+	public static Matrix getPlane(KeyFrame keyframe) {
+		ArrayList<Point3D> points = new ArrayList<Point3D>();
+		pl("points:");
+		for (int i = 0; i < keyframe.getMapPoints().size(); i++) {
+			if (keyframe.getMapPoints().get(i).getPoint() != null) {
+				Point3D p = keyframe.getMapPoints().get(i).getPoint();
+				points.add(p);
+				pl(p.getX() + ", " + p.getY() + ", " + p.getZ());
+			}
+		}
+		return getPlane(points);
+
+	}
+
+	// given non-null 3D points, calculate the a, b, c, and d of a best fit
+	// plane between them
+	public static Matrix getPlane(ArrayList<Point3D> points) {
+		Matrix pointMatrix = new Matrix(points.size(), 4);
+		for (int i = 0; i < points.size(); i++) {
+			pointMatrix.set(i, 0, points.get(i).getX());
+			pointMatrix.set(i, 1, points.get(i).getY());
+			pointMatrix.set(i, 2, points.get(i).getZ());
+			pointMatrix.set(i, 3, 1);
+		}
+
+		SingularValueDecomposition svd = pointMatrix.svd();
+
+		return svd.getV().getMatrix(0, 3, 3, 3);
+	}
+
 	public static Matrix fundamentalMatrix(Pose pose, Matrix K) {
 		Matrix R = pose.getRotationMatrix().getMatrix(0, 2, 0, 2);
 		Matrix tx = new Matrix(3, 3);
@@ -104,6 +134,7 @@ public class ARUtils {
 		keypoints.fromList(keypointList);
 
 		// pruneScaleDependentFeatures(keypoints, 2, 5);
+		nonMaximumSuppression(keypoints, patchSize);
 
 		ARUtils.pruneKeypoints(keypoints, 70);
 		orb.compute(image, keypoints, descriptors);
@@ -398,8 +429,8 @@ public class ARUtils {
 	}
 
 	// quaternion multiplication, assuming column vector of format [qw, qx, qy,
-	// qz].transpose()
-	public static Matrix quatMult(Matrix q, Matrix r) {
+	// qz].transpose() (r*q)
+	public static Matrix quatMult(Matrix r, Matrix q) {
 
 		Matrix t = new Matrix(4, 1);
 
@@ -650,6 +681,7 @@ public class ARUtils {
 		ArrayList<Point3> p3Points3D = new ArrayList<Point3>();
 		ArrayList<Point> p2Points2D = new ArrayList<Point>();
 		ArrayList<Integer> originalIndices = new ArrayList<Integer>();
+		pl("PnP RANSAC 3D points:");
 		for (int i = 0; i < points3D.size(); i++) {
 			if (points3D.get(i) != null) {
 				Point3 point3 = new Point3();
@@ -657,11 +689,14 @@ public class ARUtils {
 				point3.y = points3D.get(i).getY();
 				point3.z = points3D.get(i).getZ();
 				p3Points3D.add(point3);
+				pl(i + ":    " + point3.x + ", " + point3.y + ", " + point3.z);
 				Point point2 = new Point();
 				point2.x = correspondences.get(i).getU2();
 				point2.y = correspondences.get(i).getV2();
 				p2Points2D.add(point2);
 				originalIndices.add(i);
+			} else {
+				pl(i + ":    null");
 			}
 		}
 		MatOfPoint3f objectPoints = new MatOfPoint3f();
@@ -672,8 +707,10 @@ public class ARUtils {
 		Mat inliers = new Mat();
 
 		// perform the RANSAC fitting
+		pl("object points size: " + objectPoints.rows());
+		pl("image points size: " + imagePoints.rows());
 		Calib3d.solvePnPRansac(objectPoints, imagePoints, cameraMatrix, new MatOfDouble(), outRvec, outTvec, false, 100,
-				5, 0.95, inliers);
+				10, 0.95, inliers);
 
 		// prune out the outliers
 		// create list of outlier indices, then for each outlier, find it in
