@@ -429,8 +429,8 @@ public class ARUtils {
 	}
 
 	// quaternion multiplication, assuming column vector of format [qw, qx, qy,
-	// qz].transpose() (r*q)
-	public static Matrix quatMult(Matrix r, Matrix q) {
+	// qz].transpose() (q*r)
+	public static Matrix quatMult(Matrix q, Matrix r) {
 
 		Matrix t = new Matrix(4, 1);
 

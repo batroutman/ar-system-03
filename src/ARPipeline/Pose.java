@@ -226,8 +226,8 @@ public class Pose {
 		q2.set(2, 0, qy);
 		q2.set(3, 0, qz);
 
-		// Matrix newQ = ARUtils.quatMult(q2, this.getQuaternion());
-		Matrix newQ = ARUtils.quatMult(this.getQuaternion(), q2);
+		Matrix newQ = ARUtils.quatMult(q2, this.getQuaternion());
+		// Matrix newQ = ARUtils.quatMult(this.getQuaternion(), q2);
 
 		this.qw = newQ.get(0, 0);
 		this.qx = newQ.get(1, 0);
