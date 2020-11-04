@@ -894,7 +894,7 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 58) {
+				if (frameNum > 9999999) {
 					Thread.sleep(1000);
 				}
 
