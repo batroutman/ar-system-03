@@ -211,7 +211,7 @@ public class ARUtils {
 		// pruneScaleDependentFeatures(keypoints, 2, 5);
 		// nonMaximumSuppression(keypoints, patchSize);
 
-		ARUtils.pruneKeypoints(keypoints, 70);
+		ARUtils.pruneKeypoints(keypoints, 50);
 		orb.compute(image, keypoints, descriptors);
 
 		ARUtils.boxHighlight(currentFrame, keypoints, patchSize);

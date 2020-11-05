@@ -91,7 +91,7 @@ public class OpenGLARDisplay {
 		RawModel tModel = this.loader.loadToVAO(vertices, textureCoords, indices);
 		TexturedModel tStaticModel = new TexturedModel(tModel,
 				new ModelTexture(this.loader.loadTexture("sample_texture_128")));
-		Entity tEntity = new Entity(tStaticModel, new Vector3f(0.211f, -0.047f, 7.234f), 0, 0, 0, 0.2f);
+		Entity tEntity = new Entity(tStaticModel, new Vector3f(0.109906f, -0.122303f, 1.1223031f), 0, 0, 0, 0.05f);
 		this.entities.add(tEntity);
 
 		Random rand = new Random(100);
@@ -110,8 +110,9 @@ public class OpenGLARDisplay {
 
 		// bottom plane of boxes
 		for (int i = 0; i < 100; i++) {
-			this.entities.add(new Entity(tStaticModel,
-					new Vector3f(rand.nextFloat() * 250 - 125, 2f, rand.nextFloat() * 250 - 125), 0, 0, 0, 0.5f));
+			// this.entities.add(new Entity(tStaticModel,
+			// new Vector3f(rand.nextFloat() * 250 - 125, 2f, rand.nextFloat() *
+			// 250 - 125), 0, 0, 0, 0.5f));
 		}
 
 		// create camera

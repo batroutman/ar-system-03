@@ -712,6 +712,12 @@ public class TestPipeline extends ARPipeline {
 					this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), newPose, correspondences, point3Ds,
 							10);
 
+					pl("initialized 3D points:");
+					for (int i = 0; i < point3Ds.size(); i++) {
+						pl(point3Ds.get(i).getX() + ", " + point3Ds.get(i).getY() + ", " + point3Ds.get(i).getY()
+								+ ", ");
+					}
+
 					this.deepReplacePose(newPose);
 
 					mapInitialized = true;
@@ -762,15 +768,12 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							// Pose tempPose =
-							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							// ArrayList<Point3D> newTrackedPoints =
-							// this.get3DPoints(correspondences,
-							// this.currentKeyFrame);
-							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
-							// tempPose, correspondences,
-							// newTrackedPoints, 10);
-							// this.deepReplacePose(tempPose);
+							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+									this.currentKeyFrame);
+							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
+									newTrackedPoints, 10);
+							this.deepReplacePose(tempPose);
 						}
 
 					} else if (correspondences.size() >= 8 && numTracked <= 40 && numTracked >= 6) {
@@ -795,15 +798,12 @@ public class TestPipeline extends ARPipeline {
 							this.triangulateUntrackedMapPoints(correspondences);
 
 							// bundle adjust
-							// Pose tempPose =
-							// this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							// ArrayList<Point3D> newTrackedPoints =
-							// this.get3DPoints(correspondences,
-							// this.currentKeyFrame);
-							// this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(),
-							// tempPose, correspondences,
-							// newTrackedPoints, 10);
-							// this.deepReplacePose(tempPose);
+							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+									this.currentKeyFrame);
+							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
+									newTrackedPoints, 10);
+							this.deepReplacePose(tempPose);
 
 							// Create new keyframe
 							pl("map points transferred: "
