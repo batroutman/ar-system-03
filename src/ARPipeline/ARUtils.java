@@ -35,6 +35,14 @@ import georegression.struct.so.Quaternion_F64;
 
 public class ARUtils {
 
+	public static ArrayList<Mat> decomposeDescriptorMat(Mat descriptors) {
+		ArrayList<Mat> descList = new ArrayList<Mat>();
+		for (int i = 0; i < descriptors.rows(); i++) {
+			descList.add(descriptors.row(i));
+		}
+		return descList;
+	}
+
 	public static Matrix getPlane(KeyFrame keyframe) {
 		ArrayList<Point3D> points = new ArrayList<Point3D>();
 		pl("points:");
@@ -152,7 +160,7 @@ public class ARUtils {
 
 		// ORB parameters
 		int patchSize = 12;
-		ORB orb = ORB.create(200);
+		ORB orb = ORB.create(100);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
@@ -177,7 +185,11 @@ public class ARUtils {
 
 				// find ORB features
 				MatOfKeyPoint tempKeypoints = new MatOfKeyPoint();
+				long start = System.currentTimeMillis();
 				orb.detect(image, tempKeypoints, mask);
+				// orb.detect(image, tempKeypoints);
+				long end = System.currentTimeMillis();
+				pl("full feature detect: " + (end - start) + " ms");
 
 				allKeypoints.get(i).add(tempKeypoints);
 			}
@@ -744,7 +756,7 @@ public class ARUtils {
 		ArrayList<Point3> p3Points3D = new ArrayList<Point3>();
 		ArrayList<Point> p2Points2D = new ArrayList<Point>();
 		ArrayList<Integer> originalIndices = new ArrayList<Integer>();
-		pl("PnP RANSAC 3D points:");
+		// pl("PnP RANSAC 3D points:");
 		for (int i = 0; i < points3D.size(); i++) {
 			if (points3D.get(i) != null) {
 				Point3 point3 = new Point3();
@@ -752,14 +764,14 @@ public class ARUtils {
 				point3.y = points3D.get(i).getY();
 				point3.z = points3D.get(i).getZ();
 				p3Points3D.add(point3);
-				pl(i + ":    " + point3.x + ", " + point3.y + ", " + point3.z);
+				// pl(i + ": " + point3.x + ", " + point3.y + ", " + point3.z);
 				Point point2 = new Point();
 				point2.x = correspondences.get(i).getU2();
 				point2.y = correspondences.get(i).getV2();
 				p2Points2D.add(point2);
 				originalIndices.add(i);
 			} else {
-				pl(i + ":    null");
+				// pl(i + ": null");
 			}
 		}
 		MatOfPoint3f objectPoints = new MatOfPoint3f();

@@ -13,7 +13,7 @@ public class KeyFrame {
 	protected Pose pose = null;
 
 	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
-	protected Mat descriptors = null;
+	protected ArrayList<Mat> descriptors = new ArrayList<Mat>();
 	protected ArrayList<Point2D> keypoints = new ArrayList<Point2D>();
 	protected ArrayList<Point2D> lastKeypointLocations = new ArrayList<Point2D>();
 	protected ArrayList<Mat> lastKeypointDescriptors = new ArrayList<Mat>();
@@ -82,6 +82,8 @@ public class KeyFrame {
 				c.setV1(this.keypoints.get(i).getY());
 				c.setU2(point.getX());
 				c.setV2(point.getY());
+				c.setDescriptor1(this.descriptors.get(i));
+				c.setDescriptor2(descriptorsFound.row(match));
 				correspondences.add(c);
 			}
 		}
@@ -105,11 +107,11 @@ public class KeyFrame {
 		this.mapPoints = mapPoints;
 	}
 
-	public Mat getDescriptors() {
+	public ArrayList<Mat> getDescriptors() {
 		return descriptors;
 	}
 
-	public void setDescriptors(Mat descriptors) {
+	public void setDescriptors(ArrayList<Mat> descriptors) {
 		this.descriptors = descriptors;
 	}
 

@@ -253,8 +253,8 @@ public class TestPipeline extends ARPipeline {
 			int bestDesc = 0;
 			double bestDist = 257;
 			double secondBestDist = 258;
-			for (int j = 0; j < currentKeyFrame.getDescriptors().rows(); j++) {
-				double hamm = Core.norm(descriptors.row(i), currentKeyFrame.getDescriptors().row(j), Core.NORM_HAMMING);
+			for (int j = 0; j < currentKeyFrame.getDescriptors().size(); j++) {
+				double hamm = Core.norm(descriptors.row(i), currentKeyFrame.getDescriptors().get(j), Core.NORM_HAMMING);
 				if (hamm < bestDist) {
 					secondBestDist = bestDist;
 					bestDist = hamm;
@@ -270,7 +270,7 @@ public class TestPipeline extends ARPipeline {
 			// if it's a good match, register a correspondence for it
 			if (bestDist <= DIST_THRESH && bestDist < LOWE_RATIO * secondBestDist) {
 				Correspondence2D2D c = new Correspondence2D2D();
-				c.setDescriptor1(currentKeyFrame.getDescriptors().row(bestDesc));
+				c.setDescriptor1(currentKeyFrame.getDescriptors().get(bestDesc));
 				c.setU1(currentKeyFrame.getKeypoints().get(bestDesc).getX());
 				c.setV1(currentKeyFrame.getKeypoints().get(bestDesc).getY());
 				c.setDescriptor2(descriptors.row(i));
@@ -619,9 +619,8 @@ public class TestPipeline extends ARPipeline {
 		pl("tracked3DPoints size: " + tracked3DPoints.size());
 
 		// bundle adjustment
-		// this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose,
-		// trackedKeypoints1, trackedKeypoints2,
-		// tracked3DPoints);
+		this.PnPBAOptimize(this.currentKeyFrame.getPose(), tempPose, trackedKeypoints1, trackedKeypoints2,
+				tracked3DPoints);
 
 		this.deepReplacePose(tempPose);
 	}
@@ -685,10 +684,11 @@ public class TestPipeline extends ARPipeline {
 						+ "   ===================================");
 
 				// match descriptors to those in currentKeyframe
-				pl("before correspondences");
+				long start = System.currentTimeMillis();
 				ArrayList<Correspondence2D2D> correspondences = this.currentKeyFrame.getCorrespondences(currentFrame,
 						this.frameNum);
-				pl("after correspondences");
+				long end = System.currentTimeMillis();
+				pl("active search for correspondences: " + (end - start) + " ms");
 
 				byte[] red = { (byte) 255, 0, 0 };
 				byte[] cyan = { 0, (byte) 255, (byte) 255 };
@@ -739,7 +739,7 @@ public class TestPipeline extends ARPipeline {
 					pl("numCorrespondences: " + correspondences.size());
 					pl("numTracked: " + numTracked);
 
-					if (correspondences.size() >= 8 && numTracked > 20
+					if (correspondences.size() >= 8 && numTracked > 40
 							|| this.currentKeyFrame.getFrameNumber() > frameNum - 15) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
@@ -773,7 +773,7 @@ public class TestPipeline extends ARPipeline {
 							// this.deepReplacePose(tempPose);
 						}
 
-					} else if (correspondences.size() >= 8 && numTracked <= 20 && numTracked >= 6) {
+					} else if (correspondences.size() >= 8 && numTracked <= 40 && numTracked >= 6) {
 						// PnP
 						this.PnPUpdate(point3Ds, correspondences);
 
@@ -806,6 +806,8 @@ public class TestPipeline extends ARPipeline {
 							// this.deepReplacePose(tempPose);
 
 							// Create new keyframe
+							pl("map points transferred: "
+									+ this.getMapPoints(correspondences, this.currentKeyFrame).size());
 							this.currentKeyFrame = map.registerNewKeyframe(currentFrame, frameNum, this.pose,
 									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
 						}

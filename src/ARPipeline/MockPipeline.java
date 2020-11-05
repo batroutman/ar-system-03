@@ -4,14 +4,11 @@ import java.util.ArrayList;
 
 import org.ejml.data.DMatrixRMaj;
 import org.opencv.calib3d.Calib3d;
-import org.opencv.core.DMatch;
 import org.opencv.core.KeyPoint;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfDMatch;
 import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
-import org.opencv.features2d.FlannBasedMatcher;
 
 import Jama.Matrix;
 import georegression.geometry.ConvertRotation3D_F64;
@@ -218,33 +215,6 @@ public class MockPipeline extends ARPipeline {
 		this.pose.setQx(newPose.getQx());
 		this.pose.setQy(newPose.getQy());
 		this.pose.setQz(newPose.getQz());
-	}
-
-	public static void matchDescriptors(Mat descriptors, MatOfKeyPoint keypoints, KeyFrame currentKeyFrame,
-			ArrayList<Correspondence2D2D> correspondences, ArrayList<Point> matchedKeyframePoints,
-			ArrayList<Point> matchedPoints) {
-		double DIST_THRESH = 120;
-		FlannBasedMatcher flann = FlannBasedMatcher.create();
-		ArrayList<MatOfDMatch> matches = new ArrayList<MatOfDMatch>();
-		flann.knnMatch(descriptors, currentKeyFrame.getDescriptors(), matches, 1);
-		for (int i = 0; i < matches.size(); i++) {
-			DMatch match = matches.get(i).toList().get(0);
-			if (match.distance < DIST_THRESH) {
-				Correspondence2D2D c = new Correspondence2D2D();
-				c.setU1(currentKeyFrame.getKeypoints().get(match.trainIdx).getX());
-				c.setV1(currentKeyFrame.getKeypoints().get(match.trainIdx).getY());
-				c.setU2(keypoints.toList().get(match.queryIdx).pt.x);
-				c.setV2(keypoints.toList().get(match.queryIdx).pt.y);
-				c.setDescriptor1(currentKeyFrame.getDescriptors().row(match.trainIdx));
-				c.setDescriptor2(descriptors.row(match.queryIdx));
-				correspondences.add(c);
-				Point pt = new Point();
-				pt.x = currentKeyFrame.getKeypoints().get(match.trainIdx).getX();
-				pt.y = currentKeyFrame.getKeypoints().get(match.trainIdx).getY();
-				matchedKeyframePoints.add(pt);
-				matchedPoints.add(keypoints.toList().get(match.queryIdx).pt);
-			}
-		}
 	}
 
 	public Pose structureFromMotionUpdate(ArrayList<Point> matchedKeyframePoints, ArrayList<Point> matchedPoints,
@@ -520,8 +490,9 @@ public class MockPipeline extends ARPipeline {
 				ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 				ArrayList<Point> matchedKeyframePoints = new ArrayList<Point>();
 				ArrayList<Point> matchedPoints = new ArrayList<Point>();
-				matchDescriptors(descriptors, keypoints, this.currentKeyFrame, correspondences, matchedKeyframePoints,
-						matchedPoints);
+				// matchDescriptors(descriptors, keypoints,
+				// this.currentKeyFrame, correspondences, matchedKeyframePoints,
+				// matchedPoints);
 				pl("num correspondences: " + correspondences.size());
 
 				// initialize the map (for mock purposes)

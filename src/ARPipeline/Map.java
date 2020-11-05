@@ -30,7 +30,7 @@ public class Map {
 		Pose pose = new Pose();
 		pose.setFixed(true);
 		keyframe.setPose(pose);
-		keyframe.setDescriptors(descriptors);
+		keyframe.setDescriptors(ARUtils.decomposeDescriptorMat(descriptors));
 		for (int i = 0; i < keypointList.size(); i++) {
 			// register 2D point location
 			Point2D point = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
@@ -84,17 +84,34 @@ public class Map {
 		pose.setQy(currentPose.getQy());
 		pose.setQz(currentPose.getQz());
 		keyframe.setPose(pose);
-		keyframe.setDescriptors(descriptors);
 
-		// add pre existing map points to hash table
+		// handle pre existing points
 		for (int c = 0; c < correspondences.size(); c++) {
+			Correspondence2D2D corr = correspondences.get(c);
 			keyframe.getObsvToMapPoint().put(
 					correspondences.get(c).getU2().intValue() + "," + correspondences.get(c).getV2().intValue(),
 					existingMapPoints.get(c));
+			keyframe.getDescriptors().add(corr.getDescriptor2());
+			keyframe.getLastKeypointDescriptors().add(corr.getDescriptor2());
+			Point2D keypointLocation = new Point2D(corr.getU2(), corr.getV2());
+			keyframe.getKeypoints().add(keypointLocation);
+			keyframe.getLastKeypointLocations().add(keypointLocation);
+			keyframe.getLastFrameObserved().add(frameNum);
+
+			// add observation
+			Observation observation = new Observation();
+			observation.setDescriptor(corr.getDescriptor2());
+			observation.setPoint(keypointLocation);
+			observation.setKeyframe(keyframe);
+			// mp.setPrincipalDescriptor(descriptors.row(i));
+			existingMapPoints.get(c).getObservations().add(observation);
+			keyframe.getMapPoints().add(existingMapPoints.get(c));
+			this.mapPoints.add(existingMapPoints.get(c));
 		}
 
-		// go through all keypoints and handle map points
+		// handle point that were just detected
 		for (int i = 0; i < keypointList.size(); i++) {
+
 			// check if map point is in hash table
 			MapPoint mp = keyframe.getObsvToMapPoint()
 					.get((int) keypointList.get(i).pt.x + "," + (int) keypointList.get(i).pt.y);
@@ -102,19 +119,27 @@ public class Map {
 				mp = new MapPoint();
 				keyframe.getObsvToMapPoint().put((int) keypointList.get(i).pt.x + "," + (int) keypointList.get(i).pt.y,
 						mp);
+
+				// add keypoint and descriptor to lists
+
+				Point2D point = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
+				keyframe.getKeypoints().add(point);
+				keyframe.getLastKeypointLocations().add(point);
+				keyframe.getLastKeypointDescriptors().add(descriptors.row(i));
+				keyframe.getDescriptors().add(descriptors.row(i));
+				keyframe.getLastFrameObserved().add(frameNum);
+
+				// add observation
+				Observation observation = new Observation();
+				observation.setDescriptor(descriptors.row(i));
+				observation.setPoint(point);
+				observation.setKeyframe(keyframe);
+				// mp.setPrincipalDescriptor(descriptors.row(i));
+				mp.getObservations().add(observation);
+				keyframe.getMapPoints().add(mp);
+				this.mapPoints.add(mp);
 			}
 
-			// update map point
-			Point2D point = new Point2D(keypointList.get(i).pt.x, keypointList.get(i).pt.y);
-			keyframe.getKeypoints().add(point);
-			Observation observation = new Observation();
-			observation.setDescriptor(descriptors.row(i));
-			observation.setPoint(point);
-			observation.setKeyframe(keyframe);
-			// mp.setPrincipalDescriptor(descriptors.row(i));
-			mp.getObservations().add(observation);
-			keyframe.getMapPoints().add(mp);
-			this.mapPoints.add(mp);
 		}
 		this.keyframes.add(keyframe);
 		return keyframe;
