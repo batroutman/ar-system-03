@@ -140,17 +140,29 @@ public class ARUtils {
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
 		orb.setScaleFactor(1.5);
+		orb.setEdgeThreshold(1);
 
 		// create window
 		int startX = x - windowSize < 0 ? 0 : x - windowSize;
-		int endX = x + windowSize > frame.getWidth() - 1 ? frame.getWidth() - 1 : x + windowSize;
+		int endX = x + windowSize > frame.getWidth() ? frame.getWidth() - 1 : x + windowSize;
 		int startY = y - windowSize < 0 ? 0 : y - windowSize;
-		int endY = y + windowSize > frame.getHeight() - 1 ? frame.getHeight() - 1 : y + windowSize;
+		int endY = y + windowSize > frame.getHeight() ? frame.getHeight() - 1 : y + windowSize;
 
-		Mat mask = generateMask(startX, endX, startY, endY, frame.getWidth(), frame.getHeight());
+		// Mat mask = generateMask(startX, endX, startY, endY, frame.getWidth(),
+		// frame.getHeight());
 
-		// find ORB features
-		orb.detectAndCompute(image, mask, oKeypoints, oDescriptors);
+		Mat subImage = image.submat(startY, endY, startX, endX);
+		orb.detect(subImage, oKeypoints);
+		orb.compute(subImage, oKeypoints, oDescriptors);
+
+		// offset the keypoints
+		for (int i = 0; i < oKeypoints.rows(); i++) {
+			for (int j = 0; j < oKeypoints.cols(); j++) {
+				oKeypoints.put(i, j, oKeypoints.get(i, j)[0] + startX, oKeypoints.get(i, j)[1] + startY,
+						oKeypoints.get(i, j)[2], oKeypoints.get(i, j)[3], oKeypoints.get(i, j)[4],
+						oKeypoints.get(i, j)[5], oKeypoints.get(i, j)[6]);
+			}
+		}
 
 	}
 

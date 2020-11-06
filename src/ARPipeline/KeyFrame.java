@@ -52,12 +52,8 @@ public class KeyFrame {
 			MatOfKeyPoint keypointsFound = new MatOfKeyPoint();
 			Mat descriptorsFound = new Mat();
 
-			long start = System.currentTimeMillis();
 			ARUtils.getFeaturesInWindow(frame, image, (int) this.lastKeypointLocations.get(i).getX(),
 					(int) this.lastKeypointLocations.get(i).getY(), WINDOW_SIZE, keypointsFound, descriptorsFound);
-			long end = System.currentTimeMillis();
-			// System.out.println("getFeaturesInWindow: " + (end - start) + "
-			// ms");
 
 			// match these features against last descriptor
 			Integer match = ARUtils.matchDescriptor(this.lastKeypointDescriptors.get(i), keypointsFound,

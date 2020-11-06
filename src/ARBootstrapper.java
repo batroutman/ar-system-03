@@ -1,14 +1,9 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-
 import org.opencv.core.Core;
+import org.opencv.core.Mat;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.MockPointData;
+import ARPipeline.ARUtils;
 import ARPipeline.OfflineFrameBuffer;
-import ARPipeline.Point2D;
-import ARPipeline.Point3D;
-import ARPipeline.Pose;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import ARPipeline.TestPipeline;
@@ -51,23 +46,11 @@ public class ARBootstrapper {
 
 	public void tests() {
 
-		MockPointData mock = new MockPointData();
-		ArrayList<Pose> cameras = new ArrayList<Pose>();
-		ArrayList<Point3D> point3Ds = new ArrayList<Point3D>();
-		ArrayList<ArrayList<Point2D>> obsv = new ArrayList<ArrayList<Point2D>>();
-
-		int START_FRAME = 0;
-		int END_FRAME = 1;
-
-		// poses
-		Matrix R1 = mock.getR(START_FRAME);
-		Matrix IC1 = mock.getIC(START_FRAME);
-		Matrix E1 = R1.times(IC1);
-		Matrix q1 = mock.getQuaternion(START_FRAME);
-
-		java.util.Map<String, Double> map = new HashMap<String, Double>();
-		map.put("1,5", 6.8);
-		pl(map.get("1" + ",5"));
+		Matrix m = new Matrix(4, 4);
+		Mat mat = ARUtils.MatrixToMat(m);
+		Mat sub = mat.submat(0, 4, 0, 3);
+		Matrix subMatrix = ARUtils.MatToMatrix(sub);
+		subMatrix.print(15, 5);
 
 	}
 
