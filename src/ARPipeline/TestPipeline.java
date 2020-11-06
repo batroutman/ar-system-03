@@ -824,18 +824,11 @@ public class TestPipeline extends ARPipeline {
 			pl("num keyframes: " + this.map.getKeyframes().size());
 
 			// base pose for map visualization and debugging
-			Pose basePose = new Pose();
-
-			// down at a 45 degree angle
-			// basePose.setQw(0.9238792);
-			// basePose.setQx(0.3826843);
-
-			// straight down
-			// basePose.setQw(0.707);
-			// basePose.setQx(0.707);
-			//
-			// basePose.setCy(-80);
-			// basePose.setCz(10);
+			Pose basePose;
+			synchronized (this.pose) {
+				basePose = new Pose(this.pose);
+				basePose.setT(basePose.getTx(), basePose.getTy(), basePose.getTz() + 1);
+			}
 
 			synchronized (this.outputPoseBuffer) {
 
@@ -883,7 +876,7 @@ public class TestPipeline extends ARPipeline {
 		keepGoing = true;
 		while (keepGoing) {
 			double rotationAmount = 0.01;
-			double moveSpeed = 0.25;
+			double moveSpeed = 0.01;
 			if (Keyboard.isKeyDown(Keyboard.KEY_UP)) {
 				// pl("UP PRESSED");
 				synchronized (this.outputPoseBuffer.getCurrentPose()) {

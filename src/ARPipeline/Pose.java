@@ -30,6 +30,19 @@ public class Pose {
 		Cz = 0;
 	}
 
+	public Pose(Pose pose) {
+		timestamp = pose.timestamp;
+
+		qw = pose.qw;
+		qx = pose.qx;
+		qy = pose.qy;
+		qz = pose.qz;
+
+		Cx = pose.Cx;
+		Cy = pose.Cy;
+		Cz = pose.Cz;
+	}
+
 	public Matrix getHomogeneousMatrix() {
 		Matrix R = this.getRotationMatrix();
 		Matrix IC = Matrix.identity(4, 4);
