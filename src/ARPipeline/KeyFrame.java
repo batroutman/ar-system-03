@@ -85,12 +85,19 @@ public class KeyFrame {
 						.setDx((point.getX() - this.searchData.get(i).getLastLocation().getX()) / framesSinceSeen);
 				this.searchData.get(i)
 						.setDy((point.getY() - this.searchData.get(i).getLastLocation().getY()) / framesSinceSeen);
+
+				// System.out.println("point.getX(): " + point.getX());
+				// System.out.println("this.searchData.get(i).getLastLocation().getX():
+				// "
+				// + this.searchData.get(i).getLastLocation().getX());
+				// System.out.println("framesSinceSeen: " + framesSinceSeen);
+				// System.out.println("new dx: " +
+				// this.searchData.get(i).getDx());
+
 				this.searchData.get(i).setLastLocation(point);
 
 				// System.out.println("new dx: " +
 				// this.searchData.get(i).getDx());
-				// System.out.println("new dy: " +
-				// this.searchData.get(i).getDy());
 
 				// create correspondence
 				Correspondence2D2D c = new Correspondence2D2D();

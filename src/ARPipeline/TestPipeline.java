@@ -695,7 +695,9 @@ public class TestPipeline extends ARPipeline {
 				byte[] yellow = { (byte) 255, (byte) 255, 0 };
 				ARUtils.trackCorrespondences(currentFrame, correspondences, cyan);
 				ARUtils.trackActiveSearch(currentFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
-
+				// ARUtils.paintPixel(currentFrame,
+				// correspondences.get(0).getU2().intValue(),
+				// correspondences.get(0).getV2().intValue(), red, 5);
 				pl("num correspondences: " + correspondences.size());
 
 				// initialize the map
@@ -861,8 +863,8 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 999999) {
-					Thread.sleep(250);
+				if (frameNum > 9999) {
+					Thread.sleep(1000);
 				}
 
 			} catch (Exception e) {

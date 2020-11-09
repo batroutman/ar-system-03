@@ -96,7 +96,7 @@ public class ARUtils {
 		if (keypoints.rows() == 0)
 			return null;
 
-		double LOWE_RATIO = 0.9;
+		double LOWE_RATIO = 0.7;
 		double DIST_THRESH = 25;
 
 		double[] hammingDistances = new double[descriptors.rows()];
@@ -179,7 +179,7 @@ public class ARUtils {
 
 		// ORB parameters
 		int patchSize = 12;
-		ORB orb = ORB.create(100);
+		ORB orb = ORB.create(200);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
@@ -1822,18 +1822,13 @@ public class ARUtils {
 	public static byte[] dullColor(byte[] color) {
 		double avg = 0;
 		for (int i = 0; i < color.length; i++) {
-			avg += color[i];
+			avg += mod(color[i], 256);
 		}
 		avg /= color.length;
 		byte[] newColor = new byte[color.length];
 		for (int i = 0; i < color.length; i++) {
-			double diff = avg - (int) color[i];
-			newColor[i] = (byte) (color[i] + (int) (diff / 2));
-			pl("color[i]: " + color[i]);
-			pl("diff: " + diff);
-			pl("(color[i] + (int) (diff / 2)): " + (color[i] + (int) (diff / 2)));
-			pl("(byte)(color[i] + (int) (diff / 2)): " + (byte) (color[i] + (int) (diff / 2)));
-			pl("newColor: " + newColor[i]);
+			double diff = avg - mod(color[i], 256);
+			newColor[i] = (byte) (mod(color[i], 256) + (diff * 2 / 3));
 		}
 		return newColor;
 	}
@@ -1856,8 +1851,8 @@ public class ARUtils {
 
 			int x1 = (int) s.getLastLocation().getX();
 			int y1 = (int) s.getLastLocation().getY();
-			int x2 = (int) (x1 + s.getDx() * framesSinceSeen);
-			int y2 = (int) (y1 + s.getDy() * framesSinceSeen);
+			int x2 = framesSinceSeen > 10 ? (int) (x1 + s.getDx() * 10) : (int) (x1 + s.getDx() * framesSinceSeen);
+			int y2 = framesSinceSeen > 10 ? (int) (y1 + s.getDy() * 10) : (int) (y1 + s.getDy() * framesSinceSeen);
 
 			paintLine(frame, x1, y1, x2, y2, color);
 
@@ -1989,6 +1984,10 @@ public class ARUtils {
 			sum += Math.pow(desc1.get(0, i)[0] - desc2.get(0, i)[0], 2);
 		}
 		return Math.sqrt(sum);
+	}
+
+	public static double mod(double a, double b) {
+		return ((a % b) + b) % b;
 	}
 
 	public static void p(Object s) {

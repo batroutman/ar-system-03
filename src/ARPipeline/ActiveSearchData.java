@@ -11,7 +11,7 @@ public class ActiveSearchData {
 	protected Long lastFrameObserved = null;
 	protected Double dx = null;
 	protected Double dy = null;
-	protected int patchLevel = 0;
+	protected int patchLevel = 1;
 
 	public Point2D getLastLocation() {
 		return lastLocation;
