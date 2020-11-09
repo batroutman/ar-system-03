@@ -148,8 +148,15 @@ public class ARUtils {
 		int startY = y - windowSize < 0 ? 0 : y - windowSize;
 		int endY = y + windowSize > frame.getHeight() ? frame.getHeight() - 1 : y + windowSize;
 
-		// Mat mask = generateMask(startX, endX, startY, endY, frame.getWidth(),
-		// frame.getHeight());
+		// handle cases where search area is completely off-screen
+		if (startX >= frame.getWidth())
+			return;
+		if (endX <= 0)
+			return;
+		if (startY >= frame.getHeight())
+			return;
+		if (endY <= 0)
+			return;
 
 		Mat subImage = image.submat(startY, endY, startX, endX);
 		orb.detect(subImage, oKeypoints);
@@ -1812,6 +1819,51 @@ public class ARUtils {
 		}
 	}
 
+	public static byte[] dullColor(byte[] color) {
+		double avg = 0;
+		for (int i = 0; i < color.length; i++) {
+			avg += color[i];
+		}
+		avg /= color.length;
+		byte[] newColor = new byte[color.length];
+		for (int i = 0; i < color.length; i++) {
+			double diff = avg - (int) color[i];
+			newColor[i] = (byte) (color[i] + (int) (diff / 2));
+			pl("color[i]: " + color[i]);
+			pl("diff: " + diff);
+			pl("(color[i] + (int) (diff / 2)): " + (color[i] + (int) (diff / 2)));
+			pl("(byte)(color[i] + (int) (diff / 2)): " + (byte) (color[i] + (int) (diff / 2)));
+			pl("newColor: " + newColor[i]);
+		}
+		return newColor;
+	}
+
+	public static void trackActiveSearch(Frame frame, ArrayList<ActiveSearchData> searchData, long frameNum) {
+		byte[] RGB = { (byte) 255, (byte) 255, 0 };
+		trackActiveSearch(frame, searchData, frameNum, RGB);
+	}
+
+	public static void trackActiveSearch(Frame frame, ArrayList<ActiveSearchData> searchData, long frameNum,
+			byte[] RGB) {
+		for (int i = 0; i < searchData.size(); i++) {
+			ActiveSearchData s = searchData.get(i);
+
+			long framesSinceSeen = frameNum - s.getLastFrameObserved();
+			byte[] color = RGB;
+			if (framesSinceSeen > 10) {
+				color = dullColor(color);
+			}
+
+			int x1 = (int) s.getLastLocation().getX();
+			int y1 = (int) s.getLastLocation().getY();
+			int x2 = (int) (x1 + s.getDx() * framesSinceSeen);
+			int y2 = (int) (y1 + s.getDy() * framesSinceSeen);
+
+			paintLine(frame, x1, y1, x2, y2, color);
+
+		}
+	}
+
 	public static void trackCorrespondences(Frame frame, ArrayList<Correspondence2D2D> correspondences) {
 		byte[] RGB = { 0, (byte) 255, 0 };
 		trackCorrespondences(frame, correspondences, RGB);
@@ -1825,44 +1877,50 @@ public class ARUtils {
 			int x2 = c.getU2().intValue();
 			int y2 = c.getV2().intValue();
 
-			int currentX = x1;
-			int currentY = y1;
-
-			int xDiff = x2 > x1 ? 1 : -1;
-			int yDiff = y2 > y1 ? 1 : -1;
-
-			int y2minusy1 = y2 - y1;
-			int x2minusx1 = x2 - x1;
-			int x2y1 = x2 * y1;
-			int y2x1 = y2 * x1;
-			double baseDist = Math.sqrt(y2minusy1 * y2minusy1 + x2minusx1 * x2minusx1);
-
-			boolean keepGoing = true;
-			while (keepGoing) {
-
-				if (currentX == x2 && currentY == y2) {
-					keepGoing = false;
-				}
-
-				paintPixel(frame, currentX, currentY, RGB, 1);
-
-				// evaluate 3 hypotheses and pick best one
-				double distX = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * currentY + x2y1 - y2x1) / baseDist;
-				double distY = Math.abs(y2minusy1 * currentX - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1) / baseDist;
-				double distXY = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1)
-						/ baseDist;
-
-				if (distXY < distX && distXY < distY) {
-					currentX += xDiff;
-					currentY += yDiff;
-				} else if (distX < distY) {
-					currentX += xDiff;
-				} else {
-					currentY += yDiff;
-				}
-			}
+			paintLine(frame, x1, y1, x2, y2, RGB);
 
 		}
+	}
+
+	public static void paintLine(Frame frame, int x1, int y1, int x2, int y2, byte[] RGB) {
+
+		int currentX = x1;
+		int currentY = y1;
+
+		int xDiff = x2 > x1 ? 1 : -1;
+		int yDiff = y2 > y1 ? 1 : -1;
+
+		int y2minusy1 = y2 - y1;
+		int x2minusx1 = x2 - x1;
+		int x2y1 = x2 * y1;
+		int y2x1 = y2 * x1;
+		double baseDist = Math.sqrt(y2minusy1 * y2minusy1 + x2minusx1 * x2minusx1);
+
+		boolean keepGoing = true;
+		while (keepGoing) {
+
+			if (currentX == x2 && currentY == y2) {
+				keepGoing = false;
+			}
+
+			paintPixel(frame, currentX, currentY, RGB, 1);
+
+			// evaluate 3 hypotheses and pick best one
+			double distX = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * currentY + x2y1 - y2x1) / baseDist;
+			double distY = Math.abs(y2minusy1 * currentX - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1) / baseDist;
+			double distXY = Math.abs(y2minusy1 * (currentX + xDiff) - x2minusx1 * (currentY + yDiff) + x2y1 - y2x1)
+					/ baseDist;
+
+			if (distXY < distX && distXY < distY) {
+				currentX += xDiff;
+				currentY += yDiff;
+			} else if (distX < distY) {
+				currentX += xDiff;
+			} else {
+				currentY += yDiff;
+			}
+		}
+
 	}
 
 	public static void paintPixel(Frame frame, int x, int y, byte[] RGB, int thickness) {

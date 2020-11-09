@@ -692,10 +692,9 @@ public class TestPipeline extends ARPipeline {
 
 				byte[] red = { (byte) 255, 0, 0 };
 				byte[] cyan = { 0, (byte) 255, (byte) 255 };
+				byte[] yellow = { (byte) 255, (byte) 255, 0 };
 				ARUtils.trackCorrespondences(currentFrame, correspondences, cyan);
-				// this.pruneCorrespondencesByDistance(correspondences);
-				// ARUtils.trackCorrespondences(currentFrame, correspondences,
-				// red);
+				ARUtils.trackActiveSearch(currentFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
 
 				pl("num correspondences: " + correspondences.size());
 
@@ -815,7 +814,7 @@ public class TestPipeline extends ARPipeline {
 					}
 				}
 				// painting correspondences connected by lines
-				ARUtils.trackCorrespondences(currentFrame, correspondences);
+				// ARUtils.trackCorrespondences(currentFrame, correspondences);
 			}
 
 			// print keyframe mappoints onto frame for visualization
@@ -862,8 +861,8 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 9999999) {
-					Thread.sleep(1000);
+				if (frameNum > 999999) {
+					Thread.sleep(250);
 				}
 
 			} catch (Exception e) {

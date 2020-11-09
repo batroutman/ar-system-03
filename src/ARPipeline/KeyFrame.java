@@ -15,9 +15,11 @@ public class KeyFrame {
 	protected ArrayList<MapPoint> mapPoints = new ArrayList<MapPoint>();
 	protected ArrayList<Mat> descriptors = new ArrayList<Mat>();
 	protected ArrayList<Point2D> keypoints = new ArrayList<Point2D>();
-	protected ArrayList<Point2D> lastKeypointLocations = new ArrayList<Point2D>();
-	protected ArrayList<Mat> lastKeypointDescriptors = new ArrayList<Mat>();
-	protected ArrayList<Long> lastFrameObserved = new ArrayList<Long>();
+
+	// list of active search data for every feature being tracked. List length
+	// is equal to number of features in this keyframe
+	protected ArrayList<ActiveSearchData> searchData = new ArrayList<ActiveSearchData>();
+
 	protected long frameNumber = 0;
 
 	// hashtable that will take a point observation in comma-separated string
@@ -38,39 +40,57 @@ public class KeyFrame {
 		ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 
 		final int FLICKER_BUFFER = 10;
-		final int WINDOW_SIZE = 10;
 
 		Mat image = ARUtils.frameToMat(frame);
 
 		// for every feature in the keyframe
-		for (int i = 0; i < this.getLastKeypointLocations().size(); i++) {
+		for (int i = 0; i < this.searchData.size(); i++) {
 			// if tracking has been lost on this feature, skip
-			if (this.lastFrameObserved.get(i) + FLICKER_BUFFER < frameNum)
+			if (this.searchData.get(i).getLastFrameObserved() + FLICKER_BUFFER < frameNum)
 				continue;
 
 			// get features in window around last keypoint
 			MatOfKeyPoint keypointsFound = new MatOfKeyPoint();
 			Mat descriptorsFound = new Mat();
 
-			ARUtils.getFeaturesInWindow(frame, image, (int) this.lastKeypointLocations.get(i).getX(),
-					(int) this.lastKeypointLocations.get(i).getY(), WINDOW_SIZE, keypointsFound, descriptorsFound);
+			// calculate predicted position based on constant velocity 2D motion
+			// of feature
+			long framesSinceSeen = frameNum - this.searchData.get(i).getLastFrameObserved();
+			int targetX = (int) (this.searchData.get(i).getLastLocation().getX()
+					+ this.searchData.get(i).getDx() * framesSinceSeen);
+			int targetY = (int) (this.searchData.get(i).getLastLocation().getY()
+					+ this.searchData.get(i).getDy() * framesSinceSeen);
+
+			int WINDOW_SIZE = this.searchData.get(i).getWindowSize();
+
+			ARUtils.getFeaturesInWindow(frame, image, targetX, targetY, WINDOW_SIZE, keypointsFound, descriptorsFound);
 
 			// match these features against last descriptor
-			Integer match = ARUtils.matchDescriptor(this.lastKeypointDescriptors.get(i), keypointsFound,
+			Integer match = ARUtils.matchDescriptor(this.searchData.get(i).getLastDescriptor(), keypointsFound,
 					descriptorsFound);
 
 			// if there is a good match, generate correspondence and update
 			// lastKeypointLocations, lastKeypointDescriptors, and
 			// lastFrameObserved
 			if (match != null) {
-				this.lastFrameObserved.set(i, frameNum);
-				this.lastKeypointDescriptors.set(i, descriptorsFound.row(match));
+				this.searchData.get(i).setLastFrameObserved(frameNum);
+				this.searchData.get(i).setLastDescriptor(descriptorsFound.row(match));
 
 				List<KeyPoint> keypointList = keypointsFound.toList();
 				Point2D point = new Point2D();
 				point.setX(keypointList.get(match).pt.x);
 				point.setY(keypointList.get(match).pt.y);
-				this.lastKeypointLocations.set(i, point);
+
+				this.searchData.get(i)
+						.setDx((point.getX() - this.searchData.get(i).getLastLocation().getX()) / framesSinceSeen);
+				this.searchData.get(i)
+						.setDy((point.getY() - this.searchData.get(i).getLastLocation().getY()) / framesSinceSeen);
+				this.searchData.get(i).setLastLocation(point);
+
+				// System.out.println("new dx: " +
+				// this.searchData.get(i).getDx());
+				// System.out.println("new dy: " +
+				// this.searchData.get(i).getDy());
 
 				// create correspondence
 				Correspondence2D2D c = new Correspondence2D2D();
@@ -80,6 +100,8 @@ public class KeyFrame {
 				c.setV2(point.getY());
 				c.setDescriptor1(this.descriptors.get(i));
 				c.setDescriptor2(descriptorsFound.row(match));
+				c.setDu(this.searchData.get(i).getDx());
+				c.setDv(this.searchData.get(i).getDy());
 				correspondences.add(c);
 			}
 		}
@@ -135,28 +157,12 @@ public class KeyFrame {
 		this.frameNumber = frameNumber;
 	}
 
-	public ArrayList<Point2D> getLastKeypointLocations() {
-		return lastKeypointLocations;
+	public ArrayList<ActiveSearchData> getSearchData() {
+		return searchData;
 	}
 
-	public void setLastKeypointLocations(ArrayList<Point2D> lastKeypointLocations) {
-		this.lastKeypointLocations = lastKeypointLocations;
-	}
-
-	public ArrayList<Mat> getLastKeypointDescriptors() {
-		return lastKeypointDescriptors;
-	}
-
-	public void setLastKeypointDescriptors(ArrayList<Mat> lastKeypointDescriptors) {
-		this.lastKeypointDescriptors = lastKeypointDescriptors;
-	}
-
-	public ArrayList<Long> getLastFrameObserved() {
-		return lastFrameObserved;
-	}
-
-	public void setLastFrameObserved(ArrayList<Long> lastFrameObserved) {
-		this.lastFrameObserved = lastFrameObserved;
+	public void setSearchData(ArrayList<ActiveSearchData> searchData) {
+		this.searchData = searchData;
 	}
 
 }
