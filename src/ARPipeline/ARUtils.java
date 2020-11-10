@@ -140,7 +140,7 @@ public class ARUtils {
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
 		orb.setScaleFactor(1.5);
-		orb.setEdgeThreshold(1);
+		orb.setEdgeThreshold(0);
 
 		// create window
 		int startX = x - windowSize < 0 ? 0 : x - windowSize;
@@ -170,6 +170,90 @@ public class ARUtils {
 						oKeypoints.get(i, j)[5], oKeypoints.get(i, j)[6]);
 			}
 		}
+
+		byte[] purple = { (byte) 255, 0, (byte) 255 };
+		byte[] red = { (byte) 255, 0, 0 };
+		byte[] color = oKeypoints.rows() == 0 ? red : purple;
+		boxHighlight(frame, x, y, color, windowSize * 2 + 1);
+		// boxHighlight(frame, oKeypoints, patchSize);
+
+	}
+
+	public static void fullFrameFeatureDetect(Frame currentFrame, MatOfKeyPoint keypoints, Mat descriptors) {
+
+		Mat image = ARUtils.frameToMat(currentFrame);
+
+		// ORB parameters
+		int patchSize = 12;
+		ORB orb = ORB.create(200);
+		orb.setScoreType(ORB.FAST_SCORE);
+		orb.setPatchSize(patchSize);
+		orb.setNLevels(1);
+		orb.setScaleFactor(1.5);
+		orb.setEdgeThreshold(30);
+
+		int GRID_DIM_X = 1;
+		int GRID_DIM_Y = 1;
+		int CELL_WIDTH = (int) Math.floor(currentFrame.getWidth() / GRID_DIM_X);
+		int CELL_HEIGHT = (int) Math.floor(currentFrame.getHeight() / GRID_DIM_Y);
+
+		ArrayList<ArrayList<MatOfKeyPoint>> allKeypoints = new ArrayList<ArrayList<MatOfKeyPoint>>();
+
+		// extract ORB features in each cell
+		for (int i = 0; i < GRID_DIM_X; i++) {
+
+			allKeypoints.add(new ArrayList<MatOfKeyPoint>());
+
+			for (int j = 0; j < GRID_DIM_Y; j++) {
+
+				int startX = i * CELL_WIDTH;
+				int endX = (i + 1) * CELL_WIDTH;
+				int startY = j * CELL_HEIGHT;
+				int endY = (j + 1) * CELL_HEIGHT;
+
+				// pl("startX: " + startX);
+				// pl("endX: " + endX);
+				// pl("startY: " + startY);
+				// pl("endY: " + endY);
+				Mat subImage = image.submat(startY, endY, startX, endX);
+
+				// find ORB features
+				MatOfKeyPoint tempKeypoints = new MatOfKeyPoint();
+				long start = System.currentTimeMillis();
+				orb.detect(subImage, tempKeypoints);
+				long end = System.currentTimeMillis();
+				pl("full feature detect cell: " + (end - start) + " ms");
+
+				// offset the keypoints
+				for (int r = 0; r < tempKeypoints.rows(); r++) {
+					for (int c = 0; c < tempKeypoints.cols(); c++) {
+						tempKeypoints.put(r, c, tempKeypoints.get(r, c)[0] + startX,
+								tempKeypoints.get(r, c)[1] + startY, tempKeypoints.get(r, c)[2],
+								tempKeypoints.get(r, c)[3], tempKeypoints.get(r, c)[4], tempKeypoints.get(r, c)[5],
+								tempKeypoints.get(r, c)[6]);
+					}
+				}
+
+				allKeypoints.get(i).add(tempKeypoints);
+			}
+		}
+
+		// merge keypoints into single list
+		List<KeyPoint> keypointList = new ArrayList<KeyPoint>();
+		for (int i = 0; i < allKeypoints.size(); i++) {
+			for (int j = 0; j < allKeypoints.get(i).size(); j++) {
+				List<KeyPoint> tempKeypointList = allKeypoints.get(i).get(j).toList();
+				for (int k = 0; k < tempKeypointList.size(); k++) {
+					keypointList.add(tempKeypointList.get(k));
+				}
+			}
+		}
+
+		keypoints.fromList(keypointList);
+
+		orb.compute(image, keypoints, descriptors);
+
+		ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
 
 	}
 

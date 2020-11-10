@@ -4,7 +4,7 @@ import org.opencv.core.Mat;
 
 public class ActiveSearchData {
 
-	public static int[] PATCH_SIZES = { 10, 15, 20, 25, 30 };
+	public static int[] PATCH_SIZES = { 8, 10, 15, 20, 25, 30 };
 
 	protected Point2D lastLocation = null;
 	protected Mat lastDescriptor = null;
@@ -60,6 +60,14 @@ public class ActiveSearchData {
 	public void setPatchLevel(int patchLevel) {
 		if (patchLevel < PATCH_SIZES.length)
 			this.patchLevel = patchLevel;
+	}
+
+	public void increaseWindowSize() {
+		this.patchLevel = this.patchLevel >= PATCH_SIZES.length - 1 ? this.patchLevel : this.patchLevel + 1;
+	}
+
+	public void decreaseWindowSize() {
+		this.patchLevel = this.patchLevel > 0 ? this.patchLevel : this.patchLevel - 1;
 	}
 
 	public int getWindowSize() {

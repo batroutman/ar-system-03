@@ -65,6 +65,17 @@ public class KeyFrame {
 
 			ARUtils.getFeaturesInWindow(frame, image, targetX, targetY, WINDOW_SIZE, keypointsFound, descriptorsFound);
 
+			// if the feature was not found, increase the window size and try
+			// again. Otherwise, decrease the window size
+			if (keypointsFound.rows() == 0) {
+				this.searchData.get(i).increaseWindowSize();
+				WINDOW_SIZE = this.searchData.get(i).getWindowSize();
+				ARUtils.getFeaturesInWindow(frame, image, targetX, targetY, WINDOW_SIZE, keypointsFound,
+						descriptorsFound);
+			} else {
+				this.searchData.get(i).decreaseWindowSize();
+			}
+
 			// match these features against last descriptor
 			Integer match = ARUtils.matchDescriptor(this.searchData.get(i).getLastDescriptor(), keypointsFound,
 					descriptorsFound);
