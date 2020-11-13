@@ -11,7 +11,7 @@ public class ActiveSearchData {
 	protected Long lastFrameObserved = null;
 	protected Double dx = null;
 	protected Double dy = null;
-	protected int patchLevel = 1;
+	protected int patchLevel = 2;
 
 	public Point2D getLastLocation() {
 		return lastLocation;
@@ -67,7 +67,7 @@ public class ActiveSearchData {
 	}
 
 	public void decreaseWindowSize() {
-		this.patchLevel = this.patchLevel > 0 ? this.patchLevel : this.patchLevel - 1;
+		this.patchLevel = this.patchLevel == 0 ? this.patchLevel : this.patchLevel - 1;
 	}
 
 	public int getWindowSize() {

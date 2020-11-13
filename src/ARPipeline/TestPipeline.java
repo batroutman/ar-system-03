@@ -664,6 +664,7 @@ public class TestPipeline extends ARPipeline {
 
 	protected void mainloop() {
 		Frame currentFrame = this.inputFrameBuffer.getCurrentFrame();
+		Frame outputFrame = new Frame(currentFrame);
 		boolean keepGoing = true;
 		while (keepGoing) {
 
@@ -676,7 +677,7 @@ public class TestPipeline extends ARPipeline {
 
 			// if no keyframes exist, generate one
 			if (this.map.getKeyframes().size() == 0) {
-				this.currentKeyFrame = this.map.generateInitialKeyFrame(currentFrame, frameNum);
+				this.currentKeyFrame = this.map.generateInitialKeyFrame(currentFrame, outputFrame, frameNum);
 			}
 			// b. otherwise,
 			else {
@@ -686,18 +687,16 @@ public class TestPipeline extends ARPipeline {
 				// match descriptors to those in currentKeyframe
 				long start = System.currentTimeMillis();
 				ArrayList<Correspondence2D2D> correspondences = this.currentKeyFrame.getCorrespondences(currentFrame,
-						this.frameNum);
+						outputFrame, this.frameNum);
 				long end = System.currentTimeMillis();
 				pl("active search for correspondences: " + (end - start) + " ms");
 
 				byte[] red = { (byte) 255, 0, 0 };
 				byte[] cyan = { 0, (byte) 255, (byte) 255 };
 				byte[] yellow = { (byte) 255, (byte) 255, 0 };
-				ARUtils.trackCorrespondences(currentFrame, correspondences, cyan);
-				ARUtils.trackActiveSearch(currentFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
-				// ARUtils.paintPixel(currentFrame,
-				// correspondences.get(0).getU2().intValue(),
-				// correspondences.get(0).getV2().intValue(), red, 5);
+				ARUtils.trackCorrespondences(outputFrame, correspondences, cyan);
+				ARUtils.trackActiveSearch(outputFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
+
 				pl("num correspondences: " + correspondences.size());
 
 				// initialize the map
@@ -809,8 +808,9 @@ public class TestPipeline extends ARPipeline {
 							// Create new keyframe
 							pl("map points transferred: "
 									+ this.getMapPoints(correspondences, this.currentKeyFrame).size());
-							this.currentKeyFrame = map.registerNewKeyframe(currentFrame, frameNum, this.pose,
-									correspondences, this.getMapPoints(correspondences, this.currentKeyFrame));
+							this.currentKeyFrame = map.registerNewKeyframe(currentFrame, outputFrame, frameNum,
+									this.pose, correspondences,
+									this.getMapPoints(correspondences, this.currentKeyFrame));
 						}
 
 					}
@@ -820,7 +820,7 @@ public class TestPipeline extends ARPipeline {
 			}
 
 			// print keyframe mappoints onto frame for visualization
-			ARUtils.projectMapPoints(this.currentKeyFrame, currentFrame, this.pose, CameraIntrinsics.getK4x4());
+			ARUtils.projectMapPoints(this.currentKeyFrame, outputFrame, this.pose, CameraIntrinsics.getK4x4());
 
 			pl("num keyframes: " + this.map.getKeyframes().size());
 
@@ -846,7 +846,7 @@ public class TestPipeline extends ARPipeline {
 			synchronized (this.outputFrameBuffer) {
 
 				if (this.viewType == AR_VIEW) {
-					this.outputFrameBuffer.pushFrame(currentFrame);
+					this.outputFrameBuffer.pushFrame(outputFrame);
 				} else if (this.viewType == MAP_VIEW) {
 					this.outputFrameBuffer.pushFrame(this.map.getMapVisualizationFrame(basePose, K,
 							currentFrame.getWidth(), currentFrame.getHeight()));
@@ -855,6 +855,7 @@ public class TestPipeline extends ARPipeline {
 			}
 
 			currentFrame = this.inputFrameBuffer.getCurrentFrame();
+			outputFrame = currentFrame == null ? null : new Frame(currentFrame);
 			// record framerate
 			long newTime = System.nanoTime();
 			double frameTime = (newTime - lastTime) / 1000000000.0;
@@ -863,8 +864,8 @@ public class TestPipeline extends ARPipeline {
 			pl("framerate:\t\t" + (int) framerate);
 
 			try {
-				if (frameNum > 1409) {
-					Thread.sleep(1000);
+				if (frameNum > 999999) {
+					Thread.sleep(2000);
 				}
 
 			} catch (Exception e) {

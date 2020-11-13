@@ -130,7 +130,7 @@ public class ARUtils {
 		return null;
 	}
 
-	public static void getFeaturesInWindow(Frame frame, Mat image, int x, int y, int windowSize,
+	public static void getFeaturesInWindow(Frame frame, Frame outputFrame, Mat image, int x, int y, int windowSize,
 			MatOfKeyPoint oKeypoints, Mat oDescriptors) {
 
 		// ORB parameters
@@ -174,12 +174,12 @@ public class ARUtils {
 		byte[] purple = { (byte) 255, 0, (byte) 255 };
 		byte[] red = { (byte) 255, 0, 0 };
 		byte[] color = oKeypoints.rows() == 0 ? red : purple;
-		boxHighlight(frame, x, y, color, windowSize * 2 + 1);
-		// boxHighlight(frame, oKeypoints, patchSize);
+		// boxHighlight(outputFrame, x, y, color, windowSize * 2 + 1);
 
 	}
 
-	public static void fullFrameFeatureDetect(Frame currentFrame, MatOfKeyPoint keypoints, Mat descriptors) {
+	public static void fullFrameFeatureDetect(Frame currentFrame, Frame outputFrame, MatOfKeyPoint keypoints,
+			Mat descriptors, int edgeThreshold, boolean paintFindings) {
 
 		Mat image = ARUtils.frameToMat(currentFrame);
 
@@ -190,7 +190,7 @@ public class ARUtils {
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
 		orb.setScaleFactor(1.5);
-		orb.setEdgeThreshold(30);
+		orb.setEdgeThreshold(edgeThreshold); // 30
 
 		int GRID_DIM_X = 1;
 		int GRID_DIM_Y = 1;
@@ -253,7 +253,8 @@ public class ARUtils {
 
 		orb.compute(image, keypoints, descriptors);
 
-		ARUtils.boxHighlight(currentFrame, keypoints, patchSize);
+		if (paintFindings)
+			ARUtils.boxHighlight(outputFrame, keypoints, patchSize);
 
 	}
 
@@ -1677,6 +1678,7 @@ public class ARUtils {
 	}
 
 	public static void boxHighlight(Frame frame, MatOfKeyPoint keypoints, int boxSize) {
+
 		byte[][] RGB = { { 0, 0, (byte) 255 }, { (byte) 255, 0, 0 }, { 0, (byte) 255, 0 },
 				{ (byte) 255, 0, (byte) 255 } };
 		boxHighlight(frame, keypoints, RGB, boxSize);

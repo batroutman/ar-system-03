@@ -36,7 +36,7 @@ public class KeyFrame {
 		this.mapPoints = mapPoints;
 	}
 
-	public ArrayList<Correspondence2D2D> getCorrespondences(Frame frame, long frameNum) {
+	public ArrayList<Correspondence2D2D> getCorrespondences(Frame frame, Frame outputFrame, long frameNum) {
 		ArrayList<Correspondence2D2D> correspondences = new ArrayList<Correspondence2D2D>();
 
 		final int FLICKER_BUFFER = 10;
@@ -63,18 +63,20 @@ public class KeyFrame {
 
 			int WINDOW_SIZE = this.searchData.get(i).getWindowSize();
 
-			ARUtils.getFeaturesInWindow(frame, image, targetX, targetY, WINDOW_SIZE, keypointsFound, descriptorsFound);
+			ARUtils.getFeaturesInWindow(frame, outputFrame, image, targetX, targetY, WINDOW_SIZE, keypointsFound,
+					descriptorsFound);
 
 			// if the feature was not found, increase the window size and try
 			// again. Otherwise, decrease the window size
-			if (keypointsFound.rows() == 0) {
-				this.searchData.get(i).increaseWindowSize();
-				WINDOW_SIZE = this.searchData.get(i).getWindowSize();
-				ARUtils.getFeaturesInWindow(frame, image, targetX, targetY, WINDOW_SIZE, keypointsFound,
-						descriptorsFound);
-			} else {
-				this.searchData.get(i).decreaseWindowSize();
-			}
+			// if (keypointsFound.rows() == 0) {
+			// this.searchData.get(i).increaseWindowSize();
+			// WINDOW_SIZE = this.searchData.get(i).getWindowSize();
+			// ARUtils.getFeaturesInWindow(frame, image, targetX, targetY,
+			// WINDOW_SIZE, keypointsFound,
+			// descriptorsFound);
+			// } else {
+			// this.searchData.get(i).decreaseWindowSize();
+			// }
 
 			// match these features against last descriptor
 			Integer match = ARUtils.matchDescriptor(this.searchData.get(i).getLastDescriptor(), keypointsFound,

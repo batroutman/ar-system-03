@@ -18,11 +18,11 @@ public class Map {
 
 	}
 
-	public KeyFrame generateInitialKeyFrame(Frame frame, long frameNum) {
+	public KeyFrame generateInitialKeyFrame(Frame frame, Frame outputFrame, long frameNum) {
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, keypoints, descriptors);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 30, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
@@ -68,13 +68,13 @@ public class Map {
 		return keyframe;
 	}
 
-	public KeyFrame registerNewKeyframe(Frame frame, long frameNum, Pose currentPose,
+	public KeyFrame registerNewKeyframe(Frame frame, Frame outputFrame, long frameNum, Pose currentPose,
 			ArrayList<Correspondence2D2D> correspondences, ArrayList<MapPoint> existingMapPoints) {
 
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, keypoints, descriptors);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 30, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
