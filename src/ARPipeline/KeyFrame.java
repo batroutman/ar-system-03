@@ -72,17 +72,18 @@ public class KeyFrame {
 
 			// if the feature was not found, increase the window size and try
 			// again. Otherwise, decrease the window size
-			// if (match == null) {
-			// // this.searchData.get(i).increaseWindowSize();
-			// WINDOW_SIZE = ActiveSearchData.LARGE_BOX;
-			// ARUtils.getFeaturesInWindow(frame, outputFrame, image, targetX,
-			// targetY, WINDOW_SIZE, keypointsFound,
-			// descriptorsFound, 10);
-			// match =
-			// ARUtils.matchDescriptor(this.searchData.get(i).getLastDescriptor(),
-			// keypointsFound,
-			// descriptorsFound, 0.3, 15);
-			// }
+			if (match == null) {
+				// // this.searchData.get(i).increaseWindowSize();
+				// WINDOW_SIZE = ActiveSearchData.LARGE_BOX;
+				// // WINDOW_SIZE = this.searchData.get(i).getWindowSize();
+				// ARUtils.getFeaturesInWindow(frame, outputFrame, image,
+				// targetX, targetY, WINDOW_SIZE, keypointsFound,
+				// descriptorsFound, 10);
+				// match =
+				// ARUtils.matchDescriptor(this.searchData.get(i).getLastDescriptor(),
+				// keypointsFound,
+				// descriptorsFound, 0.25, 15);
+			}
 
 			// if there is a good match, generate correspondence and update
 			// lastKeypointLocations, lastKeypointDescriptors, and
@@ -97,9 +98,9 @@ public class KeyFrame {
 				point.setY(keypointList.get(match).pt.y);
 
 				this.searchData.get(i)
-						.setDx((point.getX() - this.searchData.get(i).getLastLocation().getX()) / framesSinceSeen);
+						.registerDx((point.getX() - this.searchData.get(i).getLastLocation().getX()) / framesSinceSeen);
 				this.searchData.get(i)
-						.setDy((point.getY() - this.searchData.get(i).getLastLocation().getY()) / framesSinceSeen);
+						.registerDy((point.getY() - this.searchData.get(i).getLastLocation().getY()) / framesSinceSeen);
 
 				// System.out.println("point.getX(): " + point.getX());
 				// System.out.println("this.searchData.get(i).getLastLocation().getX():

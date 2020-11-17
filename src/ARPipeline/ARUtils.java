@@ -156,9 +156,9 @@ public class ARUtils {
 
 		// create window
 		int startX = x - windowSize < 0 ? 0 : x - windowSize;
-		int endX = x + windowSize > frame.getWidth() ? frame.getWidth() - 1 : x + windowSize;
+		int endX = x + windowSize > frame.getWidth() ? frame.getWidth() : x + windowSize;
 		int startY = y - windowSize < 0 ? 0 : y - windowSize;
-		int endY = y + windowSize > frame.getHeight() ? frame.getHeight() - 1 : y + windowSize;
+		int endY = y + windowSize > frame.getHeight() ? frame.getHeight() : y + windowSize;
 
 		// handle cases where search area is completely off-screen
 		if (startX >= frame.getWidth())
@@ -187,7 +187,7 @@ public class ARUtils {
 		byte[] green = { 0, (byte) 255, 0 };
 		byte[] red = { (byte) 255, 0, 0 };
 		byte[] color = oKeypoints.rows() == 0 ? red : green;
-		// boxHighlight(outputFrame, x, y, color, windowSize * 2 + 1);
+		// boxHighlight(outputFrame, x, y, color, endX - startX, endY - startY);
 		// boxHighlight(outputFrame, oKeypoints, patchSize);
 
 	}
@@ -1762,24 +1762,28 @@ public class ARUtils {
 	}
 
 	public static void boxHighlight(Frame frame, int x, int y, byte[] RGB, int boxSize) {
+		boxHighlight(frame, x, y, RGB, boxSize, boxSize);
+	}
+
+	public static void boxHighlight(Frame frame, int x, int y, byte[] RGB, int width, int height) {
 
 		int thickness = 1;
-		int offset = boxSize / 2;
+		int wOffset = width / 2;
+		int hOffset = height / 2;
 		byte[] color = RGB;
 
 		// for every pixel in the box area around the point
-		for (int row = 0; row < boxSize; row++) {
-			for (int col = 0; col < boxSize; col++) {
-				int pixelPosX = col + x - offset;
-				int pixelPosY = row + y - offset;
+		for (int row = 0; row < height; row++) {
+			for (int col = 0; col < width; col++) {
+				int pixelPosX = col + x - wOffset;
+				int pixelPosY = row + y - hOffset;
 
 				// do we color it?
 				// check for boundaries of image
 				if (pixelPosX > 0 && pixelPosX < frame.getWidth() && pixelPosY > 0 && pixelPosY < frame.getHeight()) {
 
 					// check for distance from barrier
-					if (row < thickness || row >= boxSize - thickness || col < thickness
-							|| col >= boxSize - thickness) {
+					if (row < thickness || row >= height - thickness || col < thickness || col >= width - thickness) {
 
 						// paint the pixel
 						frame.getGrey()[frame.getWidth() * pixelPosY
@@ -1953,6 +1957,27 @@ public class ARUtils {
 			int y1 = (int) s.getLastLocation().getY();
 			int x2 = framesSinceSeen > 10 ? (int) (x1 + s.getDx() * 10) : (int) (x1 + s.getDx() * framesSinceSeen);
 			int y2 = framesSinceSeen > 10 ? (int) (y1 + s.getDy() * 10) : (int) (y1 + s.getDy() * framesSinceSeen);
+
+			paintLine(frame, x1, y1, x2, y2, color);
+
+		}
+	}
+
+	public static void trackActiveSearchN(Frame frame, ArrayList<ActiveSearchData> searchData, long frameNum,
+			byte[] RGB) {
+		for (int i = 0; i < searchData.size(); i++) {
+			ActiveSearchData s = searchData.get(i);
+
+			long framesSinceSeen = frameNum - s.getLastFrameObserved();
+			byte[] color = RGB;
+			if (framesSinceSeen > 10) {
+				color = dullColor(color);
+			}
+
+			int x1 = (int) s.getLastLocation().getX();
+			int y1 = (int) s.getLastLocation().getY();
+			int x2 = framesSinceSeen > 10 ? (int) (x1 + s.getDxN() * 10) : (int) (x1 + s.getDxN() * framesSinceSeen);
+			int y2 = framesSinceSeen > 10 ? (int) (y1 + s.getDyN() * 10) : (int) (y1 + s.getDyN() * framesSinceSeen);
 
 			paintLine(frame, x1, y1, x2, y2, color);
 

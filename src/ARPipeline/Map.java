@@ -45,7 +45,9 @@ public class Map {
 			searchData.setLastDescriptor(descriptors.row(i));
 			searchData.setLastFrameObserved(frameNum);
 			searchData.setDx(0d);
+			searchData.setDxN(0d);
 			searchData.setDy(0d);
+			searchData.setDyN(0d);
 			keyframe.getSearchData().add(searchData);
 
 			// register official keyframe observation for this keypoint and
@@ -109,7 +111,9 @@ public class Map {
 			searchData.setLastLocation(keypointLocation);
 			searchData.setLastFrameObserved(frameNum);
 			searchData.setDx(corr.getDu());
+			searchData.setDxN(corr.getDu());
 			searchData.setDy(corr.getDv());
+			searchData.setDyN(corr.getDv());
 			keyframe.getSearchData().add(searchData);
 
 			// add observation
@@ -146,7 +150,9 @@ public class Map {
 				keyframe.getDescriptors().add(descriptors.row(i));
 				searchData.setLastFrameObserved(frameNum);
 				searchData.setDx(0d);
+				searchData.setDxN(0d);
 				searchData.setDy(0d);
+				searchData.setDyN(0d);
 				keyframe.getSearchData().add(searchData);
 
 				// add observation

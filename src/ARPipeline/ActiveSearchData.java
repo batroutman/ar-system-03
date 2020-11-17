@@ -7,12 +7,19 @@ public class ActiveSearchData {
 	public static int[] PATCH_SIZES = { 8, 10, 15, 20, 25, 30 };
 	public static int LARGE_BOX = PATCH_SIZES[5];
 
+	protected int patchLevel = 2;
+
 	protected Point2D lastLocation = null;
 	protected Mat lastDescriptor = null;
 	protected Long lastFrameObserved = null;
 	protected Double dx = null;
 	protected Double dy = null;
-	protected int patchLevel = 2;
+
+	// dx and dy averaged across last n frames (makes active search robust to
+	// duplicate frames)
+	protected int n = 20;
+	protected Double dxN = null;
+	protected Double dyN = null;
 
 	public Point2D getLastLocation() {
 		return lastLocation;
@@ -73,6 +80,42 @@ public class ActiveSearchData {
 
 	public int getWindowSize() {
 		return PATCH_SIZES[this.patchLevel];
+	}
+
+	public int getN() {
+		return n;
+	}
+
+	public void setN(int n) {
+		this.n = n;
+	}
+
+	public Double getDxN() {
+		return dxN;
+	}
+
+	public void setDxN(Double dxN) {
+		this.dxN = dxN;
+	}
+
+	public Double getDyN() {
+		return dyN;
+	}
+
+	public void setDyN(Double dyN) {
+		this.dyN = dyN;
+	}
+
+	public void registerDx(double dx) {
+		double oldDxN = this.dxN;
+		this.dxN = (this.dxN * this.n - oldDxN + dx) / n;
+		this.dx = dx;
+	}
+
+	public void registerDy(double dy) {
+		double oldDyN = this.dyN;
+		this.dyN = (this.dyN * this.n - oldDyN + dy) / n;
+		this.dy = dy;
 	}
 
 }

@@ -698,8 +698,11 @@ public class TestPipeline extends ARPipeline {
 				byte[] red = { (byte) 255, 0, 0 };
 				byte[] cyan = { 0, (byte) 255, (byte) 255 };
 				byte[] yellow = { (byte) 255, (byte) 255, 0 };
+				byte[] orange = { (byte) 255, (byte) 90, 0 };
 				ARUtils.trackCorrespondences(outputFrame, correspondences, cyan);
 				ARUtils.trackActiveSearch(outputFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
+				// ARUtils.trackActiveSearchN(outputFrame,
+				// this.currentKeyFrame.getSearchData(), this.frameNum, orange);
 
 				pl("num correspondences: " + correspondences.size());
 				try {
@@ -993,6 +996,7 @@ public class TestPipeline extends ARPipeline {
 				synchronized (this.outputFrameBuffer) {
 					this.outputFrameBuffer.pushFrame(this.debugOutputFrames.get(outputFrameNumber));
 				}
+				sleep(100);
 			}
 			if (Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
 				// pl("LEFT PRESSED");
@@ -1004,13 +1008,10 @@ public class TestPipeline extends ARPipeline {
 				synchronized (this.outputFrameBuffer) {
 					this.outputFrameBuffer.pushFrame(this.debugOutputFrames.get(outputFrameNumber));
 				}
+				sleep(100);
 			}
-			try {
-				Thread.sleep(80);
+			sleep(16);
 
-			} catch (Exception e) {
-
-			}
 		}
 
 	}
@@ -1035,6 +1036,14 @@ public class TestPipeline extends ARPipeline {
 
 	public static void pl(Object s) {
 		System.out.println(s);
+	}
+
+	public static void sleep(int millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }
