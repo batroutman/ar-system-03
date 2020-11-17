@@ -5,6 +5,7 @@ import org.opencv.core.Mat;
 public class ActiveSearchData {
 
 	public static int[] PATCH_SIZES = { 8, 10, 15, 20, 25, 30 };
+	public static int LARGE_BOX = PATCH_SIZES[5];
 
 	protected Point2D lastLocation = null;
 	protected Mat lastDescriptor = null;

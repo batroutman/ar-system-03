@@ -93,11 +93,16 @@ public class ARUtils {
 	}
 
 	public static Integer matchDescriptor(Mat baseDescriptor, MatOfKeyPoint keypoints, Mat descriptors) {
+		return matchDescriptor(baseDescriptor, keypoints, descriptors, 0.7, 25);
+	}
+
+	public static Integer matchDescriptor(Mat baseDescriptor, MatOfKeyPoint keypoints, Mat descriptors, double lowe,
+			double thresh) {
 		if (keypoints.rows() == 0)
 			return null;
 
-		double LOWE_RATIO = 0.7;
-		double DIST_THRESH = 25;
+		double LOWE_RATIO = lowe;
+		double DIST_THRESH = thresh;
 
 		double[] hammingDistances = new double[descriptors.rows()];
 
@@ -132,10 +137,17 @@ public class ARUtils {
 
 	public static void getFeaturesInWindow(Frame frame, Frame outputFrame, Mat image, int x, int y, int windowSize,
 			MatOfKeyPoint oKeypoints, Mat oDescriptors) {
+		getFeaturesInWindow(frame, outputFrame, image, x, y, windowSize, oKeypoints, oDescriptors, 5);
+	}
+
+	// given a small search window and coordinates for the center of the window,
+	// find a number of features in the image within only the window
+	public static void getFeaturesInWindow(Frame frame, Frame outputFrame, Mat image, int x, int y, int windowSize,
+			MatOfKeyPoint oKeypoints, Mat oDescriptors, int numFeatures) {
 
 		// ORB parameters
 		int patchSize = 12;
-		ORB orb = ORB.create(5);
+		ORB orb = ORB.create(numFeatures);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
@@ -172,9 +184,11 @@ public class ARUtils {
 		}
 
 		byte[] purple = { (byte) 255, 0, (byte) 255 };
+		byte[] green = { 0, (byte) 255, 0 };
 		byte[] red = { (byte) 255, 0, 0 };
-		byte[] color = oKeypoints.rows() == 0 ? red : purple;
+		byte[] color = oKeypoints.rows() == 0 ? red : green;
 		// boxHighlight(outputFrame, x, y, color, windowSize * 2 + 1);
+		// boxHighlight(outputFrame, oKeypoints, patchSize);
 
 	}
 
@@ -185,15 +199,15 @@ public class ARUtils {
 
 		// ORB parameters
 		int patchSize = 12;
-		ORB orb = ORB.create(200);
+		ORB orb = ORB.create(5);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
 		orb.setScaleFactor(1.5);
-		orb.setEdgeThreshold(edgeThreshold); // 30
+		orb.setEdgeThreshold(edgeThreshold); // 5
 
-		int GRID_DIM_X = 1;
-		int GRID_DIM_Y = 1;
+		int GRID_DIM_X = 16;
+		int GRID_DIM_Y = 9;
 		int CELL_WIDTH = (int) Math.floor(currentFrame.getWidth() / GRID_DIM_X);
 		int CELL_HEIGHT = (int) Math.floor(currentFrame.getHeight() / GRID_DIM_Y);
 
@@ -222,7 +236,7 @@ public class ARUtils {
 				long start = System.currentTimeMillis();
 				orb.detect(subImage, tempKeypoints);
 				long end = System.currentTimeMillis();
-				pl("full feature detect cell: " + (end - start) + " ms");
+				// pl("full feature detect cell: " + (end - start) + " ms");
 
 				// offset the keypoints
 				for (int r = 0; r < tempKeypoints.rows(); r++) {

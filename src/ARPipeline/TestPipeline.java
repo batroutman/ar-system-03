@@ -24,6 +24,10 @@ public class TestPipeline extends ARPipeline {
 
 	int viewType = AR_VIEW;
 
+	ArrayList<Frame> debugOutputFrames = new ArrayList<Frame>();
+	ArrayList<Pose> debugOutputPoses = new ArrayList<Pose>();
+	int outputFrameNumber = 0;
+
 	long lastTime = System.nanoTime();
 	long frameNum = 0;
 	boolean mapInitialized = false;
@@ -698,122 +702,130 @@ public class TestPipeline extends ARPipeline {
 				ARUtils.trackActiveSearch(outputFrame, this.currentKeyFrame.getSearchData(), this.frameNum, yellow);
 
 				pl("num correspondences: " + correspondences.size());
+				try {
+					// initialize the map
+					if (!mapInitialized && frameNum >= 59) {
+						Pose newPose = this.structureFromMotionUpdateHomography(correspondences);
 
-				// initialize the map
-				if (!mapInitialized && frameNum >= 59) {
-					Pose newPose = this.structureFromMotionUpdateHomography(correspondences);
+						// triangulate points in map
+						this.pruneCorrespondenceOutliers(correspondences);
+						ArrayList<Point3D> point3Ds = this.triangulateMapPoints(correspondences, newPose);
 
-					// triangulate points in map
-					this.pruneCorrespondenceOutliers(correspondences);
-					ArrayList<Point3D> point3Ds = this.triangulateMapPoints(correspondences, newPose);
+						// single round BA to greatly correct poor results from
+						// sfm
+						// and triangulation
+						this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), newPose, correspondences,
+								point3Ds, 10);
 
-					// single round BA to greatly correct poor results from sfm
-					// and triangulation
-					this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), newPose, correspondences, point3Ds,
-							10);
-
-					pl("initialized 3D points:");
-					for (int i = 0; i < point3Ds.size(); i++) {
-						pl(point3Ds.get(i).getX() + ", " + point3Ds.get(i).getY() + ", " + point3Ds.get(i).getY()
-								+ ", ");
-					}
-
-					this.deepReplacePose(newPose);
-
-					mapInitialized = true;
-					this.currentKeyFrame.setFrameNumber(frameNum);
-				} else if (mapInitialized) {
-
-					// get tracked 3D points
-					ArrayList<Point3D> point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
-					int numTracked = 0;
-					for (int i = 0; i < point3Ds.size(); i++) {
-						numTracked += point3Ds.get(i) != null ? 1 : 0;
-					}
-
-					// General Pipeline Algorithm:
-
-					// if >= 8 correspondences and > 16 tracked points
-					// ---- track pose with PnP
-					// ---- triangulate untracked points
-					// else if >= 8 correspondences and 16 to 6 tracked points
-					// ---- track pose with PnP and create new keyframe
-					// else if >= 8 correspondences and < 6 tracked points
-					// ---- sfm track?
-					// else (< 8 correspondences)
-					// ---- place recognition module
-					pl("numCorrespondences: " + correspondences.size());
-					pl("numTracked: " + numTracked);
-
-					if (correspondences.size() >= 8 && numTracked > 40
-							|| this.currentKeyFrame.getFrameNumber() > frameNum - 15) {
-						// PnP
-						this.PnPUpdate(point3Ds, correspondences);
-
-						// Triangulate untracked map points and bundle adjust
-						if (this.sufficientMovement(correspondences)) {
-
-							// track points
-							// this.pruneCorrespondenceOutliers(correspondences);
-
-							// debug
-							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
-							numTracked = 0;
-							for (int i = 0; i < point3Ds.size(); i++) {
-								numTracked += point3Ds.get(i) != null ? 1 : 0;
-							}
-							pl("numCorrespondences before triangulation: " + correspondences.size());
-							pl("numTracked before triangulation: " + numTracked);
-
-							this.triangulateUntrackedMapPoints(correspondences);
-
-							// bundle adjust
-							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
-									this.currentKeyFrame);
-							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
-									newTrackedPoints, 10);
-							this.deepReplacePose(tempPose);
+						pl("initialized 3D points:");
+						for (int i = 0; i < point3Ds.size(); i++) {
+							pl(point3Ds.get(i).getX() + ", " + point3Ds.get(i).getY() + ", " + point3Ds.get(i).getY()
+									+ ", ");
 						}
 
-					} else if (correspondences.size() >= 8 && numTracked <= 40 && numTracked >= 6) {
-						// PnP
-						this.PnPUpdate(point3Ds, correspondences);
+						this.deepReplacePose(newPose);
 
-						// Triangulate untracked map points
-						if (this.sufficientMovement(correspondences)) {
+						mapInitialized = true;
+						this.currentKeyFrame.setFrameNumber(frameNum);
+					} else if (mapInitialized) {
 
-							// track points
-							// this.pruneCorrespondenceOutliers(correspondences);
-
-							// debug
-							point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
-							numTracked = 0;
-							for (int i = 0; i < point3Ds.size(); i++) {
-								numTracked += point3Ds.get(i) != null ? 1 : 0;
-							}
-							pl("numCorrespondences before triangulation: " + correspondences.size());
-							pl("numTracked before triangulation: " + numTracked);
-
-							this.triangulateUntrackedMapPoints(correspondences);
-
-							// bundle adjust
-							Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
-							ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
-									this.currentKeyFrame);
-							this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose, correspondences,
-									newTrackedPoints, 10);
-							this.deepReplacePose(tempPose);
-
-							// Create new keyframe
-							pl("map points transferred: "
-									+ this.getMapPoints(correspondences, this.currentKeyFrame).size());
-							this.currentKeyFrame = map.registerNewKeyframe(currentFrame, outputFrame, frameNum,
-									this.pose, correspondences,
-									this.getMapPoints(correspondences, this.currentKeyFrame));
+						// get tracked 3D points
+						ArrayList<Point3D> point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+						int numTracked = 0;
+						for (int i = 0; i < point3Ds.size(); i++) {
+							numTracked += point3Ds.get(i) != null ? 1 : 0;
 						}
 
+						// General Pipeline Algorithm:
+
+						// if >= 8 correspondences and > 16 tracked points
+						// ---- track pose with PnP
+						// ---- triangulate untracked points
+						// else if >= 8 correspondences and 16 to 6 tracked
+						// points
+						// ---- track pose with PnP and create new keyframe
+						// else if >= 8 correspondences and < 6 tracked points
+						// ---- sfm track?
+						// else (< 8 correspondences)
+						// ---- place recognition module
+						pl("numCorrespondences: " + correspondences.size());
+						pl("numTracked: " + numTracked);
+
+						if (correspondences.size() >= 8 && numTracked > 40) {
+							// PnP
+							this.PnPUpdate(point3Ds, correspondences);
+
+							// Triangulate untracked map points and bundle
+							// adjust
+							if (this.sufficientMovement(correspondences)) {
+
+								// track points
+								// this.pruneCorrespondenceOutliers(correspondences);
+
+								// debug
+								point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+								numTracked = 0;
+								for (int i = 0; i < point3Ds.size(); i++) {
+									numTracked += point3Ds.get(i) != null ? 1 : 0;
+								}
+								pl("numCorrespondences before triangulation: " + correspondences.size());
+								pl("numTracked before triangulation: " + numTracked);
+
+								this.triangulateUntrackedMapPoints(correspondences);
+
+								// bundle adjust
+								Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+								ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+										this.currentKeyFrame);
+								this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose,
+										correspondences, newTrackedPoints, 10);
+								this.deepReplacePose(tempPose);
+							}
+
+						} else if (correspondences.size() >= 8 && numTracked <= 40 && numTracked >= 6) {
+							// PnP
+							this.PnPUpdate(point3Ds, correspondences);
+
+							// Triangulate untracked map points
+							if (this.sufficientMovement(correspondences)) {
+
+								// track points
+								// this.pruneCorrespondenceOutliers(correspondences);
+
+								// debug
+								point3Ds = get3DPoints(correspondences, this.currentKeyFrame);
+								numTracked = 0;
+								for (int i = 0; i < point3Ds.size(); i++) {
+									numTracked += point3Ds.get(i) != null ? 1 : 0;
+								}
+								pl("numCorrespondences before triangulation: " + correspondences.size());
+								pl("numTracked before triangulation: " + numTracked);
+
+								this.triangulateUntrackedMapPoints(correspondences);
+
+								// bundle adjust
+								Pose tempPose = this.setTemporaryPose(this.pose.getHomogeneousMatrix());
+								ArrayList<Point3D> newTrackedPoints = this.get3DPoints(correspondences,
+										this.currentKeyFrame);
+								this.cameraPairBundleAdjustment(this.currentKeyFrame.getPose(), tempPose,
+										correspondences, newTrackedPoints, 10);
+								this.deepReplacePose(tempPose);
+
+								// Create new keyframe
+								if (this.currentKeyFrame.getFrameNumber() < frameNum - 15) {
+									pl("map points transferred: "
+											+ this.getMapPoints(correspondences, this.currentKeyFrame).size());
+									this.currentKeyFrame = map.registerNewKeyframe(currentFrame, outputFrame, frameNum,
+											this.pose, correspondences,
+											this.getMapPoints(correspondences, this.currentKeyFrame));
+								}
+
+							}
+
+						}
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 				// painting correspondences connected by lines
 				// ARUtils.trackCorrespondences(currentFrame, correspondences);
@@ -835,6 +847,7 @@ public class TestPipeline extends ARPipeline {
 
 				if (this.viewType == AR_VIEW) {
 					this.outputPoseBuffer.pushPose(this.pose);
+					this.debugOutputPoses.add(new Pose(this.pose));
 				} else if (this.viewType == MAP_VIEW) {
 					this.outputPoseBuffer.pushPose(basePose);
 				}
@@ -847,6 +860,7 @@ public class TestPipeline extends ARPipeline {
 
 				if (this.viewType == AR_VIEW) {
 					this.outputFrameBuffer.pushFrame(outputFrame);
+					this.debugOutputFrames.add(outputFrame);
 				} else if (this.viewType == MAP_VIEW) {
 					this.outputFrameBuffer.pushFrame(this.map.getMapVisualizationFrame(basePose, K,
 							currentFrame.getWidth(), currentFrame.getHeight()));
@@ -875,7 +889,7 @@ public class TestPipeline extends ARPipeline {
 		}
 
 		// debug
-		keepGoing = true;
+		keepGoing = this.viewType == MAP_VIEW;
 		while (keepGoing) {
 			double rotationAmount = 0.01;
 			double moveSpeed = 0.01;
@@ -961,6 +975,44 @@ public class TestPipeline extends ARPipeline {
 
 			}
 		}
+
+		this.outputFrameNumber = (int) this.frameNum;
+		pl("outputFrameNumber: " + this.outputFrameNumber);
+		pl("Num debug frames: " + this.debugOutputFrames.size());
+		pl("Num debug poses: " + this.debugOutputPoses.size());
+		keepGoing = this.viewType == AR_VIEW;
+		while (keepGoing) {
+			if (Keyboard.isKeyDown(Keyboard.KEY_RIGHT)) {
+				// pl("RIGHT PRESSED");
+				this.outputFrameNumber = outputFrameNumber + 1 < this.debugOutputFrames.size() ? outputFrameNumber + 1
+						: outputFrameNumber;
+
+				synchronized (this.outputPoseBuffer) {
+					this.outputPoseBuffer.pushPose(this.debugOutputPoses.get(outputFrameNumber));
+				}
+				synchronized (this.outputFrameBuffer) {
+					this.outputFrameBuffer.pushFrame(this.debugOutputFrames.get(outputFrameNumber));
+				}
+			}
+			if (Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
+				// pl("LEFT PRESSED");
+				this.outputFrameNumber = outputFrameNumber - 1 >= 0 ? outputFrameNumber - 1 : outputFrameNumber;
+
+				synchronized (this.outputPoseBuffer) {
+					this.outputPoseBuffer.pushPose(this.debugOutputPoses.get(outputFrameNumber));
+				}
+				synchronized (this.outputFrameBuffer) {
+					this.outputFrameBuffer.pushFrame(this.debugOutputFrames.get(outputFrameNumber));
+				}
+			}
+			try {
+				Thread.sleep(80);
+
+			} catch (Exception e) {
+
+			}
+		}
+
 	}
 
 	public void getStats(Mat desc) {

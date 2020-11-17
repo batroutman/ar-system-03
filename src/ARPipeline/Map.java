@@ -22,7 +22,7 @@ public class Map {
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 30, false);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 5, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
@@ -74,7 +74,7 @@ public class Map {
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 30, false);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 5, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
@@ -92,7 +92,6 @@ public class Map {
 		pose.setQz(currentPose.getQz());
 		keyframe.setPose(pose);
 
-		System.out.println("existing points:");
 		// handle pre existing points
 		for (int c = 0; c < correspondences.size(); c++) {
 
@@ -102,9 +101,6 @@ public class Map {
 			keyframe.getObsvToMapPoint().put(
 					correspondences.get(c).getU2().intValue() + "," + correspondences.get(c).getV2().intValue(),
 					existingMapPoints.get(c));
-
-			System.out.println(
-					correspondences.get(c).getU2().intValue() + "," + correspondences.get(c).getV2().intValue());
 
 			keyframe.getDescriptors().add(corr.getDescriptor2());
 			searchData.setLastDescriptor(corr.getDescriptor2());
@@ -127,7 +123,6 @@ public class Map {
 			this.mapPoints.add(existingMapPoints.get(c));
 		}
 
-		System.out.println("new points");
 		// handle point that were just detected
 		int num = 0;
 		for (int i = 0; i < keypointList.size(); i++) {
@@ -139,7 +134,6 @@ public class Map {
 					.get((int) keypointList.get(i).pt.x + "," + (int) keypointList.get(i).pt.y);
 			if (mp == null) {
 				num++;
-				System.out.println((int) keypointList.get(i).pt.x + "," + (int) keypointList.get(i).pt.y);
 				mp = new MapPoint();
 				keyframe.getObsvToMapPoint().put((int) keypointList.get(i).pt.x + "," + (int) keypointList.get(i).pt.y,
 						mp);
