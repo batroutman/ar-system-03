@@ -92,6 +92,49 @@ public class ARUtils {
 		return fundamental;
 	}
 
+	public static Integer matchDescriptor(Mat baseDescriptor, List<KeyPoint> keypoints, List<Mat> descriptors) {
+		return matchDescriptor(baseDescriptor, keypoints, descriptors, 0.65, 25);
+	}
+
+	public static Integer matchDescriptor(Mat baseDescriptor, List<KeyPoint> keypoints, List<Mat> descriptors,
+			double lowe, double thresh) {
+		if (keypoints.size() == 0)
+			return null;
+
+		double LOWE_RATIO = lowe;
+		double DIST_THRESH = thresh;
+
+		double[] hammingDistances = new double[descriptors.size()];
+
+		// get hamming distances for each descriptor
+		for (int i = 0; i < descriptors.size(); i++) {
+			hammingDistances[i] = Core.norm(descriptors.get(i), baseDescriptor, Core.NORM_HAMMING);
+		}
+
+		// get best and second best distances
+		double bestDistance = 256;
+		int bestIndex = -1;
+		double secondDistance = 257;
+
+		for (int i = 0; i < hammingDistances.length; i++) {
+			if (hammingDistances[i] < bestDistance) {
+				secondDistance = bestDistance;
+				bestDistance = hammingDistances[i];
+				bestIndex = i;
+			} else if (hammingDistances[i] < secondDistance) {
+				secondDistance = hammingDistances[i];
+			}
+		}
+
+		// evaluate Lowe ratio and absolute distance
+		if (bestDistance < LOWE_RATIO * secondDistance && bestDistance < DIST_THRESH) {
+			return bestIndex;
+		}
+
+		// no sufficient match
+		return null;
+	}
+
 	public static Integer matchDescriptor(Mat baseDescriptor, MatOfKeyPoint keypoints, Mat descriptors) {
 		return matchDescriptor(baseDescriptor, keypoints, descriptors, 0.7, 25);
 	}
@@ -133,6 +176,52 @@ public class ARUtils {
 
 		// no sufficient match
 		return null;
+	}
+
+	public static void getFeaturesInWindow(Frame frame, Frame outputFrame, int x, int y, int windowSize,
+			java.util.HashMap<String, ArrayList<KeyPoint>> keypointMap,
+			java.util.HashMap<String, ArrayList<Mat>> descriptorMap, List<KeyPoint> windowKeypoints,
+			List<Mat> windowDescriptors) {
+
+		// ensure lists are empty
+		windowKeypoints.clear();
+		windowDescriptors.clear();
+
+		// create window
+		int startX = x - windowSize < 0 ? 0 : x - windowSize;
+		int endX = x + windowSize > frame.getWidth() ? frame.getWidth() : x + windowSize;
+		int startY = y - windowSize < 0 ? 0 : y - windowSize;
+		int endY = y + windowSize > frame.getHeight() ? frame.getHeight() : y + windowSize;
+
+		// handle cases where search area is completely off-screen
+		if (startX >= frame.getWidth())
+			return;
+		if (endX <= 0)
+			return;
+		if (startY >= frame.getHeight())
+			return;
+		if (endY <= 0)
+			return;
+
+		// collect features in window
+		for (int row = startY; row < endY; row++) {
+			for (int col = startX; col < endX; col++) {
+				if (keypointMap.get(col + "," + row) == null)
+					continue;
+				ArrayList<KeyPoint> keypointsInMap = keypointMap.get(col + "," + row);
+				ArrayList<Mat> descriptorsInMap = descriptorMap.get(col + "," + row);
+				windowKeypoints.addAll(keypointsInMap);
+				windowDescriptors.addAll(descriptorsInMap);
+			}
+		}
+
+		byte[] purple = { (byte) 255, 0, (byte) 255 };
+		byte[] green = { 0, (byte) 255, 0 };
+		byte[] red = { (byte) 255, 0, 0 };
+		byte[] color = windowKeypoints.size() == 0 ? red : purple;
+		// boxHighlight(outputFrame, x, y, color, endX - startX, endY - startY);
+		// boxHighlight(outputFrame, oKeypoints, patchSize);
+
 	}
 
 	public static void getFeaturesInWindow(Frame frame, Frame outputFrame, Mat image, int x, int y, int windowSize,
@@ -199,15 +288,15 @@ public class ARUtils {
 
 		// ORB parameters
 		int patchSize = 12;
-		ORB orb = ORB.create(5);
+		ORB orb = ORB.create(1000);
 		orb.setScoreType(ORB.FAST_SCORE);
 		orb.setPatchSize(patchSize);
 		orb.setNLevels(1);
 		orb.setScaleFactor(1.5);
 		orb.setEdgeThreshold(edgeThreshold); // 5
 
-		int GRID_DIM_X = 16;
-		int GRID_DIM_Y = 9;
+		int GRID_DIM_X = 1;
+		int GRID_DIM_Y = 1;
 		int CELL_WIDTH = (int) Math.floor(currentFrame.getWidth() / GRID_DIM_X);
 		int CELL_HEIGHT = (int) Math.floor(currentFrame.getHeight() / GRID_DIM_Y);
 
@@ -264,7 +353,7 @@ public class ARUtils {
 		}
 
 		keypoints.fromList(keypointList);
-
+		nonMaximumSuppression(keypoints, patchSize);
 		orb.compute(image, keypoints, descriptors);
 
 		if (paintFindings)

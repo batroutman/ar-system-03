@@ -22,7 +22,7 @@ public class Map {
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 5, false);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 40, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();
@@ -76,7 +76,7 @@ public class Map {
 		// extract features across entire frame
 		Mat descriptors = new Mat();
 		MatOfKeyPoint keypoints = new MatOfKeyPoint();
-		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 5, false);
+		ARUtils.fullFrameFeatureDetect(frame, outputFrame, keypoints, descriptors, 40, false);
 
 		List<KeyPoint> keypointList = keypoints.toList();
 		KeyFrame keyframe = new KeyFrame();

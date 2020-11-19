@@ -22,7 +22,7 @@ public class TestPipeline extends ARPipeline {
 	final int AR_VIEW = 0;
 	final int MAP_VIEW = 1;
 
-	int viewType = AR_VIEW;
+	int viewType = MAP_VIEW;
 
 	ArrayList<Frame> debugOutputFrames = new ArrayList<Frame>();
 	ArrayList<Pose> debugOutputPoses = new ArrayList<Pose>();
@@ -707,7 +707,7 @@ public class TestPipeline extends ARPipeline {
 				pl("num correspondences: " + correspondences.size());
 				try {
 					// initialize the map
-					if (!mapInitialized && frameNum >= 59) {
+					if (!mapInitialized && frameNum >= 99) {
 						Pose newPose = this.structureFromMotionUpdateHomography(correspondences);
 
 						// triangulate points in map
@@ -831,7 +831,8 @@ public class TestPipeline extends ARPipeline {
 					e.printStackTrace();
 				}
 				// painting correspondences connected by lines
-				// ARUtils.trackCorrespondences(currentFrame, correspondences);
+				byte[] green = { 0, (byte) 255, 0 };
+				ARUtils.trackCorrespondences(outputFrame, correspondences, green);
 			}
 
 			// print keyframe mappoints onto frame for visualization
