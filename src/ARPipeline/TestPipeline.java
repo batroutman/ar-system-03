@@ -22,7 +22,7 @@ public class TestPipeline extends ARPipeline {
 	final int AR_VIEW = 0;
 	final int MAP_VIEW = 1;
 
-	int viewType = MAP_VIEW;
+	int viewType = AR_VIEW;
 
 	ArrayList<Frame> debugOutputFrames = new ArrayList<Frame>();
 	ArrayList<Pose> debugOutputPoses = new ArrayList<Pose>();

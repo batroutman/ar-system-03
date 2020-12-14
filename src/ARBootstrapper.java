@@ -1,13 +1,11 @@
 import org.opencv.core.Core;
-import org.opencv.core.Mat;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.ARUtils;
 import ARPipeline.OfflineFrameBuffer;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
+import ARPipeline.TUMFrameBuffer;
 import ARPipeline.TestPipeline;
-import Jama.Matrix;
 
 public class ARBootstrapper {
 
@@ -39,18 +37,14 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		arBootstrapper.start();
-		// arBootstrapper.tests();
+		// arBootstrapper.start();
+		arBootstrapper.tests();
 
 	}
 
 	public void tests() {
 
-		Matrix m = new Matrix(4, 4);
-		Mat mat = ARUtils.MatrixToMat(m);
-		Mat sub = mat.submat(0, 4, 0, 3);
-		Matrix subMatrix = ARUtils.MatToMatrix(sub);
-		subMatrix.print(15, 5);
+		TUMFrameBuffer tum = new TUMFrameBuffer("../datasets/rgbd_dataset_freiburg1_desk/", true, true);
 
 	}
 
