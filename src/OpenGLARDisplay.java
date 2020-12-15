@@ -48,7 +48,7 @@ public class OpenGLARDisplay {
 	public void initOpenGL() {
 
 		// initialize
-		DisplayManager.createDisplay();
+		DisplayManager.createDisplay(Parameters.width, Parameters.height);
 		this.loader = new Loader();
 		this.cameraShader = new StaticShader(false);
 		this.renderer = new Renderer(this.cameraShader);

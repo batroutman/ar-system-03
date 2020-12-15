@@ -13,15 +13,15 @@ import javax.imageio.ImageIO;
 // Offline frame buffer designed to load in images from the TUM dataset
 public class TUMFrameBuffer implements FrameBuffer {
 
+	// DEBUG: limit the number of frames to pre-load
+	long frameLimit = 300;
+
 	// preloaded frames
 	ArrayList<Frame> frames = new ArrayList<Frame>();
 
 	// timestamp and file location for each frame.
 	// Ex. "1305031452.791720 rgb/1305031452.791720.png"
 	ArrayList<String> frameData = new ArrayList<String>();
-
-	// set to true if frames are to be converted to greyscale on load
-	boolean convertToGreyscale = true;
 
 	// set to true to load all frames into the frame buffer before popping any
 	boolean preloadFrames = true;
@@ -37,9 +37,8 @@ public class TUMFrameBuffer implements FrameBuffer {
 
 	}
 
-	public TUMFrameBuffer(String filepath, boolean convertToGreyscale, boolean preloadFrames) {
+	public TUMFrameBuffer(String filepath, boolean preloadFrames) {
 		this.filepath = filepath;
-		this.convertToGreyscale = convertToGreyscale;
 		this.preloadFrames = preloadFrames;
 
 		// sanitize filepath
@@ -95,11 +94,12 @@ public class TUMFrameBuffer implements FrameBuffer {
 	}
 
 	public void loadFramePaths() {
+		System.out.println("Loading frame paths...");
 		BufferedReader reader;
 		try {
 			reader = new BufferedReader(new FileReader(this.filepath + "rgb.txt"));
 			String line = "";
-			while (line != null) {
+			while (line != null && this.frameData.size() < this.frameLimit) {
 				line = line.trim();
 				if (line.length() != 0 && line.charAt(0) != '#') {
 
@@ -112,11 +112,18 @@ public class TUMFrameBuffer implements FrameBuffer {
 			System.out.println("Problem loading file paths in TUMFrameBuffer::loadFilePaths()");
 			e.printStackTrace();
 		}
+		System.out.println("Complete. Number of frames: " + this.frameData.size());
 	}
 
 	public void loadAllFrames() {
 
-		for (int i = 0; i < this.frameData.size() && i < 1; i++) {
+		System.out.println("Pre-loading frames...");
+
+		for (int i = 0; i < this.frameData.size(); i++) {
+
+			if (i % 100 == 0) {
+				System.out.println(i + " frames loaded...");
+			}
 
 			// get the timestamp
 			String splits[] = this.frameData.get(i).split(" ");
@@ -130,6 +137,8 @@ public class TUMFrameBuffer implements FrameBuffer {
 			this.frames.add(frame);
 
 		}
+
+		System.out.println("Complete. " + this.frames.size() + " frames loaded.");
 
 	}
 

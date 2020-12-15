@@ -1,7 +1,6 @@
 import org.opencv.core.Core;
 
 import ARPipeline.ARPipeline;
-import ARPipeline.OfflineFrameBuffer;
 import ARPipeline.SingletonFrameBuffer;
 import ARPipeline.SingletonPoseBuffer;
 import ARPipeline.TUMFrameBuffer;
@@ -11,6 +10,7 @@ public class ARBootstrapper {
 
 	String SAMPLE_PATH = "src/samples/";
 	String filename = SAMPLE_PATH + "roomFloor01_270.avi";
+	String tumFile = "../datasets/rgbd_dataset_freiburg3_long_office_household/";
 
 	public ARBootstrapper() {
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
@@ -18,7 +18,8 @@ public class ARBootstrapper {
 
 	public void start() {
 
-		OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, false);
+		// OfflineFrameBuffer ofb = new OfflineFrameBuffer(filename, false);
+		TUMFrameBuffer ofb = new TUMFrameBuffer(tumFile, true);
 		SingletonPoseBuffer spb = new SingletonPoseBuffer();
 		SingletonFrameBuffer sfb = new SingletonFrameBuffer();
 		ARPipeline pipeline = new TestPipeline(ofb, spb, sfb);
@@ -37,14 +38,14 @@ public class ARBootstrapper {
 
 	public static void main(String[] args) {
 		ARBootstrapper arBootstrapper = new ARBootstrapper();
-		// arBootstrapper.start();
-		arBootstrapper.tests();
+		arBootstrapper.start();
+		// arBootstrapper.tests();
 
 	}
 
 	public void tests() {
 
-		TUMFrameBuffer tum = new TUMFrameBuffer("../datasets/rgbd_dataset_freiburg1_desk/", true, true);
+		TUMFrameBuffer tum = new TUMFrameBuffer("../datasets/rgbd_dataset_freiburg1_desk/", true);
 
 	}
 

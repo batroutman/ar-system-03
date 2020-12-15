@@ -9,11 +9,15 @@ import org.lwjgl.opengl.PixelFormat;
 
 public class DisplayManager {
 
-	public static final int WIDTH = 1280;
-	public static final int HEIGHT = 720;
+	public static int WIDTH = 1280;
+	public static int HEIGHT = 960;
 	private static final int FPS_CAP = 1000;
 
-	public static void createDisplay() {
+	public static void createDisplay(int width, int height) {
+
+		WIDTH = width;
+		HEIGHT = height;
+
 		ContextAttribs attribs = new ContextAttribs(3, 2).withForwardCompatible(true).withProfileCore(true);
 
 		try {

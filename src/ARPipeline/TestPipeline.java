@@ -707,7 +707,7 @@ public class TestPipeline extends ARPipeline {
 				pl("num correspondences: " + correspondences.size());
 				try {
 					// initialize the map
-					if (!mapInitialized && frameNum >= 99) {
+					if (!mapInitialized && frameNum >= 60) {
 						Pose newPose = this.structureFromMotionUpdateHomography(correspondences);
 
 						// triangulate points in map
